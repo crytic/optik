@@ -6,5 +6,6 @@ Practical symbolic execution for smart contracts
 - [ ] Coverage APIs
   - [ ] per instruction set
   - [ ] per path
-- [ ] Simple script that takes corpus from echidna, runs it, collects coverage, then tries to discover inputs for new paths based on that
-- [ ] Simple PoC that we can increase echidna coverage with SE
+
+- [ ] Simple script that takes corpus from echidna, runs it, collects coverage, then tries to discover inputs for new paths based on that
+- [ ] Simple PoC that we can increase echidna coverage with SE
