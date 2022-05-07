@@ -18,7 +18,7 @@ setup(
         "pymaat",
         "eth_abi"
     ],
-    extra_require = {
+    extras_require = {
         "lint": lint_deps,
     },
     entry_points={
