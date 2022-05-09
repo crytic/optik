@@ -38,12 +38,12 @@ def uintM(bits: int, value: Union[int, Value]) -> Value:
             return value
         elif value.size > bits:
             logger.warning(
-                f"{value} (size: {value.size}) will be truncated to fit in uint{bits}"
+                f"Expression '{value}' (size: {value.size}) will be truncated to fit in uint{bits}"
             )
             return Extract(value, bits - 1, 0)
         else:
             logger.warning(
-                f"{value} (size: {value.size}) will be zero-extended to fit in uint{bits}"
+                f"Expression '{value}' (size: {value.size}) will be zero-extended to fit in uint{bits}"
             )
             return Concat(
                 Cst(bits - value.size, 0), value
