@@ -10,7 +10,7 @@ def translate_argument(arg: Dict) -> Tuple[str, Union[bytes, int, Value]]:
     :param arg: Transaction argument parsed as a json dict"""
     if arg["tag"] == "AbiUInt":
         bits = arg["contents"][0]
-        val = int(arg["contents"][1], 16)  # values are in hex so base 16
+        val = int(arg["contents"][1])
         return (
             f"uint{bits}",
             val,
