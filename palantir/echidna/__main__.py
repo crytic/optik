@@ -12,8 +12,10 @@ def main() -> None:
     m = MaatEngine(ARCH.EVM)
     m.load(contract_file)
     contract(m).transaction = tx
+    init_state = m.take_snapshot()
     # Run
     m.run()
+    m.restore_snapshot(init_state)
 
 
 if __name__ == "__main__":
