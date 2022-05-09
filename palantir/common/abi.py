@@ -4,6 +4,7 @@ import sha3
 from eth_abi.grammar import ABIType, BasicType, TupleType, parse, normalize
 from eth_abi.exceptions import ABITypeError, ParseError
 from typing import List, Union
+from .logger import logger
 
 # ====================================
 # Methods that encode transaction data
@@ -27,19 +28,28 @@ def uintM(bits: int, value: Union[int, Value]) -> Value:
     _check_int_bits(bits)
 
     if isinstance(value, int):
+        if value < 0:
+            logger.warning(f"Negative value {value} encoded as uint{bits}")
+        elif value >= (1 << bits):
+            logger.warning(f"{value} will be truncated to fit in uint{bits}, ")
         return Cst(bits, value)
     elif isinstance(value, Value):
         if value.size == bits:
             return value
-        # TODO(boyan): log warnings about type extension/truncation
-        elif value.size < bits:
+        elif value.size > bits:
+            logger.warning(
+                f"{value} (size: {value.size}) will be truncated to fit in uint{bits}"
+            )
             return Extract(value, bits - 1, 0)
         else:
+            logger.warning(
+                f"{value} (size: {value.size}) will be zero-extended to fit in uint{bits}"
+            )
             return Concat(
                 Cst(bits - value.size, 0), value
             )  # Zero extend because unsigned
     else:
-        raise ABIException("'value' type must be int or str")
+        raise ABIException("'value' must be int or str")
 
 
 def selector(func_signature: str) -> bytes:
@@ -56,7 +66,7 @@ def call(func: str, args_spec: str, *args) -> List[Union[bytes, Value]]:
     """
     # Parse function arguments
     try:
-        args_spec = "".join(args_spec.split()) # strip all whitespaces
+        args_spec = "".join(args_spec.split())  # strip all whitespaces
         args_spec = normalize(args_spec)
         args_types = parse(args_spec)
     except ParseError as e:
