@@ -1,8 +1,8 @@
 # palantir
 Practical symbolic execution for smart contracts
 
-- [ ] Simple CI with linter
-- [ ] Simple logger
+- [x] Simple CI with linter
+- [x] Simple logger
 - [ ] Simple API to run a transaction in a contract
 - [ ] Serialization for transaction data types
 - [ ] Coverage APIs
