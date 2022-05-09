@@ -23,7 +23,7 @@ setup(
     },
     entry_points={
         "console_scripts": [
-            "palantir = palantir.__main__:main"
+            "palantir-echidna = palantir.echidna.__main__:main"
         ]
     },
 )

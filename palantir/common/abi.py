@@ -56,6 +56,7 @@ def call(func: str, args_spec: str, *args) -> List[Union[bytes, Value]]:
     """
     # Parse function arguments
     try:
+        args_spec = "".join(args_spec.split()) # strip all whitespaces
         args_spec = normalize(args_spec)
         args_types = parse(args_spec)
     except ParseError as e:
