@@ -1,17 +1,11 @@
-from ..common.abi import call
+from .interface import load_tx_sequence
 from maat import *
+import sys
 
 
 def main() -> None:
-    call_data = call(
-        "foo",
-        "(uint256, uint256, uint256, uint256)",
-        0x12345676854765841654651635165846514651665465656543535435354545FFFFFFFFFF,
-        -45,
-        Var(8, "a"),
-        Var(300, "b"),
-    )
-    print(call_data)
+    corpus_file = sys.argv[1]
+    print(load_tx_sequence(corpus_file))
 
 
 if __name__ == "__main__":

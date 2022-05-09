@@ -52,14 +52,15 @@ def uintM(bits: int, value: Union[int, Value]) -> Value:
         raise ABIException("'value' must be int or str")
 
 
-def selector(func_signature: str) -> bytes:
+def selector(func_signature: str) -> Value:
     """Return the first 4 bytes of the keccak256 hash of 'func_signature'"""
     k = sha3.keccak_256()
     k.update(func_signature.encode())
-    return bytes(k.digest()[:4])
+    digest = k.digest()[:4]
+    return Cst(32, int.from_bytes(digest, "big"))
 
 
-def call(func: str, args_spec: str, *args) -> List[Union[bytes, Value]]:
+def function_call(func: str, args_spec: str, *args) -> List[Value]:
     """Encode a function call
     :param func: the name of the function to call
     :param args_spec: a string describing the type of arguments, e.g '(int256,bytes)' or 'uint'
