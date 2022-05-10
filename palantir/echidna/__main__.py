@@ -41,5 +41,6 @@ def main() -> None:
             model = s.get_model()
             print(f"Found new input: {model}")
 
+
 if __name__ == "__main__":
     main()
