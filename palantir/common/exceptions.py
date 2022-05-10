@@ -12,3 +12,7 @@ class EchidnaException(GenericException):
     """Exception for errros when interacting with Echidna"""
 
     pass
+
+
+class CoverageException(GenericException):
+    """Exception for errors during coverage generation"""
