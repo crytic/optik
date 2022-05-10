@@ -67,7 +67,7 @@ class InstCoverage:
         )
         m.hooks.add(
             EVENT.PATH,
-            WHEN.AFTER,
+            WHEN.BEFORE,
             callbacks=[InstCoverage.branch_callback],
             name="__inst_coverage_branch_hook",
             data=self,
@@ -77,6 +77,23 @@ class InstCoverage:
     def set_input_uid(m: MaatEngine, input_uid: str) -> None:
         """Set the input UID of the input currently running in an engine"""
         self.current_inputs[m.uid] = input_uid
+
+    def filter_bifurcations(self, visit_max: int = 0) -> None:
+        """Filter the saved bifurcations to keep only the ones
+        that will lead to new code
+
+        :param visit_max: Keep the bifurcations if they lead to instructions
+        that have been visited at most 'visit_max'
+        """
+        self.bifurcations = [
+            b
+            for b in self.bifurcations
+            if self.covered.get(b.alt_target, 0) <= visit_max
+        ]
+
+    def sort_bifurcations(self) -> None:
+        """Sort bifurcations according to their number of path constraints"""
+        self.bifurcations.sort(key=lambda x: len(x.path_constraints))
 
     @staticmethod
     def inst_callback(m: MaatEngine, cov: "InstCoverage"):

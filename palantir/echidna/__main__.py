@@ -1,7 +1,7 @@
 from .interface import load_tx_sequence
 from ..coverage import InstCoverage
 from ..common.utils import symbolicate_tx_data
-from maat import ARCH, contract, EVM, MaatEngine
+from maat import ARCH, contract, EVM, MaatEngine, Solver
 import sys
 
 
@@ -28,6 +28,18 @@ def main() -> None:
     m.run()
     m.restore_snapshot(init_state)
 
+    # Get possible new paths
+    cov.filter_bifurcations()
+    cov.sort_bifurcations()
+    for bif in cov.bifurcations:
+        s = Solver()
+        for path_constraint in bif.path_constraints:
+            s.add(path_constraint)
+        s.add(bif.alt_target_constraint)
+        print("Solving new input...")
+        if s.check():
+            model = s.get_model()
+            print(f"Found new input: {model}")
 
 if __name__ == "__main__":
     main()
