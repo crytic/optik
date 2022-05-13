@@ -1,4 +1,7 @@
 class GenericException(Exception):
+    """Generic exception class for Palantir, from which all custom
+    exceptions derive"""
+
     pass
 
 
@@ -16,3 +19,5 @@ class EchidnaException(GenericException):
 
 class CoverageException(GenericException):
     """Exception for errors during coverage generation"""
+
+    pass

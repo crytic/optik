@@ -25,6 +25,8 @@ class InstCoverage:
         self.covered[addr] = self.covered.get(addr, 0) + 1
 
     def record_branch(self, m: MaatEngine) -> None:
+        """Record execution of a symbolic branch and save the bifurcation
+        point information"""
         input_uid: str = self.current_inputs.get(m.uid, "<unspecified>")
         b = m.info.branch
         if b.taken is None:
@@ -73,7 +75,11 @@ class InstCoverage:
         )
 
     def set_input_uid(self, m: MaatEngine, input_uid: str) -> None:
-        """Set the input UID of the input currently running in an engine"""
+        """Set the input UID of the input currently running in an engine
+
+        :param m: the engine that will run the input identified by 'input_uid'
+        :param input_uid: the unique ID of the input that will be run by 'm'
+        """
         self.current_inputs[m.uid] = input_uid
 
     def filter_bifurcations(self, visit_max: int = 0) -> None:
@@ -90,7 +96,8 @@ class InstCoverage:
         ]
 
     def sort_bifurcations(self) -> None:
-        """Sort bifurcations according to their number of path constraints"""
+        """Sort bifurcations according to their number of path constraints, from
+        less constraints to more constraints"""
         self.bifurcations.sort(key=lambda x: len(x.path_constraints))
 
     @staticmethod
