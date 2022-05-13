@@ -25,9 +25,7 @@ class InstCoverage:
         self.covered[addr] = self.covered.get(addr, 0) + 1
 
     def record_branch(self, m: MaatEngine) -> None:
-        # TODO: fix this when support for m.uid is added
-        # input_uid: str = self.current_inputs.get(m.uid, "<unspecified>")
-        input_uid: str = "<unspecified>"
+        input_uid: str = self.current_inputs.get(m.uid, "<unspecified>")
         b = m.info.branch
         if b.taken is None:
             raise CoverageException(
@@ -74,7 +72,7 @@ class InstCoverage:
             group="__inst_coverage",
         )
 
-    def set_input_uid(m: MaatEngine, input_uid: str) -> None:
+    def set_input_uid(self, m: MaatEngine, input_uid: str) -> None:
         """Set the input UID of the input currently running in an engine"""
         self.current_inputs[m.uid] = input_uid
 

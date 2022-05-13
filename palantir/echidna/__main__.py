@@ -20,8 +20,7 @@ def main() -> None:
     # Enable code coverage tracking
     cov = InstCoverage()
     cov.track(m)
-    # TODO uncomment when supporting MaatEngine.uid
-    # cov.set_input_uid(m, corpus_file)
+    cov.set_input_uid(m, corpus_file)
 
     # Run
     init_state = m.take_snapshot()
