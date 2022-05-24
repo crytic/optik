@@ -20,6 +20,7 @@ def replay_inputs(m: MaatEngine, corpus_dir: str, contract_file: str, cov: Optio
     # TODO: abstract `coverage` out into a config?
     coverage_dir = os.path.join(os.path.realpath(corpus_dir), "coverage")
 
+    cov.track(m)
     # Load individual input corpora
     for corpus_file in os.listdir(coverage_dir):
         print(f"Loading inputs from {coverage_dir + '/' + corpus_file}")
@@ -32,7 +33,7 @@ def replay_inputs(m: MaatEngine, corpus_dir: str, contract_file: str, cov: Optio
         contract(m).transaction = tx
         symbolicate_tx_data(m)
 
-        cov.track(m)
+        
         cov.set_input_uid(m, corpus_file)
 
     # Run
