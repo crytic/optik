@@ -1,44 +1,40 @@
-from .interface import load_tx_sequence
-from ..coverage import InstCoverage
-from ..common.utils import symbolicate_tx_data
-from maat import ARCH, contract, EVM, MaatEngine, Solver
+
+import argparse
 import sys
 
+from maat import MaatEngine, ARCH
+
+from .runner import replay_inputs
 
 def main() -> None:
-    corpus_file = sys.argv[1]
-    contract_file = sys.argv[2]
+    
+    args = parse_arguments()
 
-    # Load echidna transaction from corpus and initialize engine with
-    # the contract and transaction
-    tx = load_tx_sequence(corpus_file)[0]
+    # Initialise maat engine
     m = MaatEngine(ARCH.EVM)
-    m.load(contract_file)
-    contract(m).transaction = tx
-    symbolicate_tx_data(m)
+    ins = replay_inputs(m, args.corpus_dir, args.contract_file)
+    print("ins:", ins)
 
-    # Enable code coverage tracking
-    cov = InstCoverage()
-    cov.track(m)
-    cov.set_input_uid(m, corpus_file)
+def parse_arguments() -> argparse.Namespace:
 
-    # Run
-    init_state = m.take_snapshot()
-    m.run()
-    m.restore_snapshot(init_state)
+    parser = argparse.ArgumentParser(
+        description = "Concolic fuzzing tool",
+        prog="palantir-echidna",
+        formatter_class=argparse.ArgumentDefaultsHelpFormatter
+    )
 
-    # Get possible new paths
-    cov.filter_bifurcations()
-    cov.sort_bifurcations()
-    for bif in cov.bifurcations:
-        s = Solver()
-        for path_constraint in bif.path_constraints:
-            s.add(path_constraint)
-        s.add(bif.alt_target_constraint)
-        print("Solving new input...")
-        if s.check():
-            model = s.get_model()
-            print(f"Found new input: {model}")
+    parser.add_argument(
+        "--corpus_dir",
+        type=str,
+        default=".",
+        help=""
+        )
+    
+    parser.add_argument(
+        "--contract_file"
+    )
+
+    return parser.parse_args(sys.argv[1:])
 
 
 if __name__ == "__main__":
