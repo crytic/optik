@@ -18,24 +18,21 @@ def replay_inputs(corpus_dir: str, contract_file: str, cov: Optional[InstCoverag
         cov = InstCoverage()
     cov.track(m)
 
-    # Load individual input corpora
+    # Run every input from the corpus
     for corpus_file in os.listdir(corpus_dir):
         corpus_file = os.path.join(corpus_dir, corpus_file)
-        print(f"Loading inputs from {corpus_file}")
-
         if not corpus_file.endswith('.txt'):
             continue
+        print(f"Replaying inputs from {corpus_file}")
 
         tx = load_tx_sequence(corpus_file)[0]
         contract(m).transaction = tx
         symbolicate_tx_data(m)
-
         cov.set_input_uid(m, corpus_file)
-
-    # Run
-    init_state = m.take_snapshot()
-    m.run()
-    m.restore_snapshot(init_state)
+        # Run
+        init_state = m.take_snapshot()
+        m.run()
+        m.restore_snapshot(init_state)
 
     # Get possible new paths
     cov.filter_bifurcations()
