@@ -45,23 +45,26 @@ def replay_inputs(corpus_dir: str, contract_file: str, cov: Optional[InstCoverag
             
 def find_new_inputs(cov: InstCoverage):
 
-    paths = []
+    res = []
 
     count = len(cov.bifurcations)
-    print("There are:", count, "to solve...")
+    print(f"Trying to solve {count} possible new paths...")
 
     for i,bif in enumerate(cov.bifurcations):
         print(f"Solving {i} of {count} ({round((i/count)*100, 2)}%)")
         s = Solver()
 
-        # add paths in
+        # Add path constraints in
         for path_constraint in bif.path_constraints:
             s.add(path_constraint)
-            
+        # Add constraint to branch to new code
         s.add(bif.alt_target_constraint)
 
         if s.check():
             model = s.get_model()
-            paths.append(model)
-    
-    return paths
+            # TODO: so far we can just return the models but eventually
+            # we will need to serialize them as proper echidna JSON corpus files.
+            # To be implemented after issue #3 is closed.
+            res.append(model)
+
+    return res
