@@ -1,4 +1,3 @@
-
 from .interface import load_tx_sequence
 from ..coverage import InstCoverage
 from ..common.utils import symbolicate_tx_data
@@ -7,7 +6,10 @@ from typing import Optional
 
 import os
 
-def replay_inputs(corpus_dir: str, contract_file: str, cov: Optional[InstCoverage] = None) -> InstCoverage:
+
+def replay_inputs(
+    corpus_dir: str, contract_file: str, cov: Optional[InstCoverage] = None
+) -> InstCoverage:
 
     # Initialise engine and load contract
     m = MaatEngine(ARCH.EVM)
@@ -21,7 +23,7 @@ def replay_inputs(corpus_dir: str, contract_file: str, cov: Optional[InstCoverag
     # Run every input from the corpus
     for corpus_file in os.listdir(corpus_dir)[:1]:
         corpus_file = os.path.join(corpus_dir, corpus_file)
-        if not corpus_file.endswith('.txt'):
+        if not corpus_file.endswith(".txt"):
             continue
         print(f"Replaying inputs from {corpus_file}")
 
@@ -35,9 +37,10 @@ def replay_inputs(corpus_dir: str, contract_file: str, cov: Optional[InstCoverag
         # Make sure transaction was executed properly
         assert m.info.stop == STOP.EXIT
         m.restore_snapshot(init_state)
-  
+
     return cov
-            
+
+
 def generate_new_inputs(cov: InstCoverage):
 
     # Keep only interesting bifurcations
@@ -48,7 +51,7 @@ def generate_new_inputs(cov: InstCoverage):
     count = len(cov.bifurcations)
     print(f"Trying to solve {count} possible new paths...")
 
-    for i,bif in enumerate(cov.bifurcations):
+    for i, bif in enumerate(cov.bifurcations):
         print(f"Solving {i+1} of {count} ({round((i/count)*100, 2)}%)")
         s = Solver()
 
