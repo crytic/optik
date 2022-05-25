@@ -3,6 +3,7 @@ from maat import Cst, EVMTransaction, Value
 from typing import Dict, List, Tuple, Union
 from ..common.exceptions import EchidnaException
 from ..common.abi import function_call
+from ..common.logger import logger
 
 
 def translate_argument(arg: Dict) -> Tuple[str, Union[bytes, int, Value]]:
