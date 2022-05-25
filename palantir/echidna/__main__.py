@@ -12,26 +12,27 @@ def main() -> None:
 
     # Initialise maat engine
     m = MaatEngine(ARCH.EVM)
-    ins = replay_inputs(m, args.corpus_dir, args.contract_file)
+    ins = replay_inputs(m, args.corpus_dir, args.contract)
     print("ins:", ins)
 
 def parse_arguments() -> argparse.Namespace:
 
     parser = argparse.ArgumentParser(
         description = "Concolic fuzzing tool",
-        prog="palantir-echidna",
+        prog=sys.argv[0],
         formatter_class=argparse.ArgumentDefaultsHelpFormatter
     )
 
     parser.add_argument(
-        "--corpus_dir",
+        "corpus_dir",
         type=str,
-        default=".",
-        help=""
-        )
+        help="Echidna corpus directory to replay"
+    )
     
     parser.add_argument(
-        "--contract_file"
+        "contract",
+        type=str,
+        help="Compiled smart contract to run"
     )
 
     return parser.parse_args(sys.argv[1:])
