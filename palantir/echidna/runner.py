@@ -19,8 +19,8 @@ def replay_inputs(m: MaatEngine, corpus_dir: str, contract_file: str, cov: Optio
 
     # Load individual input corpora
     for corpus_file in os.listdir(corpus_dir):
-        print(f"Loading inputs from {corpus_dir + '/' + corpus_file}")
         corpus_file = os.path.join(corpus_dir, corpus_file)
+        print(f"Loading inputs from {corpus_file}")
 
         if not corpus_file.endswith('.txt'):
             continue
