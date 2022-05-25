@@ -1,44 +1,37 @@
-from .interface import load_tx_sequence
-from ..coverage import InstCoverage
-from ..common.utils import symbolicate_tx_data
-from maat import ARCH, contract, EVM, MaatEngine, Solver
+import argparse
 import sys
+
+from .runner import replay_inputs, generate_new_inputs
+from ..coverage import InstCoverage
 
 
 def main() -> None:
-    corpus_file = sys.argv[1]
-    contract_file = sys.argv[2]
-
-    # Load echidna transaction from corpus and initialize engine with
-    # the contract and transaction
-    tx = load_tx_sequence(corpus_file)[0]
-    m = MaatEngine(ARCH.EVM)
-    m.load(contract_file)
-    contract(m).transaction = tx
-    symbolicate_tx_data(m)
-
-    # Enable code coverage tracking
+    args = parse_arguments()
     cov = InstCoverage()
-    cov.track(m)
-    cov.set_input_uid(m, corpus_file)
+    # Replay echidna corpus
+    cov = replay_inputs(args.corpus_dir, args.contract, cov)
+    # Find inputs to reach new code
+    new_inputs = generate_new_inputs(cov)
+    print("New inputs:", new_inputs)
 
-    # Run
-    init_state = m.take_snapshot()
-    m.run()
-    m.restore_snapshot(init_state)
 
-    # Get possible new paths
-    cov.filter_bifurcations()
-    cov.sort_bifurcations()
-    for bif in cov.bifurcations:
-        s = Solver()
-        for path_constraint in bif.path_constraints:
-            s.add(path_constraint)
-        s.add(bif.alt_target_constraint)
-        print("Solving new input...")
-        if s.check():
-            model = s.get_model()
-            print(f"Found new input: {model}")
+def parse_arguments() -> argparse.Namespace:
+
+    parser = argparse.ArgumentParser(
+        description="Concolic fuzzing tool",
+        prog=sys.argv[0],
+        formatter_class=argparse.ArgumentDefaultsHelpFormatter,
+    )
+
+    parser.add_argument(
+        "corpus_dir", type=str, help="Echidna corpus directory to replay"
+    )
+
+    parser.add_argument(
+        "contract", type=str, help="Compiled smart contract to run"
+    )
+
+    return parser.parse_args(sys.argv[1:])
 
 
 if __name__ == "__main__":
