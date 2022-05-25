@@ -3,11 +3,6 @@ WORK IN PROGRESS - do not use
 
 ## Echidna hybrid fuzzing
 
-Example usage: 
-```
-palantir_echidna <corpus_dir> <contract>
-```
-
 - [x] Simple CI with linter
 - [x] Simple logger
 - [ ] Serialization for transaction data types
