@@ -21,9 +21,13 @@ WORK IN PROGRESS - do not use
 ## MISC
 
 - [ ] Implement `ContractRunner`: execution wrapper for a single contract
-  - [ ] Load and run a single transaction
+  - [x] Load and run a single transaction
   - [ ] Run a series of transactions
-  - [ ] Handle possible REVERT by using snapshoting 
+  - [x] Handle possible REVERT by using snapshoting 
+  - [ ] Provide a callback API for events (pass the runner as argument to the callback, everything else is accessible from there)
+    - [ ] Pushing new runtime / new transaction
+    - [ ] Deleting a runtime / end transaction
   - Handle re-entrency:
     - [ ] Hold a stack of `MaatEngine` instances on re-entrency
     - [ ] Automatically make a copy of the top-level engine on re-entrency
+  - [ ] Update `coverage` module to work with a `ContractRunner`
