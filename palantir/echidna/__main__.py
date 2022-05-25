@@ -2,15 +2,17 @@
 import argparse
 import sys
 
-from .runner import replay_inputs
+from .runner import replay_inputs, generate_new_inputs
+from ..coverage import InstCoverage
 
 def main() -> None:
-    
     args = parse_arguments()
-
-    # Initialise maat engine
-    ins = replay_inputs(args.corpus_dir, args.contract)
-    print("ins:", ins)
+    cov = InstCoverage()
+    # Replay echidna corpus
+    cov = replay_inputs(args.corpus_dir, args.contract, cov)
+    # Find inputs to reach new code
+    new_inputs = generate_new_inputs(cov)
+    print("New inputs:", new_inputs)
 
 def parse_arguments() -> argparse.Namespace:
 

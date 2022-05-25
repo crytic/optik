@@ -2,7 +2,7 @@
 from .interface import load_tx_sequence
 from ..coverage import InstCoverage
 from ..common.utils import symbolicate_tx_data
-from maat import ARCH, MaatEngine, contract, Solver
+from maat import ARCH, contract, MaatEngine, Solver, STOP
 from typing import Optional
 
 import os
@@ -19,7 +19,7 @@ def replay_inputs(corpus_dir: str, contract_file: str, cov: Optional[InstCoverag
     cov.track(m)
 
     # Run every input from the corpus
-    for corpus_file in os.listdir(corpus_dir):
+    for corpus_file in os.listdir(corpus_dir)[:1]:
         corpus_file = os.path.join(corpus_dir, corpus_file)
         if not corpus_file.endswith('.txt'):
             continue
@@ -32,26 +32,24 @@ def replay_inputs(corpus_dir: str, contract_file: str, cov: Optional[InstCoverag
         # Run
         init_state = m.take_snapshot()
         m.run()
+        # Make sure transaction was executed properly
+        assert m.info.stop == STOP.EXIT
         m.restore_snapshot(init_state)
+  
+    return cov
+            
+def generate_new_inputs(cov: InstCoverage):
 
-    # Get possible new paths
+    # Keep only interesting bifurcations
     cov.filter_bifurcations()
     cov.sort_bifurcations()
 
-    # Get possible new paths
-    new_inputs = find_new_inputs(cov)
-        
-    return new_inputs
-            
-def find_new_inputs(cov: InstCoverage):
-
     res = []
-
     count = len(cov.bifurcations)
     print(f"Trying to solve {count} possible new paths...")
 
     for i,bif in enumerate(cov.bifurcations):
-        print(f"Solving {i} of {count} ({round((i/count)*100, 2)}%)")
+        print(f"Solving {i+1} of {count} ({round((i/count)*100, 2)}%)")
         s = Solver()
 
         # Add path constraints in
