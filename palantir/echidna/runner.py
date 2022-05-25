@@ -7,7 +7,6 @@ from typing import Optional
 
 import os
 
-
 def replay_inputs(m: MaatEngine, corpus_dir: str, contract_file: str, cov: Optional[InstCoverage] = None) -> InstCoverage:
 
     # Initialise contract
@@ -16,15 +15,12 @@ def replay_inputs(m: MaatEngine, corpus_dir: str, contract_file: str, cov: Optio
     # Building upon existing coverage?
     if not cov:
         cov = InstCoverage()
-
-    # TODO: abstract `coverage` out into a config?
-    coverage_dir = os.path.join(os.path.realpath(corpus_dir), "coverage")
-
     cov.track(m)
+
     # Load individual input corpora
-    for corpus_file in os.listdir(coverage_dir):
-        print(f"Loading inputs from {coverage_dir + '/' + corpus_file}")
-        corpus_file = os.path.join(coverage_dir, corpus_file)
+    for corpus_file in os.listdir(corpus_dir):
+        print(f"Loading inputs from {corpus_dir + '/' + corpus_file}")
+        corpus_file = os.path.join(corpus_dir, corpus_file)
 
         if not corpus_file.endswith('.txt'):
             continue
