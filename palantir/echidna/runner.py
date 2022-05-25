@@ -21,7 +21,7 @@ def replay_inputs(
     cov.track(m)
 
     # Run every input from the corpus
-    for corpus_file in os.listdir(corpus_dir)[:1]:
+    for corpus_file in os.listdir(corpus_dir):
         corpus_file = os.path.join(corpus_dir, corpus_file)
         if not corpus_file.endswith(".txt"):
             continue
