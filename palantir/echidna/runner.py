@@ -2,14 +2,15 @@
 from .interface import load_tx_sequence
 from ..coverage import InstCoverage
 from ..common.utils import symbolicate_tx_data
-from maat import MaatEngine, contract, Solver
+from maat import ARCH, MaatEngine, contract, Solver
 from typing import Optional
 
 import os
 
-def replay_inputs(m: MaatEngine, corpus_dir: str, contract_file: str, cov: Optional[InstCoverage] = None) -> InstCoverage:
+def replay_inputs(corpus_dir: str, contract_file: str, cov: Optional[InstCoverage] = None) -> InstCoverage:
 
-    # Initialise contract
+    # Initialise engine and load contract
+    m = MaatEngine(ARCH.EVM)
     m.load(contract_file)
 
     # Building upon existing coverage?
@@ -29,7 +30,6 @@ def replay_inputs(m: MaatEngine, corpus_dir: str, contract_file: str, cov: Optio
         contract(m).transaction = tx
         symbolicate_tx_data(m)
 
-        
         cov.set_input_uid(m, corpus_file)
 
     # Run

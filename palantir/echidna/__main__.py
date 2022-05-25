@@ -2,8 +2,6 @@
 import argparse
 import sys
 
-from maat import MaatEngine, ARCH
-
 from .runner import replay_inputs
 
 def main() -> None:
@@ -11,8 +9,7 @@ def main() -> None:
     args = parse_arguments()
 
     # Initialise maat engine
-    m = MaatEngine(ARCH.EVM)
-    ins = replay_inputs(m, args.corpus_dir, args.contract)
+    ins = replay_inputs(args.corpus_dir, args.contract)
     print("ins:", ins)
 
 def parse_arguments() -> argparse.Namespace:
