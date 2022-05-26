@@ -8,15 +8,22 @@ class ColoredFormatter(logging.Formatter):
     yellow = "\x1b[33;20m"
     red = "\x1b[31;20m"
     bold_red = "\x1b[31;1m"
-    reset = "\x1b[0m"
-    fmt = "%(asctime)s - %(levelname)s - %(message)s (%(filename)s:%(lineno)d)"
+    blue = "\x1b[34m"
+    green = "\x1b[32m"
+
+    def colored_fmt(color: str, whole=False) -> str:
+        reset = "\x1b[0m"
+        if whole:
+            return f"{color}%(asctime)s - %(levelname)s - %(message)s{reset}"
+        else:
+            return f"%(asctime)s - {color}%(levelname)s{reset} - %(message)s"
 
     FORMATS = {
-        logging.DEBUG: grey + fmt + reset,
-        logging.INFO: grey + fmt + reset,
-        logging.WARNING: yellow + fmt + reset,
-        logging.ERROR: red + fmt + reset,
-        logging.CRITICAL: bold_red + fmt + reset,
+        logging.DEBUG: colored_fmt(blue),
+        logging.INFO: colored_fmt(green),
+        logging.WARNING: colored_fmt(yellow),
+        logging.ERROR: colored_fmt(red, whole=True),
+        logging.CRITICAL: colored_fmt(bold_red, whole=True),
     }
 
     def format(self, record):
@@ -29,3 +36,4 @@ logger = logging.getLogger("palantir")
 handler = logging.StreamHandler(sys.stdout)
 handler.setFormatter(ColoredFormatter())
 logger.addHandler(handler)
+logger.setLevel(logging.INFO)
