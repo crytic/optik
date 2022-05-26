@@ -42,15 +42,16 @@ def load_tx(tx: Dict) -> EVMTransaction:
     call_data = function_call(func_name, func_signature, *arg_values)
 
     # Build transaction
-    # TODO: correctly handle all the fields other than 'data'
+    # TODO: correctly handle gas_limit
     # TODO: make EVMTransaction accept integers as arguments
-    sender = Cst(256, 1)
-    value = Cst(256, 0)
+    sender = Cst(256, int(tx["_src"], 16))
+    value = Cst(256, int(tx["_value"], 16))
     gas_limit = Cst(256, 46546514651)
+    recipient = int(tx["_dst"], 16)
     return EVMTransaction(
         sender,  # origin
         sender,  # sender
-        2,  # recipient
+        recipient,  # recipient
         value,  # value
         call_data,  # data
         gas_limit,  # gas_limit
