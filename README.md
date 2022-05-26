@@ -11,6 +11,7 @@ WORK IN PROGRESS - do not use
   - [ ] per path
 
 - [x] Simple script that takes corpus from echidna, runs it, collects coverage, then tries to discover inputs for new paths based on that
+- [ ] Implement main script using `EVMWorld` instead of a single `MaatEngine` instance
 
 - [ ] Full echidna integration
   - [ ] Serialize new inputs back into JSON corpus files (issue #3)
@@ -23,11 +24,17 @@ WORK IN PROGRESS - do not use
 - [ ] Implement `ContractRunner`: execution wrapper for a single contract
   - [x] Load and run a single transaction
   - [ ] Run a series of transactions
-  - [x] Handle possible REVERT by using snapshoting 
+  - [x] Handle possible REVERT by using snapshoting
   - [ ] Provide a callback API for events (pass the runner as argument to the callback, everything else is accessible from there)
     - [ ] Pushing new runtime / new transaction
     - [ ] Deleting a runtime / end transaction
   - Handle re-entrency:
     - [x] Hold a stack of `MaatEngine` instances on re-entrency
     - [ ] Automatically make a copy of the top-level engine on re-entrency
-  - [ ] Update `coverage` module to work with a `EVMWorld` (subscribe to events)
+
+- [x] Update `coverage` module to work with a `EVMWorld` (subscribe to events)
+
+- EVMWorld (this class should basically have the same API as MaatEngine so that all exploration algorithms, etc, can work on the whole EVM world seamlessly)
+  - [ ] snapshoting interface
+  - [ ] serialization interface: maybe have a EVMWorldSerializer class (don't forget to not serialize each engine separately but serialize them in batch to avoid serializing the environment every time)
+  - [ ] calls accross contracts & delegate call into same contract

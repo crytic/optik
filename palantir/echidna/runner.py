@@ -30,7 +30,7 @@ def replay_inputs(
         tx = load_tx_sequence(corpus_file)[0]
         contract(m).transaction = tx
         symbolicate_tx_data(m)
-        cov.set_input_uid(m, corpus_file)
+        cov.set_input_uid(corpus_file)
         # Run
         init_state = m.take_snapshot()
         m.run()

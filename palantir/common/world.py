@@ -1,5 +1,5 @@
 from maat import ARCH, contract, EVM, EVMTransaction, Info, MaatEngine, STOP
-from typing import Dict, List, Optional
+from typing import Callable, Dict, List, Optional
 from dataclasses import dataclass
 import enum
 from .exceptions import WorldException
@@ -32,8 +32,6 @@ class ContractRunner:
     handle execution of several transactions with potential re-entrency"""
 
     def __init__(self, contract_file: str, address: int):
-        self._transactions: Optional[List[EVMTransaction]] = None
-
         # Load the contract in a symbolic engine
         self.root_engine = MaatEngine(ARCH.EVM)
         self.root_engine.load(contract_file, envp={"address": str(address)})
@@ -69,9 +67,22 @@ class ContractRunner:
         self.runtime_stack.pop()
 
 
-class EVMEvent(enum.Enum):
-    CALL = enum.auto()  # Call into a contract
-    END_CALL = enum.auto()  # Call into a contract returns
+class WorldMonitor:
+    """Abstract interface for monitors that can execute callbacks on
+    certain events"""
+
+    def __init__(self):
+        self.world: "EVMWorld" = None
+
+    def on_register(self, *args) -> None:
+        """Callback called once when the monitor is registered with
+        an EVMWorld"""
+        pass
+
+    def on_new_runtime(self, rt: EVMRuntime) -> None:
+        """New EVM runtime created. This corresponds to a new transaction
+        being run or execution of a message call accross contracts"""
+        pass
 
 
 class EVMWorld:
@@ -84,22 +95,15 @@ class EVMWorld:
                         method calls are currently being executed. The same address
                         can appear twice in case of re-entrency
         tx_queue        A list of transactions to execute
+        monitors        A list of WorldMonitor that can execute callbacks on
+                        various events
     """
-
-    # TODO(boyan)
-    # - snapshoting interface
-    # - serialization interface: maybe have a EVMWorldSerializer class
-    #   - don't forget to not serialize each engine separately but
-    #     serialize them in batch to avoid serializing the environment every
-    #     time
-    # - calls accross contracts
-    # Note: this class should basically have the same API as MaatEngine so that
-    # all exploration algorithms, etc, can work on the whole EVM world seamlessly
 
     def __init__(self):
         self.contracts: Dict[int, ContractRunner] = {}
         self.call_stack: List[int] = []
         self.tx_queue: List[EVMTransaction] = []
+        self.monitors: List[WorldMonitor] = []
 
     def deploy(self, contract_file: str, address: int) -> ContractRunner:
         """Deploy a contract at a given address
@@ -145,6 +149,12 @@ class EVMWorld:
             raise WorldException("No contract being currently executed")
         return self.contracts[self.call_stack[-1]]
 
+    def get_contract(self, address: int) -> ContractRunner:
+        """Return the contract deployed at 'address'"""
+        if not address in self.contracts:
+            raise WorldException(f"No contract deployed at {address}")
+        return self.contracts[address]
+
     @property
     def current_engine(self) -> MaatEngine:
         """Return the MaatEngine in which code is currently being executed"""
@@ -174,19 +184,38 @@ class EVMWorld:
                 runner.push_runtime(tx)
                 # Add to call stack
                 self.call_stack.append(contract_addr)
-                # TODO(boyan): raise CALL event
+                # New runtime event
+                self._on_event("new_runtime", runner.current_runtime)
 
             # Get current runtime and run
             rt: EVMRuntime = self.contracts[self.call_stack[-1]].current_runtime
             stop = rt.run().stop
             # Check stop reason
             if stop == STOP.EXIT:
-                # TODO(boyan): raise END_CALL event
                 # Call exited, delete the runtime
                 self.contracts[self.call_stack[-1]].pop_runtime()
                 # Remove it from callstack
                 self.call_stack.pop()
-            # elif TODO(boyan): message call into a contract
+            # elif TODO(boyan): message call into a contract (trigger CALL event again)
 
         # Any other return reason: event hook, error, ...
         return stop
+
+    def attach_monitor(self, monitor: WorldMonitor, *args) -> None:
+        """Attach a WorldMonitor"""
+        if monitor in self.monitors:
+            raise WorldException("Monitor already attached")
+        self.monitors.append(monitor)
+        monitor.world = self
+        monitor.on_register(*args)
+
+    def detach_monitor(self, monitor: WorldMonitor) -> None:
+        """Detach a WorldMonitor"""
+        if monitor not in self.monitors:
+            raise WorldException("Monitor was not attached")
+        self.monitors.remove(monitor)
+
+    def _on_event(self, event_name: str, *args) -> None:
+        for m in self.monitors:
+            callback = getattr(m, f"on_{event_name}")
+            callback(*args)

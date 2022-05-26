@@ -1,24 +1,30 @@
 from maat import MaatEngine, EVENT, WHEN
 from typing import Dict, List
 from ..common.exceptions import CoverageException
+from ..common.world import WorldMonitor, EVMRuntime
 from .bifurcation import Bifurcation
 
 
-class InstCoverage:
-    """A class for computing instruction coverage in a contract's code
+class InstCoverage(WorldMonitor):
+    """A class for computing instruction coverage in a contract's code. It
+    can be used to track standalone engines, or track a deployed contract
+    when attached as WorldMonitor
 
     Attributes:
         covered         A dict mapping instruction addresses with the number of times
                         they have been executed
         bifurcations    A list of possible bifurcations
-        current_inputs  A dict mapping a MaatEngine UID to the UID of the input currently being
-                        executed
+        current_input   The UID of the input currently being tracked
+        contract        Optional contract to track. Used only when registered
+                        as a WorldMonitor
     """
 
     def __init__(self):
+        super().__init__()
         self.covered: Dict[int, int] = {}
         self.bifurcations: List[Bifurcation] = []
-        self.current_inputs: Dict[int, str] = {}
+        self.current_input: str = "<unspecified>"
+        self.contract: Optional[ContractRunner] = None
 
     def record_exec(self, addr: int) -> None:
         """Record execution of instruction at 'addr'"""
@@ -27,7 +33,6 @@ class InstCoverage:
     def record_branch(self, m: MaatEngine) -> None:
         """Record execution of a symbolic branch and save the bifurcation
         point information"""
-        input_uid: str = self.current_inputs.get(m.uid, "<unspecified>")
         b = m.info.branch
         if b.taken is None:
             raise CoverageException(
@@ -51,22 +56,9 @@ class InstCoverage:
                     alt_target=alt_target,
                     path_constraints=list(m.path.constraints()),
                     alt_target_constraint=alt_constr,
-                    input_uid=input_uid,
+                    input_uid=self.current_input,
                 )
             )
-
-    # TODO(boyan): implement tracking at the EVMWorld level using events
-    # Something like:
-    # def track(self, contract_address: int, world: EVMWorld) -> None:
-    #     for rt in world.get_contract_runner(address).all_runtimes:
-    #         self._track_engine(rt.engine)
-    #     world.hook(
-    #         EVMEvent.CALL,
-    #         callback=lambda addr, world, cov: if addr == contract_address then cov._track_engine(world.get_contract_runner(address).current_runtime.engine),
-    #         data=self
-    #     )
-    #     Set_input_uid in hook???? look at existing input_uids ??
-    #     like runner.get_runtime(-1).engine.uid
 
     def track(self, m: MaatEngine) -> None:
         """Set hooks to track instruction coverage for an Engine"""
@@ -87,13 +79,12 @@ class InstCoverage:
             group="__inst_coverage",
         )
 
-    def set_input_uid(self, m: MaatEngine, input_uid: str) -> None:
-        """Set the input UID of the input currently running in an engine
+    def set_input_uid(self, input_uid: str) -> None:
+        """Set the input UID of the input currently running
 
-        :param m: the engine that will run the input identified by 'input_uid'
         :param input_uid: the unique ID of the input that will be run by 'm'
         """
-        self.current_inputs[m.uid] = input_uid
+        self.current_input = input_uid
 
     def filter_bifurcations(self, visit_max: int = 0) -> None:
         """Filter the saved bifurcations to keep only the ones
@@ -120,3 +111,17 @@ class InstCoverage:
     @staticmethod
     def branch_callback(m: MaatEngine, cov: "InstCoverage"):
         cov.record_branch(m)
+
+    #### WorldMonitor interface
+    def on_register(self, address: int) -> None:
+        """WorldMonitor interface callback to start tracking a contract"""
+        self.contract = self.world.get_contract(address)
+        for rt in self.contract.runtime_stack:
+            self.track(rt.engine)
+
+    def on_new_runtime(self, rt: EVMRuntime) -> None:
+        """WorldMonitor interface callback to track new engines created by
+        re-entrency"""
+        # If new runtime for the contract we track, track the associated MaatEngine
+        if self.world.current_contract is self.contract:
+            self.track(rt.engine)
