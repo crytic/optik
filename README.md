@@ -11,7 +11,7 @@ WORK IN PROGRESS - do not use
   - [ ] per path
 
 - [x] Simple script that takes corpus from echidna, runs it, collects coverage, then tries to discover inputs for new paths based on that
-- [ ] Implement main script using `EVMWorld` instead of a single `MaatEngine` instance
+- [x] Implement main script using `EVMWorld` instead of a single `MaatEngine` instance
 
 - [ ] Full echidna integration
   - [ ] Serialize new inputs back into JSON corpus files (issue #3)

@@ -1,42 +1,58 @@
 from .interface import load_tx_sequence
 from ..coverage import InstCoverage
 from ..common.utils import symbolicate_tx_data
-from maat import ARCH, contract, MaatEngine, Solver, STOP
+from ..common.world import EVMWorld, WorldMonitor
+from ..common.logger import logger
+import logging
+from maat import ARCH, contract, EVMTransaction, MaatEngine, Solver, STOP
 from typing import Optional
 
 import os
+
+logger.setLevel(logging.DEBUG)
+
+
+class SymbolicateTxData(WorldMonitor):
+    def __init__(self):
+        super().__init__()
+
+    def on_transaction(self, tx: EVMTransaction) -> None:
+        symbolicate_tx_data(self.world.current_engine)
+
+
+tx_symbolicator = SymbolicateTxData()
 
 
 def replay_inputs(
     corpus_dir: str, contract_file: str, cov: Optional[InstCoverage] = None
 ) -> InstCoverage:
 
-    # Initialise engine and load contract
-    m = MaatEngine(ARCH.EVM)
-    m.load(contract_file)
-
     # Building upon existing coverage?
     if not cov:
         cov = InstCoverage()
-    cov.track(m)
 
     # Run every input from the corpus
-    for corpus_file in os.listdir(corpus_dir):
-        corpus_file = os.path.join(corpus_dir, corpus_file)
+    logger.info(f"Replaying inputs from corpus: {corpus_dir}")
+    for corpus_file_name in os.listdir(corpus_dir):
+        corpus_file = os.path.join(corpus_dir, corpus_file_name)
         if not corpus_file.endswith(".txt"):
             continue
-        print(f"Replaying inputs from {corpus_file}")
+        logger.debug(f"Replaying input: {corpus_file_name}")
 
         tx = load_tx_sequence(corpus_file)[0]
-        contract(m).transaction = tx
-        symbolicate_tx_data(m)
+        # TODO(boyan): implement snapshoting in EVMWorld so we don't
+        # recreate the whole environment for every input
+        world = EVMWorld()
+        world.deploy(contract_file, tx.recipient)
+        world.attach_monitor(cov, tx.recipient)
+        world.attach_monitor(tx_symbolicator)
+
+        # Prepare to run transaction
+        world.push_transaction(tx)
         cov.set_input_uid(corpus_file)
+
         # Run
-        init_state = m.take_snapshot()
-        m.run()
-        # Make sure transaction was executed properly
-        assert m.info.stop == STOP.EXIT
-        m.restore_snapshot(init_state)
+        assert world.run() == STOP.EXIT
 
     return cov
 
@@ -49,10 +65,10 @@ def generate_new_inputs(cov: InstCoverage):
 
     res = []
     count = len(cov.bifurcations)
-    print(f"Trying to solve {count} possible new paths...")
+    logger.info(f"Trying to solve {count} possible new paths...")
 
     for i, bif in enumerate(cov.bifurcations):
-        print(f"Solving {i+1} of {count} ({round((i/count)*100, 2)}%)")
+        logger.info(f"Solving {i+1} of {count} ({round((i/count)*100, 2)}%)")
         s = Solver()
 
         # Add path constraints in

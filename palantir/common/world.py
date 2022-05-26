@@ -74,9 +74,14 @@ class WorldMonitor:
     def __init__(self):
         self.world: "EVMWorld" = None
 
-    def on_register(self, *args) -> None:
-        """Callback called once when the monitor is registered with
+    def on_attach(self, *args) -> None:
+        """Callback called once when the monitor is attached to
         an EVMWorld"""
+        pass
+
+    def on_transaction(self, tx: EVMTransaction) -> None:
+        """New transaction starts to be executed. This callback is triggered
+        only for transactions and NOT for message calls between contracts"""
         pass
 
     def on_new_runtime(self, rt: EVMRuntime) -> None:
@@ -184,7 +189,11 @@ class EVMWorld:
                 runner.push_runtime(tx)
                 # Add to call stack
                 self.call_stack.append(contract_addr)
-                # New runtime event
+                # Monitor events
+                self._on_event(
+                    "transaction",
+                    contract(runner.current_runtime.engine).transaction,
+                )
                 self._on_event("new_runtime", runner.current_runtime)
 
             # Get current runtime and run
@@ -207,7 +216,7 @@ class EVMWorld:
             raise WorldException("Monitor already attached")
         self.monitors.append(monitor)
         monitor.world = self
-        monitor.on_register(*args)
+        monitor.on_attach(*args)
 
     def detach_monitor(self, monitor: WorldMonitor) -> None:
         """Detach a WorldMonitor"""
