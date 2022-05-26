@@ -25,9 +25,6 @@ WORK IN PROGRESS - do not use
   - [x] Load and run a single transaction
   - [ ] Run a series of transactions
   - [x] Handle possible REVERT by using snapshoting
-  - [ ] Provide a callback API for events (pass the runner as argument to the callback, everything else is accessible from there)
-    - [ ] Pushing new runtime / new transaction
-    - [ ] Deleting a runtime / end transaction
   - Handle re-entrency:
     - [x] Hold a stack of `MaatEngine` instances on re-entrency
     - [ ] Automatically make a copy of the top-level engine on re-entrency
@@ -38,3 +35,4 @@ WORK IN PROGRESS - do not use
   - [ ] snapshoting interface
   - [ ] serialization interface: maybe have a EVMWorldSerializer class (don't forget to not serialize each engine separately but serialize them in batch to avoid serializing the environment every time)
   - [ ] calls accross contracts & delegate call into same contract
+  - [x] Provide a callback API for events (`WorldMonitor`)
