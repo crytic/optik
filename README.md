@@ -28,6 +28,6 @@ WORK IN PROGRESS - do not use
     - [ ] Pushing new runtime / new transaction
     - [ ] Deleting a runtime / end transaction
   - Handle re-entrency:
-    - [ ] Hold a stack of `MaatEngine` instances on re-entrency
+    - [x] Hold a stack of `MaatEngine` instances on re-entrency
     - [ ] Automatically make a copy of the top-level engine on re-entrency
-  - [ ] Update `coverage` module to work with a `ContractRunner`
+  - [ ] Update `coverage` module to work with a `EVMWorld` (subscribe to events)

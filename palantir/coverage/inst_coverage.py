@@ -55,6 +55,19 @@ class InstCoverage:
                 )
             )
 
+    # TODO(boyan): implement tracking at the EVMWorld level using events
+    # Something like:
+    # def track(self, contract_address: int, world: EVMWorld) -> None:
+    #     for rt in world.get_contract_runner(address).all_runtimes:
+    #         self._track_engine(rt.engine)
+    #     world.hook(
+    #         EVMEvent.CALL,
+    #         callback=lambda addr, world, cov: if addr == contract_address then cov._track_engine(world.get_contract_runner(address).current_runtime.engine),
+    #         data=self
+    #     )
+    #     Set_input_uid in hook???? look at existing input_uids ??
+    #     like runner.get_runtime(-1).engine.uid
+
     def track(self, m: MaatEngine) -> None:
         """Set hooks to track instruction coverage for an Engine"""
         m.hooks.add(

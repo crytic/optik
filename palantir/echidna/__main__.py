@@ -4,6 +4,10 @@ import sys
 from .runner import replay_inputs, generate_new_inputs
 from ..coverage import InstCoverage
 
+# DEBUG
+from ..common.world import *
+from .interface import load_tx_sequence
+
 
 def main() -> None:
     args = parse_arguments()
