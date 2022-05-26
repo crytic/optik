@@ -168,7 +168,7 @@ class EVMWorld:
     def run(self) -> STOP:
         """Run pending transactions"""
 
-        if not self.has_pending_transactions:
+        if not (self.has_pending_transactions or self.call_stack):
             raise WorldException("No more transactions to execute")
 
         # Keep running as long as there are pending transactions
