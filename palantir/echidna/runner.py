@@ -1,4 +1,4 @@
-from .interface import load_tx_sequence
+from .interface import load_tx_sequence, store_tx
 from ..coverage import InstCoverage
 from ..common.utils import symbolicate_tx_data
 from maat import ARCH, contract, MaatEngine, Solver, STOP
@@ -63,9 +63,8 @@ def generate_new_inputs(cov: InstCoverage):
 
         if s.check():
             model = s.get_model()
-            # TODO: so far we can just return the models but eventually
-            # we will need to serialize them as proper echidna JSON corpus files.
-            # To be implemented after issue #3 is closed.
-            res.append(model)
+            # Serialize the new input discovered
+            store_tx(i, bif.input_uid, model)
+            
 
     return res

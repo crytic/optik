@@ -1,9 +1,10 @@
-import json
-from maat import Cst, EVMTransaction, Value
+from maat import Cst, EVMTransaction, Value, VarContext
 from typing import Dict, List, Tuple, Union
 from ..common.exceptions import EchidnaException
 from ..common.abi import function_call
 
+import os
+import json
 
 def translate_argument(arg: Dict) -> Tuple[str, Union[bytes, int, Value]]:
     """Translate a parsed Echidna transaction argument into a '(type, value)' tuple.
@@ -63,3 +64,25 @@ def load_tx_sequence(filename: str) -> List[EVMTransaction]:
     with open(filename, "rb") as f:
         data = json.loads(f.read())
         return [load_tx(tx) for tx in data]
+
+def store_tx(number: int, old_file: str, new_args: VarContext):
+    """Serialize a new input corpus as the `number`th new input
+    to be found
+    
+    :param number: current count of input corpora
+    :param old_file: the corpus file this new input is derived from
+    :param new_args: the arguments to pass in"""
+
+    with open(old_file, "rb") as f:
+        data = json.loads(f.read())
+
+    # TODO: needs to be able to handle multiple function parameters
+    call = data[0]["_call"]
+
+    for i,arg in enumerate(call["contents"][1]):
+        data[0]["_call"]["contents"][1][i]["contents"][1] = str(new_args)
+
+    new_file = os.path.dirname(old_file) + f"/optik_solved_input_{number}.txt"
+    
+    with open(new_file, 'w') as f:
+        json.dump(data, f)
