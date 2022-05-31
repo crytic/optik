@@ -5,7 +5,7 @@ WORK IN PROGRESS - do not use
 
 - [x] Simple CI with linter
 - [x] Simple logger
-- [ ] Serialization for transaction data types
+- [ ] Serialization for all transaction data types
 - [ ] Coverage APIs
   - [x] per instruction set
   - [ ] per path
@@ -14,7 +14,7 @@ WORK IN PROGRESS - do not use
 - [x] Implement main script using `EVMWorld` instead of a single `MaatEngine` instance
 
 - [ ] Full echidna integration
-  - [ ] Serialize new inputs back into JSON corpus files (issue #3)
+  - [x] Serialize new inputs back into JSON corpus files (issue #3)
   - [ ] Iteratively run echidna with the new inputs and palantir with new corpus cases, until we reach a fixed point, or a number of iterations, or the user stops the process
  
 - [ ] Simple PoC that we can increase echidna coverage with SE
