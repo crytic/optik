@@ -1,4 +1,4 @@
-from .interface import load_tx_sequence, store_tx
+from .interface import load_tx_sequence, store_new_tx_sequence
 from ..coverage import InstCoverage
 from ..common.utils import symbolicate_tx_data
 from ..common.world import EVMWorld, WorldMonitor
@@ -80,6 +80,6 @@ def generate_new_inputs(cov: InstCoverage):
         if s.check():
             model = s.get_model()
             # Serialize the new input discovered
-            store_tx(bif.input_uid, model)
+            store_new_tx_sequence(bif.input_uid, model)
 
     return res

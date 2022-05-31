@@ -72,25 +72,56 @@ def load_tx_sequence(filename: str) -> List[EVMTransaction]:
         return [load_tx(tx) for tx in data]
 
 
-def store_tx(old_file: str, new_args: VarContext) -> None:
-    """Serialize a new input corpus
+def update_argument(arg: Dict, num: int, new_model: VarContext) -> None:
+    """Update an argument value in a transaction according to a
+    symbolic model. The argument is modified **in-place**
 
-    :param old_file: the corpus file this new input is derived from
-    :param new_args: the arguments to pass in"""
+    :param arg: argument to update, parsed as a JSON dict
+    :num: position of the argument in the call. It's 0 for the 1st argument,
+    1 for the 2d, etc
+    :new_model: symbolic model to use to update the argument value
+    """
+    if arg["tag"] == "AbiUInt":
+        arg["contents"][1] = str(new_model.get(f"arg{num}"))
+    else:
+        raise EchidnaException(f"Unsupported argument type: {arg['tag']}")
 
-    with open(old_file, "rb") as f:
+
+def update_tx(tx: Dict, new_model: VarContext) -> Dict:
+    """Update parameter values in a transaction according to a
+    symbolic model
+
+    :param tx: Echidna transaction to update, parsed as a JSON dict
+    :param new_model: symbolic model to use to update transaction data in 'tx'
+    :return: the updated transaction as a JSON dict
+    """
+    tx = tx.copy()  # Copy transaction to avoid in-place modifications
+    call = tx["_call"]
+    args = call["contents"][1]
+    for i, arg in enumerate(args):
+        update_argument(arg, i, new_model)
+
+    return tx
+
+
+def store_new_tx_sequence(original_file: str, new_model: VarContext) -> None:
+    """Store a new sequence of transactions into a new Echidna corpus file
+
+    :param original_file: path to the file containing the original transaction sequence
+    that was replayed in order to find the new input
+    :param new_model: symbolic context containing new values for the transaction data
+    """
+    # Load original JSON corpus input
+    with open(original_file, "rb") as f:
         data = json.loads(f.read())
 
-    # TODO: needs to be able to handle multiple function parameters
-    call = data[0]["_call"]
+    # Update JSON with new transactions
+    new_data = [update_tx(tx, new_model) for tx in data]
 
-    for i, arg in enumerate(call["contents"][1]):
-        data[0]["_call"]["contents"][1][i]["contents"][1] = str(new_args)
-
+    # Write new corpus input in a fresh file
     new_file = get_available_filename(
-        f"{os.path.dirname(old_file)}/{NEW_INPUT_PREFIX}", ".txt"
+        f"{os.path.dirname(original_file)}/{NEW_INPUT_PREFIX}", ".txt"
     )
-
     with open(new_file, "w") as f:
         json.dump(data, f)
 
