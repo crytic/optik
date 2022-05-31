@@ -2,6 +2,7 @@ from maat import Cst, EVMTransaction, Value, VarContext
 from typing import Dict, List, Tuple, Union
 from ..common.exceptions import EchidnaException
 from ..common.abi import function_call
+from ..common.logger import logger
 
 import os
 import json
@@ -42,15 +43,16 @@ def load_tx(tx: Dict) -> EVMTransaction:
     call_data = function_call(func_name, func_signature, *arg_values)
 
     # Build transaction
-    # TODO: correctly handle all the fields other than 'data'
+    # TODO: correctly handle gas_limit
     # TODO: make EVMTransaction accept integers as arguments
-    sender = Cst(256, 1)
-    value = Cst(256, 0)
+    sender = Cst(256, int(tx["_src"], 16))
+    value = Cst(256, int(tx["_value"], 16))
     gas_limit = Cst(256, 46546514651)
+    recipient = int(tx["_dst"], 16)
     return EVMTransaction(
         sender,  # origin
         sender,  # sender
-        2,  # recipient
+        recipient,  # recipient
         value,  # value
         call_data,  # data
         gas_limit,  # gas_limit
@@ -68,7 +70,7 @@ def load_tx_sequence(filename: str) -> List[EVMTransaction]:
 def store_tx(number: int, old_file: str, new_args: VarContext):
     """Serialize a new input corpus as the `number`th new input
     to be found
-    
+
     :param number: current count of input corpora
     :param old_file: the corpus file this new input is derived from
     :param new_args: the arguments to pass in"""

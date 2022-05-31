@@ -21,9 +21,9 @@ def _check_int_bits(bits: int) -> None:
 
 
 def uintM(bits: int, value: Union[int, Value]) -> Value:
-    """Encode a uint<M>
+    """Encode a uint<M> padded to 256 bits
     :param bits: number of bits <M>
-    :param value: either a concrete value, the name of a symbolic variable, or a Value object
+    :param value: either a concrete value, or a Value object
     """
     _check_int_bits(bits)
 
@@ -32,24 +32,20 @@ def uintM(bits: int, value: Union[int, Value]) -> Value:
             logger.warning(f"Negative value {value} encoded as uint{bits}")
         elif value >= (1 << bits):
             logger.warning(f"{value} will be truncated to fit in uint{bits}, ")
-        return Cst(bits, value)
+        return Cst(256, value)
     elif isinstance(value, Value):
-        if value.size == bits:
-            return value
-        elif value.size > bits:
-            logger.warning(
-                f"Expression '{value}' (size: {value.size}) will be truncated to fit in uint{bits}"
+        if value.size != bits:
+            raise ABIException(
+                f"Size mismatch between value size ({value.size}) and uint{bits}"
             )
-            return Extract(value, bits - 1, 0)
-        else:
-            logger.warning(
-                f"Expression '{value}' (size: {value.size}) will be zero-extended to fit in uint{bits}"
-            )
+        if bits < 256:
             return Concat(
-                Cst(bits - value.size, 0), value
+                Cst(256 - bits, 0), value
             )  # Zero extend because unsigned
+        else:
+            return value
     else:
-        raise ABIException("'value' must be int or str")
+        raise ABIException("'value' must be int or Value")
 
 
 def selector(func_signature: str) -> Value:

@@ -21,3 +21,10 @@ class CoverageException(GenericException):
     """Exception for errors during coverage generation"""
 
     pass
+
+
+class WorldException(GenericException):
+    """Exception for errors in execution wrappers for the contracts
+    deployed on the blockchain"""
+
+    pass
