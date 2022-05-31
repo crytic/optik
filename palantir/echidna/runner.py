@@ -80,6 +80,6 @@ def generate_new_inputs(cov: InstCoverage):
         if s.check():
             model = s.get_model()
             # Serialize the new input discovered
-            store_tx(i, bif.input_uid, model)
+            store_tx(bif.input_uid, model)
 
     return res
