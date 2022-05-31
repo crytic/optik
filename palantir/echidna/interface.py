@@ -65,6 +65,7 @@ def load_tx(tx: Dict) -> EVMTransaction:
 
 def load_tx_sequence(filename: str) -> List[EVMTransaction]:
     """Load a sequence of transactions from an Echidna corpus file
+
     :param filename: corpus file to load
     """
     with open(filename, "rb") as f:
@@ -77,9 +78,9 @@ def update_argument(arg: Dict, num: int, new_model: VarContext) -> None:
     symbolic model. The argument is modified **in-place**
 
     :param arg: argument to update, parsed as a JSON dict
-    :num: position of the argument in the call. It's 0 for the 1st argument,
+    :param num: position of the argument in the call. It's 0 for the 1st argument,
     1 for the 2d, etc
-    :new_model: symbolic model to use to update the argument value
+    :param new_model: symbolic model to use to update the argument value
     """
     if arg["tag"] == "AbiUInt":
         arg["contents"][1] = str(new_model.get(f"arg{num}"))
