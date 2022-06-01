@@ -1,5 +1,5 @@
 class GenericException(Exception):
-    """Generic exception class for Palantir, from which all custom
+    """Generic exception class for Optik, from which all custom
     exceptions derive"""
 
     pass

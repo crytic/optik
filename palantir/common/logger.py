@@ -32,7 +32,7 @@ class ColoredFormatter(logging.Formatter):
         return formatter.format(record)
 
 
-logger = logging.getLogger("palantir")
+logger = logging.getLogger("optik")
 handler = logging.StreamHandler(sys.stdout)
 handler.setFormatter(ColoredFormatter())
 logger.addHandler(handler)

@@ -1,4 +1,4 @@
-# palantir
+# Optik
 WORK IN PROGRESS - do not use
 
 ## Echidna hybrid fuzzing
@@ -15,7 +15,7 @@ WORK IN PROGRESS - do not use
 
 - [ ] Full echidna integration
   - [x] Serialize new inputs back into JSON corpus files (issue #3)
-  - [ ] Iteratively run echidna with the new inputs and palantir with new corpus cases, until we reach a fixed point, or a number of iterations, or the user stops the process
+  - [ ] Iteratively run echidna with the new inputs and Optik with new corpus cases, until we reach a fixed point, or a number of iterations, or the user stops the process
  
 - [ ] Simple PoC that we can increase echidna coverage with SE
   

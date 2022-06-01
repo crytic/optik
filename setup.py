@@ -7,9 +7,9 @@ lint_deps = ["black~=22.0"]
 
 # Setup
 setup(
-    name="palantir",
+    name="optik",
     description="TODO",
-    url="https://github.com/trailofbits/palantir",
+    url="https://github.com/trailofbits/optik",
     author="Trail of Bits",
     version=version,
     packages=find_packages(exclude=["tests", "tests.*"]),
@@ -23,7 +23,7 @@ setup(
     },
     entry_points={
         "console_scripts": [
-            "palantir-echidna = palantir.echidna.__main__:main"
+            "hybrid-echidna = optik.echidna.__main__:main"
         ]
     },
 )
