@@ -1,11 +1,31 @@
 # Optik
-WORK IN PROGRESS - do not use
+WORK IN PROGRESS - do not use yet for real audits
 
 ## Echidna hybrid fuzzing
+Usage: `hybrid-echidna -h`
 
+Limitations:
+- Can only run on a single solidity file
+- Can't deploy multiple contracts
+- No re-entrency
+
+TODO:
 - [x] Simple CI with linter
 - [x] Simple logger
-- [ ] Serialization for all transaction data types
+- [ ] Serialization for all transaction data types (https://solidity-fr.readthedocs.io/fr/latest/abi-spec.html)
+  - [ ] `int<M>`
+  - [ ] `address`
+  - [ ] `bool`
+  - [ ] `fixed<M>x<N>`
+  - [ ] `ufixed<M>x<N>`
+  - [ ] `bytes<M>`
+  - [ ] `function`
+  - [ ] `<type>[M]`: fixed-length array
+  - [ ] `bytes`: dynamic sized byte sequence
+  - [ ] `string`: dynamic sized unicode string assumed to be UTF-8 encoded
+  - [ ] `<type>[]`: variable-length array
+  - [ ] `tuple`
+
 - [ ] Coverage APIs
   - [x] per instruction set
   - [ ] per path
@@ -13,11 +33,11 @@ WORK IN PROGRESS - do not use
 - [x] Simple script that takes corpus from echidna, runs it, collects coverage, then tries to discover inputs for new paths based on that
 - [x] Implement main script using `EVMWorld` instead of a single `MaatEngine` instance
 
-- [ ] Full echidna integration
+- [x] Full echidna integration
   - [x] Serialize new inputs back into JSON corpus files (issue #3)
-  - [ ] Iteratively run echidna with the new inputs and Optik with new corpus cases, until we reach a fixed point, or a number of iterations, or the user stops the process
+  - [x] Iteratively run echidna with the new inputs and Optik with new corpus cases, until we reach a fixed point, or a number of iterations, or the user stops the process
  
-- [ ] Simple PoC that we can increase echidna coverage with SE
+- [x] Simple PoC that we can increase echidna coverage with SE
   
 ## MISC
 
