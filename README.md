@@ -2,7 +2,9 @@
 WORK IN PROGRESS - do not use yet for real audits
 
 ## Echidna hybrid fuzzing
-Usage: `hybrid-echidna -h`
+Example usage: `hybrid-echidna ExploreMe.sol  --test-mode assertion --corpus-dir /tmp/test7 --seq-len 1`
+
+Help: `hybrid-echidna -h`
 
 Limitations:
 - Can only run on a single solidity file
