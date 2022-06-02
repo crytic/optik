@@ -34,6 +34,7 @@ TODO:
 - [x] Implement main script using `EVMWorld` instead of a single `MaatEngine` instance
 
 - [x] Full echidna integration
+  - [ ] Support more echidna command line arguments
   - [x] Serialize new inputs back into JSON corpus files (issue #3)
   - [x] Iteratively run echidna with the new inputs and Optik with new corpus cases, until we reach a fixed point, or a number of iterations, or the user stops the process
  

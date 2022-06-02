@@ -70,10 +70,23 @@ def generate_new_inputs(cov: InstCoverage) -> int:
     cov.sort_bifurcations()
 
     res = []
+    # Count number of "unique" bifurcations, in the sense that
+    # two bifurcations to the same target are considered the same,
+    # even with different states and path constraints...
+    unique_targets = set()
+    for bif in cov.bifurcations:
+        if bif.alt_target not in unique_targets:
+            unique_targets.add(bif.alt_target)
     count = len(cov.bifurcations)
-    logger.info(f"Trying to solve {count} potential new paths...")
+    logger.info(
+        f"Solving potential new paths... ({count} total, {len(unique_targets)} unique)"
+    )
     success_cnt = 0
     for i, bif in enumerate(cov.bifurcations):
+        # Don't solve the same branch target if it was solved already
+        if bif.alt_target not in unique_targets:
+            continue
+
         logger.info(f"Solving {i+1} of {count} ({round((i/count)*100, 2)}%)")
         s = Solver()
 
@@ -85,6 +98,7 @@ def generate_new_inputs(cov: InstCoverage) -> int:
 
         if s.check():
             success_cnt += 1
+            unique_targets.remove(bif.alt_target)
             model = s.get_model()
             # Serialize the new input discovered
             store_new_tx_sequence(bif.input_uid, model)
