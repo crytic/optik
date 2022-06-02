@@ -7,6 +7,7 @@ from .interface import extract_contract_bytecode
 from ..coverage import InstCoverage
 from ..common.logger import logger, handler
 import logging
+from typing import List, Set
 
 
 def main() -> None:
@@ -14,9 +15,12 @@ def main() -> None:
 
     if args.debug:
         handler.setLevel(logging.DEBUG)
+    coverage_dir = os.path.join(args.corpus_dir, "coverage")
 
     # Coverage tracker for the whole fuzzing session
     cov = InstCoverage()
+    # Set of corpus files we have already processed
+    seen_files = set()
 
     iter_cnt = 0
     while args.max_iters is None or iter_cnt < args.max_iters:
@@ -37,11 +41,16 @@ def main() -> None:
             #       current working directory?
             contract_file = extract_contract_bytecode("./crytic-export")
 
-        # TODO(boyan): don't replay inputs that we've already executed
-        # Replay corpus symbolically
-        cov = replay_inputs(
-            os.path.join(args.corpus_dir, "coverage"), contract_file, cov
-        )
+        # Replay new corpus inputs symbolically
+        new_inputs = pull_new_corpus_files(coverage_dir, seen_files)
+        if new_inputs:
+            logger.info(
+                f"Echidna found {len(new_inputs)} new inputs. Replaying them symbolically..."
+            )
+        else:
+            logger.info(f"Echidna couldn't find new inputs")
+            return
+        cov = replay_inputs(new_inputs, contract_file, cov)
 
         # Find inputs to reach new code
         new_inputs_cnt = generate_new_inputs(cov)
@@ -50,6 +59,22 @@ def main() -> None:
         else:
             logger.info(f"Couldn't generate more inputs")
             return
+
+
+def pull_new_corpus_files(cov_dir: str, seen_files: Set[str]) -> List[str]:
+    """Return files in 'cov_dir' that aren't present in 'seen_files'.
+    Before returning, 'seen_files' is updated to contain the list of new files
+    that the function returns
+    """
+    res = []
+    for corpus_file_name in os.listdir(cov_dir):
+        corpus_file = str(os.path.join(cov_dir, corpus_file_name))
+        if not corpus_file.endswith(".txt") or corpus_file in seen_files:
+            continue
+        else:
+            seen_files.add(corpus_file)
+            res.append(corpus_file)
+    return res
 
 
 def parse_arguments() -> argparse.Namespace:

@@ -7,7 +7,7 @@ import argparse
 import subprocess
 import logging
 from maat import ARCH, contract, EVMTransaction, MaatEngine, Solver, STOP
-from typing import Optional
+from typing import List, Optional
 
 import os
 
@@ -26,7 +26,9 @@ tx_symbolicator = SymbolicateTxData()
 
 
 def replay_inputs(
-    corpus_dir: str, contract_file: str, cov: Optional[InstCoverage] = None
+    corpus_files: List[str],
+    contract_file: str,
+    cov: Optional[InstCoverage] = None,
 ) -> InstCoverage:
 
     # Building upon existing coverage?
@@ -34,12 +36,8 @@ def replay_inputs(
         cov = InstCoverage()
 
     # Run every input from the corpus
-    logger.info(f"Replaying inputs from corpus: {corpus_dir}")
-    for corpus_file_name in os.listdir(corpus_dir):
-        corpus_file = os.path.join(corpus_dir, corpus_file_name)
-        if not corpus_file.endswith(".txt"):
-            continue
-        logger.debug(f"Replaying input: {corpus_file_name}")
+    for corpus_file in corpus_files:
+        logger.debug(f"Replaying input: {os.path.basename(corpus_file)}")
 
         tx = load_tx_sequence(corpus_file)[0]
         # TODO(boyan): implement snapshoting in EVMWorld so we don't
