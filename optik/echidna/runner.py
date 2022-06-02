@@ -3,6 +3,8 @@ from ..coverage import InstCoverage
 from ..common.utils import symbolicate_tx_data
 from ..common.world import EVMWorld, WorldMonitor
 from ..common.logger import logger
+import argparse
+import subprocess
 import logging
 from maat import ARCH, contract, EVMTransaction, MaatEngine, Solver, STOP
 from typing import Optional
@@ -57,7 +59,13 @@ def replay_inputs(
     return cov
 
 
-def generate_new_inputs(cov: InstCoverage):
+def generate_new_inputs(cov: InstCoverage) -> int:
+    """Generate new inputs to increase code coverage, base on
+    existing coverage
+
+    :param cov: coverage data
+    :return: number of new inputs found
+    """
 
     # Keep only interesting bifurcations
     cov.filter_bifurcations()
@@ -65,8 +73,8 @@ def generate_new_inputs(cov: InstCoverage):
 
     res = []
     count = len(cov.bifurcations)
-    logger.info(f"Trying to solve {count} possible new paths...")
-
+    logger.info(f"Trying to solve {count} potential new paths...")
+    success_cnt = 0
     for i, bif in enumerate(cov.bifurcations):
         logger.info(f"Solving {i+1} of {count} ({round((i/count)*100, 2)}%)")
         s = Solver()
@@ -78,8 +86,38 @@ def generate_new_inputs(cov: InstCoverage):
         s.add(bif.alt_target_constraint)
 
         if s.check():
+            success_cnt += 1
             model = s.get_model()
             # Serialize the new input discovered
             store_new_tx_sequence(bif.input_uid, model)
 
-    return res
+    return success_cnt
+
+
+def run_echidna_campaign(
+    args: argparse.Namespace,
+) -> subprocess.CompletedProcess:
+    """Run an echidna fuzzing campaign
+
+    :param args: arguments to pass to echidna
+    :return: the exit value returned by invoking `echidna-test`
+    """
+    # Build back echidna command line
+    cmdline = ["echidna-test"]
+    cmdline += args.FILES
+    for arg, val in args.__dict__.items():
+        if arg != "FILES":
+            cmdline += [f"--{arg.replace('_', '-')}", str(val)]
+    logger.debug(f"Echidna invocation cmdline: {' '.join(cmdline)}")
+    # Run echidna
+    logger.info("Running echidna campaign...")
+    echidna_process = subprocess.run(
+        cmdline,
+        # TODO(boyan): not piping stdout would allow to display the echidna
+        # interface while it runs, but we have to find a way to automatically
+        # terminate it with Ctrl+C or Esc once it finishes, otherwise it just
+        # hangs and the script can't continue
+        stdout=subprocess.PIPE,
+        universal_newlines=True,
+    )
+    return echidna_process

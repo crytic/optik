@@ -142,3 +142,24 @@ def get_available_filename(prefix: str, suffix: str) -> str:
     if num >= num_max:
         raise GenericException("Can't find available filename, very odd")
     return f"{prefix}_{num}{suffix}"
+
+
+# TODO(boyan): make this support multiple files/contracts
+def extract_contract_bytecode(crytic_dir: str) -> str:
+    """Parse compilation information from crytic, extracts the bytecode
+    of a compiled contract, and stores it into a separate file
+    WARNING: currently limited to fuzzing campaigns on a single contract file!
+
+    :param crytic-dir: the "crytic-export" dir created by echidna after a campaign
+    :return: file containing the bytecode of the contract
+    """
+    # TODO(boyan): generate a proper clean & unique temp file instead
+    # of hardcoding the filepath
+    output_file = "/tmp/optik_contract.sol"
+    with open(str(os.path.join(crytic_dir, "combined_solc.json")), "rb") as f:
+        data = json.loads(f.read())
+        contract_name, contract_data = next(iter(data["contracts"].items()))
+        bytecode = contract_data["bin"]
+        with open(output_file, "w") as f2:
+            f2.write(bytecode)
+    return output_file
