@@ -5,38 +5,51 @@ import os
 from .runner import replay_inputs, generate_new_inputs, run_echidna_campaign
 from .interface import extract_contract_bytecode
 from ..coverage import InstCoverage
-from ..common.logger import logger
+from ..common.logger import logger, handler
+import logging
 
 
 def main() -> None:
     args = parse_arguments()
 
-    # Run echidna fuzzing campaign
-    p = run_echidna_campaign(args)
-    if p.returncode != 0:
-        logger.fatal(f"Echidna failed with exit code {p.returncode}")
-        return
+    if args.debug:
+        handler.setLevel(logging.DEBUG)
 
-    # Extract contract bytecode
-    # TODO: this must run only once after the first fuzzing campaign
-    # TODO: this should return a list of contracts if multiple contracts
-    # TODO: is it OK to assume crytic-export is always located in the
-    #       current working directory?
-    contract_file = extract_contract_bytecode("./crytic-export")
+    # Coverage tracker for the whole fuzzing session
+    cov = InstCoverage()
 
-    # Replay echidna corpus
-    cov = InstCoverage()  # TODO: coverage must be created only once
-    cov = replay_inputs(
-        os.path.join(args.corpus_dir, "coverage"), contract_file, cov
-    )
+    iter_cnt = 0
+    while args.max_iters is None or iter_cnt < args.max_iters:
+        iter_cnt += 1
 
-    # Find inputs to reach new code
-    new_inputs_cnt = generate_new_inputs(cov)
-    if new_inputs_cnt > 0:
-        logger.info(f"Generated {new_inputs_cnt} new inputs")
-    else:
-        logger.info(f"Couldn't generate more inputs")
-        return
+        # Run echidna fuzzing campaign
+        logger.info(f"Running echidna campaign #{iter_cnt} ...")
+        p = run_echidna_campaign(args)
+        if p.returncode != 0:
+            logger.fatal(f"Echidna failed with exit code {p.returncode}")
+            return
+
+        # Extract contract bytecodes in separate files for Maat. This is done
+        # only once after the first fuzzing campaign
+        if iter_cnt == 1:
+            # TODO(boyan): this should return a list of contracts if multiple contracts
+            # TODO(boyan): is it OK to assume crytic-export is always located in the
+            #       current working directory?
+            contract_file = extract_contract_bytecode("./crytic-export")
+
+        # TODO(boyan): don't replay inputs that we've already executed
+        # Replay corpus symbolically
+        cov = replay_inputs(
+            os.path.join(args.corpus_dir, "coverage"), contract_file, cov
+        )
+
+        # Find inputs to reach new code
+        new_inputs_cnt = generate_new_inputs(cov)
+        if new_inputs_cnt > 0:
+            logger.info(f"Generated {new_inputs_cnt} new inputs")
+        else:
+            logger.info(f"Couldn't generate more inputs")
+            return
 
 
 def parse_arguments() -> argparse.Namespace:
@@ -82,6 +95,17 @@ def parse_arguments() -> argparse.Namespace:
         default=100,
         metavar="LEN",
     )
+
+    # Optik arguments
+    parser.add_argument(
+        "--max-iters",
+        type=int,
+        help="Number of fuzzing campaigns to run. If unspecified, run until symbolic execution can't find new inputs",
+        default=None,
+        metavar="ITERATIONS",
+    )
+
+    parser.add_argument("--debug", action="store_true", help="Print debug logs")
 
     return parser.parse_args(sys.argv[1:])
 

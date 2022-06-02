@@ -106,11 +106,11 @@ def run_echidna_campaign(
     cmdline = ["echidna-test"]
     cmdline += args.FILES
     for arg, val in args.__dict__.items():
-        if arg != "FILES":
+        # Ignore Optik specific arguments
+        if arg not in ["FILES", "max_iters", "debug"]:
             cmdline += [f"--{arg.replace('_', '-')}", str(val)]
     logger.debug(f"Echidna invocation cmdline: {' '.join(cmdline)}")
     # Run echidna
-    logger.info("Running echidna campaign...")
     echidna_process = subprocess.run(
         cmdline,
         # TODO(boyan): not piping stdout would allow to display the echidna
