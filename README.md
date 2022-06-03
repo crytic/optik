@@ -7,6 +7,7 @@ Example usage: `hybrid-echidna ExploreMe.sol  --test-mode assertion --corpus-dir
 Help: `hybrid-echidna -h`
 
 Limitations:
+- Can't run sequences of multiple transactions (needs `--seq-len 1`)
 - Can only run on a single solidity file
 - Can't deploy multiple contracts
 - No re-entrency

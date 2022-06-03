@@ -39,16 +39,16 @@ def replay_inputs(
     for corpus_file in corpus_files:
         logger.debug(f"Replaying input: {os.path.basename(corpus_file)}")
 
-        tx = load_tx_sequence(corpus_file)[0]
+        tx_seq = load_tx_sequence(corpus_file)
         # TODO(boyan): implement snapshoting in EVMWorld so we don't
         # recreate the whole environment for every input
         world = EVMWorld()
-        world.deploy(contract_file, tx.recipient)
-        world.attach_monitor(cov, tx.recipient)
+        world.deploy(contract_file, tx_seq[0].recipient)
+        world.attach_monitor(cov, tx_seq[0].recipient)
         world.attach_monitor(tx_symbolicator)
 
         # Prepare to run transaction
-        world.push_transaction(tx)
+        world.push_transactions(tx_seq)
         cov.set_input_uid(corpus_file)
 
         # Run
