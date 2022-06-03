@@ -85,6 +85,9 @@ def parse_arguments() -> argparse.Namespace:
         formatter_class=argparse.ArgumentDefaultsHelpFormatter,
     )
 
+    def auto_int(x):
+        return int(x, 0)
+
     # Echidna arguments
     parser.add_argument(
         "FILES", type=str, nargs="*", help="Solidity files to analyze"
@@ -118,7 +121,45 @@ def parse_arguments() -> argparse.Namespace:
         type=int,
         help="Number of transactions to generate during testing",
         default=100,
-        metavar="LEN",
+        metavar="INTEGER",
+    )
+
+    parser.add_argument(
+        "--config",
+        type=str,
+        help="Config file (command-line arguments override config options)",
+        metavar="FILE",
+    )
+
+    parser.add_argument(
+        "--test-limit",
+        type=int,
+        help="Number of sequences of transactions to generate",
+        default=50000,
+        metavar="INTEGER",
+    )
+
+    parser.add_argument(
+        "--contract-addr",
+        type=auto_int,
+        help="Address to deploy the contract to test",
+        default=0x00A329C0648769A73AFAC7F9381E08FB43DBEA72,
+        metavar="ADDRESS",
+    )
+
+    parser.add_argument(
+        "--deployer",
+        type=auto_int,
+        help="Address of the deployer of the contract to test",
+        default=0x0000000000000000000000000000000000030000,
+        metavar="ADDRESS",
+    )
+
+    parser.add_argument(
+        "--seed",
+        type=auto_int,
+        help="Run with a specific seed",
+        metavar="INTEGER",
     )
 
     # Optik arguments
@@ -127,7 +168,7 @@ def parse_arguments() -> argparse.Namespace:
         type=int,
         help="Number of fuzzing campaigns to run. If unspecified, run until symbolic execution can't find new inputs",
         default=None,
-        metavar="ITERATIONS",
+        metavar="INTEGER",
     )
 
     parser.add_argument("--debug", action="store_true", help="Print debug logs")
