@@ -157,7 +157,9 @@ def extract_contract_bytecode(crytic_dir: str) -> str:
     :return: file containing the bytecode of the contract
     """
     unique_signature = hex(random.getrandbits(32))[2:]
-    output_file = str(os.path.join(TMP_CONTRACT_DIR, f"optik_contract_{unique_signature}.sol"))
+    output_file = str(
+        os.path.join(TMP_CONTRACT_DIR, f"optik_contract_{unique_signature}.sol")
+    )
     with open(str(os.path.join(crytic_dir, "combined_solc.json")), "rb") as f:
         data = json.loads(f.read())
         contract_name, contract_data = next(iter(data["contracts"].items()))
