@@ -10,8 +10,10 @@ import logging
 from typing import List, Set
 
 
-def main() -> None:
-    args = parse_arguments()
+def run_hybrid_echidna(args: List[str]) -> None:
+    """Main hybrid echidna script"""
+
+    args = parse_arguments(args)
 
     if args.debug:
         handler.setLevel(logging.DEBUG)
@@ -80,7 +82,7 @@ def pull_new_corpus_files(cov_dir: str, seen_files: Set[str]) -> List[str]:
     return res
 
 
-def parse_arguments() -> argparse.Namespace:
+def parse_arguments(args: List[str]) -> argparse.Namespace:
 
     parser = argparse.ArgumentParser(
         description="Hybrid fuzzer with Echidna & Maat",
@@ -176,7 +178,11 @@ def parse_arguments() -> argparse.Namespace:
 
     parser.add_argument("--debug", action="store_true", help="Print debug logs")
 
-    return parser.parse_args(sys.argv[1:])
+    return parser.parse_args(args)
+
+
+def main() -> None:
+    run_hybrid_echidna(sys.argv[1:])
 
 
 if __name__ == "__main__":
