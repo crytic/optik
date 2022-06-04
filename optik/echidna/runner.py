@@ -130,6 +130,7 @@ def run_echidna_campaign(
         # terminate it with Ctrl+C or Esc once it finishes, otherwise it just
         # hangs and the script can't continue
         stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
         universal_newlines=True,
     )
     return echidna_process

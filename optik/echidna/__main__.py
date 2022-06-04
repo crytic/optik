@@ -29,8 +29,11 @@ def main() -> None:
         # Run echidna fuzzing campaign
         logger.info(f"Running echidna campaign #{iter_cnt} ...")
         p = run_echidna_campaign(args)
-        if p.returncode != 0:
+        # Note: return code is not a reliable error indicator for Echidna
+        # so we check stderr to detect potential errors running Echidna
+        if p.stderr:
             logger.fatal(f"Echidna failed with exit code {p.returncode}")
+            logger.fatal(f"Echidna stderr: \n{p.stderr}")
             return
 
         # Extract contract bytecodes in separate files for Maat. This is done
