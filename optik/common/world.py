@@ -1,17 +1,44 @@
-from maat import ARCH, contract, EVM, EVMTransaction, Info, MaatEngine, STOP
+from maat import (
+    ARCH,
+    contract,
+    EVM,
+    EVMTransaction,
+    Info,
+    MaatEngine,
+    STOP,
+    VarContext,
+)
 from typing import Callable, Dict, List, Optional
 from dataclasses import dataclass
 import enum
 from .exceptions import WorldException
 
 
+@dataclass(frozen=True)
+class AbstractTx:
+    """Abstract transaction. This class holds an EVMTransaction object with
+    abstract transaction data, along with a VarContext that can contain
+    concrete values for concolic variables present in the transacton data
+
+    Attributes:
+        tx      The full EVM transaction object
+        ctx     The symbolic context associated with tx.data
+    """
+
+    tx: EVMTransaction
+    ctx: VarContext
+
+
 class EVMRuntime:
     """A wrapper class for executing a single transaction in a deployed
     contract"""
 
-    def __init__(self, engine: MaatEngine, tx: EVMTransaction):
+    def __init__(self, engine: MaatEngine, tx: AbstractTx):
         self.engine = engine
-        contract(self.engine).transaction = tx
+        # Load the var context of the transaction in the engine
+        self.engine.vars.update_from(tx.ctx)
+        # Set transaction data in contract
+        contract(self.engine).transaction = tx.tx
         self.init_state = self.engine.take_snapshot()
 
     def run(self) -> Info:
@@ -46,7 +73,7 @@ class ContractRunner:
     def current_runtime(self) -> EVMRuntime:
         return self.runtime_stack[-1]
 
-    def push_runtime(self, tx: EVMTransaction) -> EVMRuntime:
+    def push_runtime(self, tx: AbstractTx) -> EVMRuntime:
         """Send a new transaction to the contract
 
         :param tx: The incoming transaction for which to create a new runtime
@@ -107,7 +134,7 @@ class EVMWorld:
     def __init__(self):
         self.contracts: Dict[int, ContractRunner] = {}
         self.call_stack: List[int] = []
-        self.tx_queue: List[EVMTransaction] = []
+        self.tx_queue: List[AbstractTx] = []
         self.monitors: List[WorldMonitor] = []
 
     def deploy(self, contract_file: str, address: int) -> ContractRunner:
@@ -125,17 +152,17 @@ class EVMWorld:
             self.contracts[address] = runner
             return runner
 
-    def push_transaction(self, tx: EVMTransaction) -> None:
+    def push_transaction(self, tx: AbstractTx) -> None:
         """Add a new transaction in the transaction queue"""
         self.tx_queue.append(tx)
 
-    def push_transactions(self, tx_list: List[EVMTransaction]) -> None:
+    def push_transactions(self, tx_list: List[AbstractTx]) -> None:
         """Add a list of transactions in the transaction queue. The transactions
         are executed in the order they have in the list"""
         for tx in tx_list:
             self.push_transaction(tx)
 
-    def next_transaction(self) -> EVMTransaction:
+    def next_transaction(self) -> AbstractTx:
         """Return the next transaction to execute and remove it from the
         transaction queue"""
         res = self.tx_queue[-1]
@@ -178,7 +205,7 @@ class EVMWorld:
                 # Pop next transaction to execute
                 tx = self.next_transaction()
                 # Find contract runner for the target contract
-                contract_addr = tx.recipient
+                contract_addr = tx.tx.recipient
                 try:
                     runner = self.contracts[contract_addr]
                 except KeyError as e:

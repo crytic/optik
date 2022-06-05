@@ -50,7 +50,7 @@ def run_hybrid_echidna(args: List[str]) -> None:
         new_inputs = pull_new_corpus_files(coverage_dir, seen_files)
         if new_inputs:
             logger.info(
-                f"Echidna found {len(new_inputs)} new inputs. Replaying them symbolically..."
+                f"Replaying {len(new_inputs)} new inputs symbolically..."
             )
         else:
             logger.info(f"Echidna couldn't find new inputs")
