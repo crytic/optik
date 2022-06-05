@@ -17,15 +17,23 @@ TMP_CONTRACT_DIR: Final[str] = "/tmp/"
 def translate_argument(arg: Dict) -> Tuple[str, Union[bytes, int, Value]]:
     """Translate a parsed Echidna transaction argument into a '(type, value)' tuple.
     :param arg: Transaction argument parsed as a json dict"""
-    if arg["tag"] == "AbiUInt":
+    argType = arg["tag"]
+    logger.debug(f"Found argument of type: {argType}")
+    if argType == "AbiUInt":
         bits = arg["contents"][0]
         val = int(arg["contents"][1])
         return (
             f"uint{bits}",
             val,
         )
+    elif argType == "AbiAddress":
+        val = int(arg["contents"], 16)
+        return (
+            f"address",
+            val,
+        )
     else:
-        raise EchidnaException(f"Unsupported argument type: {arg['tag']}")
+        raise EchidnaException(f"Unsupported argument type: {argType}")
 
 
 def load_tx(tx: Dict) -> EVMTransaction:
@@ -85,10 +93,13 @@ def update_argument(arg: Dict, num: int, new_model: VarContext) -> None:
     1 for the 2d, etc
     :param new_model: symbolic model to use to update the argument value
     """
-    if arg["tag"] == "AbiUInt":
+    argType = arg["tag"]
+    if argType == "AbiUInt":
         arg["contents"][1] = str(new_model.get(f"arg{num}"))
+    elif argType == "AbiAddress":
+        arg["contents"] = str(hex(new_model.get(f"arg{num}")))
     else:
-        raise EchidnaException(f"Unsupported argument type: {arg['tag']}")
+        raise EchidnaException(f"Unsupported argument type: {argType}")
 
 
 def update_tx(tx: Dict, new_model: VarContext) -> Dict:

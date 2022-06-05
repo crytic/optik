@@ -7,6 +7,11 @@ from typing import List, Union
 from .logger import logger
 
 # ====================================
+# Constants
+# ====================================
+ADDRESS_SIZE = 160
+
+# ====================================
 # Methods that encode transaction data
 # ====================================
 def _check_int_bits(bits: int) -> None:
@@ -95,8 +100,11 @@ def function_call(func: str, args_spec: str, *args) -> List[Value]:
 
     # Encode arguments
     for i, ty in enumerate(args_types.components):
+
         if ty.base == "uint":
             res.append(uintM(ty.sub, args[i]))
+        elif ty.base == "address":
+            res.append(uintM(ADDRESS_SIZE, args[i]))
         else:
             raise ABIException(f"Unsupported type: {ty.base}")
 
