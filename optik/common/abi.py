@@ -5,11 +5,13 @@ from eth_abi.grammar import ABIType, BasicType, TupleType, parse, normalize
 from eth_abi.exceptions import ABITypeError, ParseError
 from typing import List, Union
 from .logger import logger
+from dataclasses import dataclass
+from maat import contract, MaatEngine, Var, VarContext
 
-# ====================================
+# =========
 # Constants
-# ====================================
-ADDRESS_SIZE = 160
+# =========
+ADDRESS_SIZE = 160  # Bit size of Ethereum ADDRESS type
 
 # ====================================
 # Methods that encode transaction data
@@ -25,32 +27,43 @@ def _check_int_bits(bits: int) -> None:
         raise ABIException("uint: bits can't exceed 256")
 
 
-def uintM(bits: int, value: Union[int, Value]) -> Value:
+def uintM(
+    bits: int, value: Union[int, Value], ctx: VarContext, name: str
+) -> List[Value]:
     """Encode a uint<M> padded to 256 bits
+
     :param bits: number of bits <M>
     :param value: either a concrete value, or a Value object
+    :param ctx: the VarContext to use to make 'value' concolic
+    :param name: symbolic variable name to use to make 'value' concolic
+
+    :return: a list of abstract Values to append to the transaction data
     """
     _check_int_bits(bits)
-
+    # Sanity checks
     if isinstance(value, int):
         if value < 0:
             logger.warning(f"Negative value {value} encoded as uint{bits}")
         elif value >= (1 << bits):
             logger.warning(f"{value} will be truncated to fit in uint{bits}, ")
-        return Cst(256, value)
+        # TODO(boyan): raise exception if 'name' already present in 'ctx' ?
+        ctx.set(name, value, bits)  # Set concolic value in context
+        value = Var(bits, name)  # Make value concolic
     elif isinstance(value, Value):
         if value.size != bits:
             raise ABIException(
                 f"Size mismatch between value size ({value.size}) and uint{bits}"
             )
-        if bits < 256:
-            return Concat(
-                Cst(256 - bits, 0), value
-            )  # Zero extend because unsigned
-        else:
-            return value
     else:
         raise ABIException("'value' must be int or Value")
+    # Return tx data
+    if bits < 256:
+        return [
+            Cst(256 - bits, 0),  # zero padding (zero because unsigned)
+            value,  # value on 'M' bits
+        ]
+    else:
+        return [value]
 
 
 def selector(func_signature: str) -> Value:
@@ -61,10 +74,14 @@ def selector(func_signature: str) -> Value:
     return Cst(32, int.from_bytes(digest, "big"))
 
 
-def function_call(func: str, args_spec: str, *args) -> List[Value]:
+def function_call(
+    func: str, args_spec: str, ctx: VarContext, *args
+) -> List[Value]:
     """Encode a function call
+
     :param func: the name of the function to call
     :param args_spec: a string describing the type of arguments, e.g '(int256,bytes)' or 'uint'
+    :param ctx: the VarContext to use to make function arguments concolic
     """
     # Parse function arguments
     try:
@@ -100,11 +117,11 @@ def function_call(func: str, args_spec: str, *args) -> List[Value]:
 
     # Encode arguments
     for i, ty in enumerate(args_types.components):
-
+        arg_name = f"arg{i}"
         if ty.base == "uint":
-            res.append(uintM(ty.sub, args[i]))
+            res += uintM(ty.sub, args[i], ctx, arg_name)
         elif ty.base == "address":
-            res.append(uintM(ADDRESS_SIZE, args[i]))
+            res += uintM(ADDRESS_SIZE, args[i], ctx, arg_name)
         else:
             raise ABIException(f"Unsupported type: {ty.base}")
 

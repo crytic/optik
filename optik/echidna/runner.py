@@ -1,6 +1,5 @@
 from .interface import load_tx_sequence, store_new_tx_sequence
 from ..coverage import InstCoverage
-from ..common.utils import symbolicate_tx_data
 from ..common.world import EVMWorld, WorldMonitor
 from ..common.logger import logger
 import argparse
@@ -8,21 +7,7 @@ import subprocess
 import logging
 from maat import ARCH, contract, EVMTransaction, MaatEngine, Solver, STOP
 from typing import List, Optional
-
 import os
-
-logger.setLevel(logging.DEBUG)
-
-
-class SymbolicateTxData(WorldMonitor):
-    def __init__(self):
-        super().__init__()
-
-    def on_transaction(self, tx: EVMTransaction) -> None:
-        symbolicate_tx_data(self.world.current_engine)
-
-
-tx_symbolicator = SymbolicateTxData()
 
 
 def replay_inputs(
@@ -43,9 +28,8 @@ def replay_inputs(
         # TODO(boyan): implement snapshoting in EVMWorld so we don't
         # recreate the whole environment for every input
         world = EVMWorld()
-        world.deploy(contract_file, tx_seq[0].recipient)
-        world.attach_monitor(cov, tx_seq[0].recipient)
-        world.attach_monitor(tx_symbolicator)
+        world.deploy(contract_file, tx_seq[0].tx.recipient)
+        world.attach_monitor(cov, tx_seq[0].tx.recipient)
 
         # Prepare to run transaction
         world.push_transactions(tx_seq)

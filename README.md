@@ -15,19 +15,7 @@ Limitations:
 TODO:
 - [x] Simple CI with linter
 - [x] Simple logger
-- [ ] Serialization for all transaction data types (https://solidity-fr.readthedocs.io/fr/latest/abi-spec.html)
-  - [ ] `int<M>`
-  - [ ] `address`
-  - [ ] `bool`
-  - [ ] `fixed<M>x<N>`
-  - [ ] `ufixed<M>x<N>`
-  - [ ] `bytes<M>`
-  - [ ] `function`
-  - [ ] `<type>[M]`: fixed-length array
-  - [ ] `bytes`: dynamic sized byte sequence
-  - [ ] `string`: dynamic sized unicode string assumed to be UTF-8 encoded
-  - [ ] `<type>[]`: variable-length array
-  - [ ] `tuple`
+- [ ] Serialization for all transaction data types (see issue #14)
 
 - [ ] Coverage APIs
   - [x] per instruction set

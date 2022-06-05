@@ -3,6 +3,7 @@ from typing import Dict, Final, List, Tuple, Union
 from ..common.exceptions import EchidnaException, GenericException
 from ..common.abi import function_call
 from ..common.logger import logger
+from ..common.world import AbstractTx
 
 import os
 import json
@@ -18,7 +19,6 @@ def translate_argument(arg: Dict) -> Tuple[str, Union[bytes, int, Value]]:
     """Translate a parsed Echidna transaction argument into a '(type, value)' tuple.
     :param arg: Transaction argument parsed as a json dict"""
     argType = arg["tag"]
-    logger.debug(f"Found argument of type: {argType}")
     if argType == "AbiUInt":
         bits = arg["contents"][0]
         val = int(arg["contents"][1])
@@ -36,7 +36,7 @@ def translate_argument(arg: Dict) -> Tuple[str, Union[bytes, int, Value]]:
         raise EchidnaException(f"Unsupported argument type: {argType}")
 
 
-def load_tx(tx: Dict) -> EVMTransaction:
+def load_tx(tx: Dict) -> AbstractTx:
     """Translates a parsed echidna transaction into a Maat transaction
     :param tx: Echidna transaction parsed as a json dict"""
 
@@ -55,7 +55,8 @@ def load_tx(tx: Dict) -> EVMTransaction:
             arg_values.append(val)
 
     func_signature = f"({','.join(arg_types)})"
-    call_data = function_call(func_name, func_signature, *arg_values)
+    ctx = VarContext()
+    call_data = function_call(func_name, func_signature, ctx, *arg_values)
 
     # Build transaction
     # TODO: correctly handle gas_limit
@@ -64,17 +65,20 @@ def load_tx(tx: Dict) -> EVMTransaction:
     value = Cst(256, int(tx["_value"], 16))
     gas_limit = Cst(256, 46546514651)
     recipient = int(tx["_dst"], 16)
-    return EVMTransaction(
-        sender,  # origin
-        sender,  # sender
-        recipient,  # recipient
-        value,  # value
-        call_data,  # data
-        gas_limit,  # gas_limit
+    return AbstractTx(
+        EVMTransaction(
+            sender,  # origin
+            sender,  # sender
+            recipient,  # recipient
+            value,  # value
+            call_data,  # data
+            gas_limit,  # gas_limit
+        ),
+        ctx,
     )
 
 
-def load_tx_sequence(filename: str) -> List[EVMTransaction]:
+def load_tx_sequence(filename: str) -> List[AbstractTx]:
     """Load a sequence of transactions from an Echidna corpus file
 
     :param filename: corpus file to load
