@@ -21,3 +21,16 @@ jobs:
         pip install -e .[lint]
         black --version
         black --diff --check optik
+
+  hybrid-echidna:
+    runs-on: ubuntu-20.04
+    steps:
+    - uses: actions/checkout@v2
+    - name: Set up Python 3.7
+      uses: actions/setup-python@v2
+      with:
+        python-version: 3.7
+    - name: Run tests
+      run: |
+        pip install -e .[tests]
+        python3 -m pytest tests/echidna
