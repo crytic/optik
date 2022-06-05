@@ -94,6 +94,9 @@ def generate_new_inputs(cov: InstCoverage) -> int:
         for path_constraint in bif.path_constraints:
             s.add(path_constraint)
         # Add constraint to branch to new code
+        logger.debug(
+            f"Solving alt target constraint: {bif.alt_target_constraint}"
+        )
         s.add(bif.alt_target_constraint)
 
         if s.check():
