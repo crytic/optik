@@ -134,6 +134,8 @@ class EVMWorld:
         self.call_stack: List[int] = []
         self.tx_queue: List[AbstractTx] = []
         self.monitors: List[WorldMonitor] = []
+        # Counter for transactions being run
+        self._current_tx_num: int = 0
 
     def deploy(self, contract_file: str, address: int) -> ContractRunner:
         """Deploy a contract at a given address
@@ -166,6 +168,10 @@ class EVMWorld:
         res = self.tx_queue[-1]
         self.tx_queue.pop()
         return res
+
+    @property
+    def current_tx_num(self) -> int:
+        return self._current_tx_num
 
     @property
     def has_pending_transactions(self) -> bool:
@@ -202,6 +208,7 @@ class EVMWorld:
             if not self.call_stack:
                 # Pop next transaction to execute
                 tx = self.next_transaction()
+                self._current_tx_num += 1
                 # Find contract runner for the target contract
                 contract_addr = tx.tx.recipient
                 try:

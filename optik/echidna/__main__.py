@@ -55,6 +55,7 @@ def run_hybrid_echidna(args: List[str]) -> None:
         else:
             logger.info(f"Echidna couldn't find new inputs")
             return
+        cov.bifurcations = []
         cov = replay_inputs(new_inputs, contract_file, cov)
 
         # Find inputs to reach new code
