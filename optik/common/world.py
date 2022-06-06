@@ -83,7 +83,6 @@ class ContractRunner:
         # Create a new engine that shares runtime code and symbolic
         # variables
         new_engine = self.root_engine._duplicate(share={"memory", "vars"})
-        new_engine.settings.log_insts = True
         # Create new maat contract runtime for new engine
         new_evm_runtime(new_engine, self.root_engine)
         self.runtime_stack.append(EVMRuntime(new_engine, tx))

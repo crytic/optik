@@ -47,6 +47,7 @@ class InstCoverage(WorldMonitor):
             alt_target = b.target.as_uint(m.vars)
             taken_target = b.next.as_uint(m.vars)
             alt_constr = b.cond
+
         # Record only if bifurcation to code that was not yet covered
         if alt_target not in self.covered:
             self.bifurcations.append(
