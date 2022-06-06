@@ -7,7 +7,6 @@ Example usage: `hybrid-echidna ExploreMe.sol  --test-mode assertion --corpus-dir
 Help: `hybrid-echidna -h`
 
 Limitations:
-- Can't run sequences of multiple transactions (needs `--seq-len 1`)
 - Can only run on a single solidity file
 - Can't deploy multiple contracts
 - No re-entrency
@@ -35,7 +34,7 @@ TODO:
 
 - [ ] Implement `ContractRunner`: execution wrapper for a single contract
   - [x] Load and run a single transaction
-  - [ ] Run a series of transactions
+  - [x] Run a series of transactions
   - [x] Handle possible REVERT by using snapshoting
   - Handle re-entrency:
     - [x] Hold a stack of `MaatEngine` instances on re-entrency
