@@ -5,6 +5,7 @@ from maat import (
     EVMTransaction,
     Info,
     MaatEngine,
+    new_evm_runtime,
     STOP,
     VarContext,
 )
@@ -42,16 +43,16 @@ class EVMRuntime:
         self.init_state = self.engine.take_snapshot()
 
     def run(self) -> Info:
-        """Run the EVM, handling potential reverts"""
+        """Run the EVM. If the code ends in a REVERT, the state is
+        not automatically reverted. See EVMRuntime.revert()
+        """
         self.engine.run()
-        info = self.engine.info
-
-        # If ended in revert, revert the state
-        if info.stop == STOP.EXIT and info.exit_status == EVM.REVERT:
-            self.engine.restore_snapshot(self.init_state, remove=False)
-
         # Return info before potential revert
-        return info
+        return self.engine.info
+
+    def revert(self) -> None:
+        """Revert any state modifications performed while running"""
+        self.engine.restore_snapshot(self.init_state, remove=False)
 
 
 class ContractRunner:
@@ -79,14 +80,12 @@ class ContractRunner:
         :param tx: The incoming transaction for which to create a new runtime
         :return: The new runtime created to execute 'tx'
         """
-        # TODO(boyan): new_engine = self.root_engine.duplicate()
-        # We should duplicate the engine. The code below works only
-        # if there is no re-entrency and for a single transaction...
-        if self.runtime_stack:
-            raise WorldException("Re-entrency is not yet supported")
-        else:
-            new_engine = self.root_engine
-
+        # Create a new engine that shares runtime code and symbolic
+        # variables
+        new_engine = self.root_engine._duplicate(share={"memory", "vars"})
+        new_engine.settings.log_insts = True
+        # Create new maat contract runtime for new engine
+        new_evm_runtime(new_engine, self.root_engine)
         self.runtime_stack.append(EVMRuntime(new_engine, tx))
 
     def pop_runtime(self) -> None:
@@ -225,9 +224,14 @@ class EVMWorld:
 
             # Get current runtime and run
             rt: EVMRuntime = self.contracts[self.call_stack[-1]].current_runtime
-            stop = rt.run().stop
+            info = rt.run()
+            stop = info.stop
             # Check stop reason
             if stop == STOP.EXIT:
+                # Handle revert. WARNING: Once we revert the state, 'info' is
+                # no more valid, because it is restored as well
+                if info.exit_status == EVM.REVERT:
+                    rt.revert()
                 # Call exited, delete the runtime
                 self.contracts[self.call_stack[-1]].pop_runtime()
                 # Remove it from callstack
