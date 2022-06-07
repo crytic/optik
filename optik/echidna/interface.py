@@ -4,6 +4,7 @@ from ..common.exceptions import EchidnaException, GenericException
 from ..common.abi import function_call
 from ..common.logger import logger
 from ..common.world import AbstractTx
+from ..common.util import twos_complement_convert
 
 import os
 import json
@@ -26,6 +27,14 @@ def translate_argument(arg: Dict) -> Tuple[str, Union[bytes, int, Value]]:
             f"uint{bits}",
             val,
         )
+    elif argType == "AbiInt":
+        bits = arg["contents"][0]
+        val = int(arg["contents"][1])
+        return (
+            f"int{bits}",
+            val
+        )
+
     elif argType == "AbiAddress":
         val = int(arg["contents"], 16)
         return (
@@ -88,6 +97,7 @@ def load_tx_sequence(filename: str) -> List[AbstractTx]:
         return [load_tx(tx) for tx in data]
 
 
+
 def update_argument(arg: Dict, num: int, new_model: VarContext) -> None:
     """Update an argument value in a transaction according to a
     symbolic model. The argument is modified **in-place**
@@ -100,6 +110,10 @@ def update_argument(arg: Dict, num: int, new_model: VarContext) -> None:
     argType = arg["tag"]
     if argType == "AbiUInt":
         arg["contents"][1] = str(new_model.get(f"arg{num}"))
+    elif argType == "AbiInt":
+        argVal = int(new_model.get(f"arg{num}"))
+        bits = arg["contents"][0]
+        arg["contents"][1] = str(twos_complement_convert(argVal, bits))
     elif argType == "AbiAddress":
         arg["contents"] = str(hex(new_model.get(f"arg{num}")))
     else:
