@@ -65,8 +65,10 @@ def uintM(
     else:
         return [value]
 
+
 def intM(
-    bits: int, value: Union[int, Value], ctx: VarContext, name: str) -> List[Value]:
+    bits: int, value: Union[int, Value], ctx: VarContext, name: str
+) -> List[Value]:
     """Encodes a int<M> (signed 2's complement) padded to 256 bits
 
     :param bits: number of bits <M>
@@ -74,7 +76,7 @@ def intM(
     :param ctx: the VarContext to use to make 'value' concolic
     :param name: symbolic variable name to use to make 'value' concolic
 
-    :return: list of abstract Values to append to the transaction data    
+    :return: list of abstract Values to append to the transaction data
     """
     _check_int_bits(bits)
     # Sanity check
@@ -83,7 +85,9 @@ def intM(
         upperBound = (1 << (bits - 1)) - 1
         lowerBound = -(1 << (bits - 1))
         if value >= upperBound or value <= lowerBound:
-            logger.warning(f"Signed integer value {value} outside bounds permitted by {bits} bits")
+            logger.warning(
+                f"Signed integer value {value} outside bounds permitted by {bits} bits"
+            )
         ctx.set(name, value, bits)
         value = Var(bits, name)
     elif isinstance(value, Value):
@@ -93,14 +97,12 @@ def intM(
             )
     else:
         raise ABIException("'value' must be int or Value")
-    
+
     if bits < 256:
-        return [
-            Cst(256 - bits, 0),
-            value
-        ]
+        return [Cst(256 - bits, 0), value]
     else:
         return [value]
+
 
 def selector(func_signature: str) -> Value:
     """Return the first 4 bytes of the keccak256 hash of 'func_signature'"""

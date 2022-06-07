@@ -1,6 +1,7 @@
 from maat import Value
 from .exceptions import GenericException
 
+
 def twos_complement_convert(arg: int, bits: int) -> int:
     """Takes an python integer and determines it's two's complement value
     in a given bit size
@@ -12,12 +13,12 @@ def twos_complement_convert(arg: int, bits: int) -> int:
     """
     if arg < 0:
         raise GenericException("Expected a positive value")
-    elif arg >= (1<<bits):
+    elif arg >= (1 << bits):
         raise GenericException(f"Value {arg} too big to fit on {bits} bits")
 
-    if arg & (1<<(bits-1)) == 0:
+    if arg & (1 << (bits - 1)) == 0:
         # Positive number
         return arg
     else:
         # Negative number
-        return arg - (1<<bits)
+        return arg - (1 << bits)

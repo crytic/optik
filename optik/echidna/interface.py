@@ -30,10 +30,7 @@ def translate_argument(arg: Dict) -> Tuple[str, Union[bytes, int, Value]]:
     elif argType == "AbiInt":
         bits = arg["contents"][0]
         val = int(arg["contents"][1])
-        return (
-            f"int{bits}",
-            val
-        )
+        return (f"int{bits}", val)
 
     elif argType == "AbiAddress":
         val = int(arg["contents"], 16)
