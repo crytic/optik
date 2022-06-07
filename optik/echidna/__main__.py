@@ -20,7 +20,12 @@ def run_hybrid_echidna(args: List[str]) -> None:
     coverage_dir = os.path.join(args.corpus_dir, "coverage")
 
     # Coverage tracker for the whole fuzzing session
-    cov = InstCoverage()
+    if args.cov_mode == "inst":
+        cov = InstCoverage()
+    elif args.cov_mode == "inst-ctx":
+        cov = InstCoverage(record_tx_num=True)
+    else:
+        raise GenericException(f"Unimplemented coverage mode: {args.cov_mode}")
     # Set of corpus files we have already processed
     seen_files = set()
 
@@ -175,6 +180,19 @@ def parse_arguments(args: List[str]) -> argparse.Namespace:
         help="Number of fuzzing campaigns to run. If unspecified, run until symbolic execution can't find new inputs",
         default=None,
         metavar="INTEGER",
+    )
+
+    parser.add_argument(
+        "--cov-mode",
+        type=str,
+        help="Coverage mode to use",
+        choices=[
+            "inst",
+            "inst-ctx",
+            "path",
+        ],
+        default="inst",
+        metavar="MODE",
     )
 
     parser.add_argument("--debug", action="store_true", help="Print debug logs")

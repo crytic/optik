@@ -103,7 +103,10 @@ def run_echidna_campaign(
     cmdline += args.FILES
     for arg, val in args.__dict__.items():
         # Ignore Optik specific arguments
-        if arg not in ["FILES", "max_iters", "debug"] and not val is None:
+        if (
+            arg not in ["FILES", "max_iters", "debug", "cov_mode"]
+            and not val is None
+        ):
             cmdline += [f"--{arg.replace('_', '-')}", str(val)]
     logger.debug(f"Echidna invocation cmdline: {' '.join(cmdline)}")
     # Run echidna

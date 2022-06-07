@@ -24,18 +24,27 @@ class InstCoverage(WorldMonitor):
         current_input   The UID of the input currently being tracked
         contract        Optional contract to track. Used only when registered
                         as a WorldMonitor
+        record_tx_num   If set to True, record tx number along with covered addresses
+                        which results in more fine-grain coverage and more bifurcations
+                        recorded. Default: False
     """
 
-    def __init__(self):
+    def __init__(self, record_tx_num: bool = False):
         super().__init__()
         self.covered: Dict[int, int] = {}
         self.bifurcations: List[Bifurcation] = []
         self.current_input: str = "<unspecified>"
         self.contract: Optional[ContractRunner] = None
+        # Options
+        self.record_tx_num = record_tx_num
+
+    @property
+    def current_tx_num(self) -> Optional[int]:
+        return self.world.current_tx_num if self.record_tx_num else None
 
     def record_exec(self, addr: int) -> None:
         """Record execution of instruction at 'addr'"""
-        state = CoverageState(addr, self.world.current_tx_num)
+        state = CoverageState(addr, self.current_tx_num)
         self.covered[state] = self.covered.get(state, 0) + 1
 
     def record_branch(self, m: MaatEngine) -> None:
@@ -57,7 +66,7 @@ class InstCoverage(WorldMonitor):
             alt_constr = b.cond
 
         # Record only if bifurcation to code that was not yet covered
-        target_state = CoverageState(alt_target, self.world.current_tx_num)
+        target_state = CoverageState(alt_target, self.current_tx_num)
         if target_state not in self.covered:
             self.bifurcations.append(
                 Bifurcation(
@@ -67,7 +76,7 @@ class InstCoverage(WorldMonitor):
                     path_constraints=list(m.path.constraints()),
                     alt_target_constraint=alt_constr,
                     input_uid=self.current_input,
-                    tx_num=self.world.current_tx_num,
+                    tx_num=self.current_tx_num,
                 )
             )
 
