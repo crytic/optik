@@ -1,8 +1,15 @@
 from maat import MaatEngine, EVENT, WHEN
-from typing import Dict, List
+from typing import Dict, List, Optional
 from ..common.exceptions import CoverageException
 from ..common.world import WorldMonitor, EVMRuntime
 from .bifurcation import Bifurcation
+from dataclasses import dataclass
+
+
+@dataclass(eq=True, frozen=True)
+class CoverageState:
+    inst_addr: int
+    tx_num: Optional[int] = None
 
 
 class InstCoverage(WorldMonitor):
@@ -17,18 +24,28 @@ class InstCoverage(WorldMonitor):
         current_input   The UID of the input currently being tracked
         contract        Optional contract to track. Used only when registered
                         as a WorldMonitor
+        record_tx_num   If set to True, record tx number along with covered addresses
+                        which results in more fine-grain coverage and more bifurcations
+                        recorded. Default: False
     """
 
-    def __init__(self):
+    def __init__(self, record_tx_num: bool = False):
         super().__init__()
         self.covered: Dict[int, int] = {}
         self.bifurcations: List[Bifurcation] = []
         self.current_input: str = "<unspecified>"
         self.contract: Optional[ContractRunner] = None
+        # Options
+        self.record_tx_num = record_tx_num
+
+    @property
+    def current_tx_num(self) -> Optional[int]:
+        return self.world.current_tx_num if self.record_tx_num else None
 
     def record_exec(self, addr: int) -> None:
         """Record execution of instruction at 'addr'"""
-        self.covered[addr] = self.covered.get(addr, 0) + 1
+        state = CoverageState(addr, self.current_tx_num)
+        self.covered[state] = self.covered.get(state, 0) + 1
 
     def record_branch(self, m: MaatEngine) -> None:
         """Record execution of a symbolic branch and save the bifurcation
@@ -47,8 +64,10 @@ class InstCoverage(WorldMonitor):
             alt_target = b.target.as_uint(m.vars)
             taken_target = b.next.as_uint(m.vars)
             alt_constr = b.cond
+
         # Record only if bifurcation to code that was not yet covered
-        if alt_target not in self.covered:
+        target_state = CoverageState(alt_target, self.current_tx_num)
+        if target_state not in self.covered:
             self.bifurcations.append(
                 Bifurcation(
                     inst_addr=m.info.addr,
@@ -57,6 +76,7 @@ class InstCoverage(WorldMonitor):
                     path_constraints=list(m.path.constraints()),
                     alt_target_constraint=alt_constr,
                     input_uid=self.current_input,
+                    tx_num=self.current_tx_num,
                 )
             )
 
@@ -96,7 +116,8 @@ class InstCoverage(WorldMonitor):
         self.bifurcations = [
             b
             for b in self.bifurcations
-            if self.covered.get(b.alt_target, 0) <= visit_max
+            if self.covered.get(CoverageState(b.alt_target, b.tx_num), 0)
+            <= visit_max
         ]
 
     def sort_bifurcations(self) -> None:

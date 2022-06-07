@@ -36,10 +36,13 @@ def translate_argument(arg: Dict) -> Tuple[str, Union[bytes, int, Value]]:
         raise EchidnaException(f"Unsupported argument type: {argType}")
 
 
-def load_tx(tx: Dict) -> AbstractTx:
+def load_tx(tx: Dict, tx_name: str = "") -> AbstractTx:
     """Translates a parsed echidna transaction into a Maat transaction
-    :param tx: Echidna transaction parsed as a json dict"""
 
+    :param tx: Echidna transaction parsed as a json dict
+    :param tx_name: Optional name identifying this transaction, used to
+        name symbolic variables created to fill the transaction data
+    """
     # Translate function call and argument types and values
     call = tx["_call"]
     if call["tag"] != "SolCall":
@@ -56,7 +59,9 @@ def load_tx(tx: Dict) -> AbstractTx:
 
     func_signature = f"({','.join(arg_types)})"
     ctx = VarContext()
-    call_data = function_call(func_name, func_signature, ctx, *arg_values)
+    call_data = function_call(
+        func_name, func_signature, ctx, tx_name, *arg_values
+    )
 
     # Build transaction
     # TODO: correctly handle gas_limit
@@ -85,41 +90,51 @@ def load_tx_sequence(filename: str) -> List[AbstractTx]:
     """
     with open(filename, "rb") as f:
         data = json.loads(f.read())
-        return [load_tx(tx) for tx in data]
+        res = []
+        for i, tx in enumerate(data):
+            res.append(load_tx(tx, tx_name=f"tx{i}"))
+        return res
 
 
-def update_argument(arg: Dict, num: int, new_model: VarContext) -> None:
+def update_argument(arg: Dict, arg_name: str, new_model: VarContext) -> None:
     """Update an argument value in a transaction according to a
     symbolic model. The argument is modified **in-place**
 
     :param arg: argument to update, parsed as a JSON dict
-    :param num: position of the argument in the call. It's 0 for the 1st argument,
-    1 for the 2d, etc
+    :param arg_name: base name of the symbolic variable that was created for this
+    argument
     :param new_model: symbolic model to use to update the argument value
     """
+    # Update the argument only if the model contains a new value
+    # for this argument
+    if not new_model.contains(arg_name):
+        return
+
     argType = arg["tag"]
     if argType == "AbiUInt":
-        arg["contents"][1] = str(new_model.get(f"arg{num}"))
+        arg["contents"][1] = str(new_model.get(arg_name))
     elif argType == "AbiAddress":
-        arg["contents"] = str(hex(new_model.get(f"arg{num}")))
+        arg["contents"] = str(hex(new_model.get(arg_name)))
     else:
         raise EchidnaException(f"Unsupported argument type: {argType}")
 
 
-def update_tx(tx: Dict, new_model: VarContext) -> Dict:
+def update_tx(tx: Dict, new_model: VarContext, tx_name: str = "") -> Dict:
     """Update parameter values in a transaction according to a
     symbolic model
 
     :param tx: Echidna transaction to update, parsed as a JSON dict
     :param new_model: symbolic model to use to update transaction data in 'tx'
+    :param tx_name: Optional name identifying the transaction to update, used to
+        name get symbolci variables corresponding to the transaction data. Needs
+        to match the 'tx_name' passed to load_tx() earlier
     :return: the updated transaction as a JSON dict
     """
     tx = tx.copy()  # Copy transaction to avoid in-place modifications
     call = tx["_call"]
     args = call["contents"][1]
     for i, arg in enumerate(args):
-        update_argument(arg, i, new_model)
-
+        update_argument(arg, f"{tx_name}_arg{i}", new_model)
     return tx
 
 
@@ -135,7 +150,9 @@ def store_new_tx_sequence(original_file: str, new_model: VarContext) -> None:
         data = json.loads(f.read())
 
     # Update JSON with new transactions
-    new_data = [update_tx(tx, new_model) for tx in data]
+    new_data = []
+    for i, tx in enumerate(data):
+        new_data.append(update_tx(tx, new_model, tx_name=f"tx{i}"))
 
     # Write new corpus input in a fresh file
     new_file = get_available_filename(
