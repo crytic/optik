@@ -4,7 +4,7 @@ import os
 
 from .runner import replay_inputs, generate_new_inputs, run_echidna_campaign
 from .interface import extract_contract_bytecode
-from ..coverage import InstCoverage
+from ..coverage import InstCoverage, PathCoverage
 from ..common.logger import logger, handler
 import logging
 from typing import List, Set
@@ -24,6 +24,10 @@ def run_hybrid_echidna(args: List[str]) -> None:
         cov = InstCoverage()
     elif args.cov_mode == "inst-ctx":
         cov = InstCoverage(record_tx_num=True)
+    elif args.cov_mode == "path":
+        cov = PathCoverage()
+    elif args.cov_mode == "path-relaxed":
+        cov = PathCoverage(strict=False)
     else:
         raise GenericException(f"Unimplemented coverage mode: {args.cov_mode}")
     # Set of corpus files we have already processed
@@ -186,11 +190,7 @@ def parse_arguments(args: List[str]) -> argparse.Namespace:
         "--cov-mode",
         type=str,
         help="Coverage mode to use",
-        choices=[
-            "inst",
-            "inst-ctx",
-            "path",
-        ],
+        choices=["inst", "inst-ctx", "path", "path-relaxed"],
         default="inst",
         metavar="MODE",
     )
