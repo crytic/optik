@@ -9,16 +9,16 @@ Help: `hybrid-echidna -h`
 Limitations:
 - Can only run on a single solidity file
 - Can't deploy multiple contracts
-- No re-entrency
+- No re-entrency or calls accross contracts
 
 TODO:
 - [x] Simple CI with linter
 - [x] Simple logger
 - [ ] Serialization for all transaction data types (see issue #14)
 
-- [ ] Coverage APIs
+- [x] Coverage APIs
   - [x] per instruction set
-  - [ ] per path
+  - [x] per path
 
 - [x] Simple script that takes corpus from echidna, runs it, collects coverage, then tries to discover inputs for new paths based on that
 - [x] Implement main script using `EVMWorld` instead of a single `MaatEngine` instance
@@ -32,13 +32,13 @@ TODO:
   
 ## MISC
 
-- [ ] Implement `ContractRunner`: execution wrapper for a single contract
+- [x] Implement `ContractRunner`: execution wrapper for a single contract
   - [x] Load and run a single transaction
   - [x] Run a series of transactions
   - [x] Handle possible REVERT by using snapshoting
   - Handle re-entrency:
     - [x] Hold a stack of `MaatEngine` instances on re-entrency
-    - [ ] Automatically make a copy of the top-level engine on re-entrency
+    - [x] Automatically make a copy of the top-level engine on re-entrency
 
 - [x] Update `coverage` module to work with a `EVMWorld` (subscribe to events)
 
