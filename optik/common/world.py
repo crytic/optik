@@ -243,8 +243,10 @@ class EVMWorld:
                 # Remove it from callstack
                 self.call_stack.pop()
             # elif TODO(boyan): message call into a contract (trigger CALL event again)
+            # Any other return reason: event hook, error, ... -> we stop
+            else:
+                break
 
-        # Any other return reason: event hook, error, ...
         return stop
 
     def attach_monitor(self, monitor: WorldMonitor, *args) -> None:

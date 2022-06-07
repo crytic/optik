@@ -76,7 +76,7 @@ class InstCoverage(WorldMonitor):
                     path_constraints=list(m.path.constraints()),
                     alt_target_constraint=alt_constr,
                     input_uid=self.current_input,
-                    tx_num=self.current_tx_num,
+                    ctx_info=self.current_tx_num,
                 )
             )
 
@@ -116,7 +116,7 @@ class InstCoverage(WorldMonitor):
         self.bifurcations = [
             b
             for b in self.bifurcations
-            if self.covered.get(CoverageState(b.alt_target, b.tx_num), 0)
+            if self.covered.get(CoverageState(b.alt_target, b.ctx_info), 0)
             <= visit_max
         ]
 
