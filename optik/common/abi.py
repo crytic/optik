@@ -111,13 +111,15 @@ def selector(func_signature: str) -> Value:
 
 
 def function_call(
-    func: str, args_spec: str, ctx: VarContext, *args
+    func: str, args_spec: str, ctx: VarContext, tx_name: str, *args
 ) -> List[Value]:
     """Encode a function call
 
     :param func: the name of the function to call
     :param args_spec: a string describing the type of arguments, e.g '(int256,bytes)' or 'uint'
     :param ctx: the VarContext to use to make function arguments concolic
+    :param tx_name: unique transaction name, used to name symbolic variables
+        created for function arguments. Can be empty.
     """
     # Parse function arguments
     try:
@@ -153,7 +155,7 @@ def function_call(
 
     # Encode arguments
     for i, ty in enumerate(args_types.components):
-        arg_name = f"arg{i}"
+        arg_name = f"{tx_name}_arg{i}"
         if ty.base == "uint":
             res += uintM(ty.sub, args[i], ctx, arg_name)
         elif ty.base == "int":

@@ -1,36 +1,23 @@
 from maat import Value
-
+from .exceptions import GenericException
 
 def twos_complement_convert(arg: int, bits: int) -> int:
     """Takes an python integer and determines it's two's complement value
     in a given bit size
 
-    :param arg: argument to
-    :param bits: bit length of the two's complement number
+    :param arg: value to convert, interpreted as an unsigned value
+    :param bits: bit length of 'arg'
 
-    :return: two's complement integer of `bits` length
+    :return: two's complement integer of `arg` on `bits` length
     """
-    bitRepr = format(abs(arg), 'b')
-    bitLen = len(bitRepr)
+    if arg < 0:
+        raise GenericException("Expected a positive value")
+    elif arg >= (1<<bits):
+        raise GenericException(f"Value {arg} too big to fit on {bits} bits")
 
-    formatter = "{0:0" + str(bits) + "b}"
-    bitstring = formatter.format(arg)
-
-    if bitLen == bits:
-        # truncate
-        bitstring = bitstring[1:]
-
-    if arg >= 0:
-        return int(bitstring, 2)
+    if arg & (1<<(bits-1)) == 0:
+        # Positive number
+        return arg
     else:
-        flipped = list(map(lambda b: '1' if b == '0' else '0', bitstring))
-        twosCompl = int(flipped, 2) + 1
-        return twosCompl
-        
-
-        
-
-
-
-
-    
+        # Negative number
+        return arg - (1<<bits)
