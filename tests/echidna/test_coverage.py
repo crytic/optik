@@ -11,6 +11,7 @@ to_test = [
     ("ExploreMe.sol", "inst"),
     ("Primality.sol", "inst"),
     ("MultiMagic.sol", "path-relaxed"),
+    ("CoverageInt.sol", "inst"),
 ]
 to_test = [
     (

@@ -31,7 +31,7 @@ class InstCoverage(WorldMonitor):
 
     def __init__(self, record_tx_num: bool = False):
         super().__init__()
-        self.covered: Dict[int, int] = {}
+        self.covered: Dict[CoverateState, int] = {}
         self.bifurcations: List[Bifurcation] = []
         self.current_input: str = "<unspecified>"
         self.contract: Optional[ContractRunner] = None

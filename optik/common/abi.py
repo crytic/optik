@@ -6,7 +6,7 @@ from eth_abi.exceptions import ABITypeError, ParseError
 from typing import List, Union
 from .logger import logger
 from dataclasses import dataclass
-from maat import contract, MaatEngine, Var, VarContext
+from maat import contract, MaatEngine, Sext, Var, VarContext
 
 # =========
 # Constants
@@ -62,6 +62,44 @@ def uintM(
             Cst(256 - bits, 0),  # zero padding (zero because unsigned)
             value,  # value on 'M' bits
         ]
+    else:
+        return [value]
+
+
+def intM(
+    bits: int, value: Union[int, Value], ctx: VarContext, name: str
+) -> List[Value]:
+    """Encodes a int<M> (signed 2's complement) padded to 256 bits
+
+    :param bits: number of bits <M>
+    :param value: either a concrete value, or a Value object
+    :param ctx: the VarContext to use to make 'value' concolic
+    :param name: symbolic variable name to use to make 'value' concolic
+
+    :return: list of abstract Values to append to the transaction data
+    """
+    _check_int_bits(bits)
+    # Sanity check
+    if isinstance(value, int):
+        # Signed 2's complement bounds
+        upperBound = (1 << (bits - 1)) - 1
+        lowerBound = -(1 << (bits - 1))
+        if value > upperBound or value < lowerBound:
+            logger.warning(
+                f"Signed integer value {value} outside bounds permitted by {bits} bits"
+            )
+        ctx.set(name, value, bits)
+        value = Var(bits, name)
+    elif isinstance(value, Value):
+        if value.size != bits:
+            raise ABIException(
+                f"Size mismatch between value size ({value.size}) and int{bits}"
+            )
+    else:
+        raise ABIException("'value' must be int or Value")
+
+    if bits < 256:
+        return [Sext(256, value)]
     else:
         return [value]
 
@@ -122,6 +160,8 @@ def function_call(
         arg_name = f"{tx_name}_arg{i}"
         if ty.base == "uint":
             res += uintM(ty.sub, args[i], ctx, arg_name)
+        elif ty.base == "int":
+            res += intM(ty.sub, args[i], ctx, arg_name)
         elif ty.base == "address":
             res += uintM(ADDRESS_SIZE, args[i], ctx, arg_name)
         else:
