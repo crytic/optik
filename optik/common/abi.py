@@ -6,7 +6,7 @@ from eth_abi.exceptions import ABITypeError, ParseError
 from typing import List, Union
 from .logger import logger
 from dataclasses import dataclass
-from maat import contract, MaatEngine, Var, VarContext
+from maat import contract, MaatEngine, Sext, Var, VarContext
 
 # =========
 # Constants
@@ -99,7 +99,7 @@ def intM(
         raise ABIException("'value' must be int or Value")
 
     if bits < 256:
-        return [Cst(256 - bits, 0), value]
+        return [Sext(256, value)]
     else:
         return [value]
 
