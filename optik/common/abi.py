@@ -84,7 +84,7 @@ def intM(
         # Signed 2's complement bounds
         upperBound = (1 << (bits - 1)) - 1
         lowerBound = -(1 << (bits - 1))
-        if value >= upperBound or value <= lowerBound:
+        if value > upperBound or value < lowerBound:
             logger.warning(
                 f"Signed integer value {value} outside bounds permitted by {bits} bits"
             )
