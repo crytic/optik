@@ -12,6 +12,7 @@ to_test = [
     ("Primality.sol", "inst"),
     ("MultiMagic.sol", "path-relaxed"),
     ("CoverageInt.sol", "inst"),
+    ("Time.sol", "inst"),
 ]
 to_test = [
     (
@@ -32,7 +33,7 @@ def test_coverage(contract: str, cov_mode: str):
     """
     test_dir = new_test_dir("/tmp/")
     # Run hybrid echidna
-    cmdline_args = f"{contract}  --test-mode assertion --corpus-dir {test_dir} --seq-len 10 --seed 123456 --max-iters 10 --test-limit 10000 --cov-mode {cov_mode} --debug".split()
+    cmdline_args = f"{contract}  --test-mode assertion --corpus-dir {test_dir} --seq-len 10 --seed 46541521 --max-iters 10 --test-limit 10000 --cov-mode {cov_mode} --debug".split()
     run_hybrid_echidna(cmdline_args)
     # Check coverage
     covered_file = get_coverage_file(test_dir)

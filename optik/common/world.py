@@ -3,10 +3,13 @@ from maat import (
     contract,
     EVM,
     EVMTransaction,
+    increment_block_number,
+    increment_block_timestamp,
     Info,
     MaatEngine,
     new_evm_runtime,
     STOP,
+    Value,
     VarContext,
 )
 from typing import Callable, Dict, List, Optional
@@ -27,6 +30,8 @@ class AbstractTx:
     """
 
     tx: EVMTransaction
+    block_num_inc: Value
+    block_timestamp_inc: Value
     ctx: VarContext
 
 
@@ -59,9 +64,13 @@ class ContractRunner:
     """A wrapper class that offers an interface to deploy a contract and
     handle execution of several transactions with potential re-entrency"""
 
-    def __init__(self, contract_file: str, address: int):
-        # Load the contract in a symbolic engine
-        self.root_engine = MaatEngine(ARCH.EVM)
+    def __init__(
+        self, root_engine: MaatEngine, contract_file: str, address: int
+    ):
+        # Create a new engine that shares the variables context of the
+        # root engine, but has its own memory (to hold its own runtime bytecode)
+        self.root_engine = root_engine._duplicate(share={"vars"})
+        # Load the contract the new symbolic engine
         self.root_engine.load(contract_file, envp={"address": str(address)})
 
         # The wrapper holds a stack of pending runtimes. Each runtime represents
@@ -136,6 +145,8 @@ class EVMWorld:
         self.monitors: List[WorldMonitor] = []
         # Counter for transactions being run
         self._current_tx_num: int = 0
+        # Root engine
+        self.root_engine = MaatEngine(ARCH.EVM)
 
     def deploy(self, contract_file: str, address: int) -> ContractRunner:
         """Deploy a contract at a given address
@@ -148,7 +159,7 @@ class EVMWorld:
                 f"Couldn't deploy {contract_file}, address {address} already in use"
             )
         else:
-            runner = ContractRunner(contract_file, address)
+            runner = ContractRunner(self.root_engine, contract_file, address)
             self.contracts[address] = runner
             return runner
 
@@ -165,8 +176,8 @@ class EVMWorld:
     def next_transaction(self) -> AbstractTx:
         """Return the next transaction to execute and remove it from the
         transaction queue"""
-        res = self.tx_queue[-1]
-        self.tx_queue.pop()
+        res = self.tx_queue[0]
+        self.tx_queue.pop(0)
         return res
 
     @property
@@ -221,6 +232,8 @@ class EVMWorld:
                 runner.push_runtime(tx)
                 # Add to call stack
                 self.call_stack.append(contract_addr)
+                # Update block number & timestamp
+                self._update_block_info(self.root_engine, tx)
                 # Monitor events
                 self._on_event(
                     "transaction",
@@ -248,6 +261,20 @@ class EVMWorld:
                 break
 
         return stop
+
+    def _update_block_info(self, m: MaatEngine, tx: AbstractTx) -> None:
+        """Increase the block number and block timestamp when emulating
+        a new transaction
+
+        :param m: any MaatEngine running in the Ethereum environment
+        for which we want to update the block info
+        :param tx: transaction data containing the block info increments
+        """
+        # Update block info in Maat
+        increment_block_number(m, tx.block_num_inc)
+        increment_block_timestamp(m, tx.block_timestamp_inc)
+        # TODO(boyan): Should we add constraints to force increments to
+        # be within certain bounds?
 
     def attach_monitor(self, monitor: WorldMonitor, *args) -> None:
         """Attach a WorldMonitor"""
