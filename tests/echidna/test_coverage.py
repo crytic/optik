@@ -12,6 +12,7 @@ to_test = [
     ("Primality.sol", "inst"),
     ("MultiMagic.sol", "path-relaxed"),
     ("CoverageInt.sol", "inst"),
+    ("CoverageBool.sol", "inst"),
 ]
 to_test = [
     (
