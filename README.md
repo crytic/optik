@@ -63,4 +63,5 @@ A couple additionnal options are available:
 - Can only run on a single solidity file
 - Can't deploy multiple contracts
 - No re-entrency or calls accross contracts
+- Gas is taken into account
 - Some echidna options are not yet supported (see `hybrid-echidna -h`)
