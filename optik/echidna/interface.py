@@ -1,4 +1,4 @@
-from maat import Cst, EVMTransaction, Value, VarContext
+from maat import Cst, EVMTransaction, Value, Var, VarContext
 from typing import Dict, Final, List, Tuple, Union
 from ..common.exceptions import EchidnaException, GenericException
 from ..common.abi import function_call
@@ -76,6 +76,14 @@ def load_tx(tx: Dict, tx_name: str = "") -> AbstractTx:
         func_name, func_signature, ctx, tx_name, *arg_values
     )
 
+    # Translate block number/timestamp increments
+    block_num_inc = Var(256, f"{tx_name}_block_num_inc")
+    block_timestamp_inc = Var(256, f"{tx_name}_block_timestamp_inc")
+    ctx.set(block_num_inc.name, int(tx["_delay"][1], 16), block_num_inc.size)
+    ctx.set(
+        block_timestamp_inc.name, int(tx["_delay"][0], 16), block_num_inc.size
+    )
+
     # Build transaction
     # TODO: correctly handle gas_limit
     # TODO: make EVMTransaction accept integers as arguments
@@ -92,6 +100,8 @@ def load_tx(tx: Dict, tx_name: str = "") -> AbstractTx:
             call_data,  # data
             gas_limit,  # gas_limit
         ),
+        block_num_inc,
+        block_timestamp_inc,
         ctx,
     )
 
@@ -151,10 +161,21 @@ def update_tx(tx: Dict, new_model: VarContext, tx_name: str = "") -> Dict:
     :return: the updated transaction as a JSON dict
     """
     tx = tx.copy()  # Copy transaction to avoid in-place modifications
+
+    # Update call arguments
     call = tx["_call"]
     args = call["contents"][1]
     for i, arg in enumerate(args):
         update_argument(arg, f"{tx_name}_arg{i}", new_model)
+
+    # Update block number & timestamp
+    block_num_inc = f"{tx_name}_block_num_inc"
+    block_timestamp_inc = f"{tx_name}_block_timestamp_inc"
+    if new_model.contains(block_num_inc):
+        tx["_delay"][1] = hex(new_model.get(block_num_inc))
+    if new_model.contains(block_timestamp_inc):
+        tx["_delay"][0] = hex(new_model.get(block_timestamp_inc))
+
     return tx
 
 
