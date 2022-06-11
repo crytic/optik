@@ -1,3 +1,3 @@
-from .inst_coverage import InstCoverage
-from .path_coverage import PathCoverage
-from .bifurcation import Bifurcation
+from .inst_coverage import InstCoverage, InstTxCoverage
+from .path_coverage import PathCoverage, RelaxedPathCoverage
+from .coverage import Bifurcation, Coverage, CoverageState

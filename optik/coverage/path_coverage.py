@@ -1,10 +1,20 @@
-from maat import MaatEngine, EVENT, WHEN
+from maat import MaatEngine
 from typing import Dict, List, Optional
-from ..common.exceptions import CoverageException
-from ..common.world import WorldMonitor, EVMRuntime
-from .bifurcation import Bifurcation
 from dataclasses import dataclass, field
+from ..common.world import WorldMonitor
+from .coverage import Coverage, CoverageState
 import itertools
+
+
+@dataclass(frozen=True)
+class PathCoverageState(CoverageState):
+    path: List[int]
+
+    def __eq__(self, other) -> bool:
+        return self.path == other.path
+
+    def __hash__(self):
+        return hash(tuple(self.path))
 
 
 @dataclass(frozen=False)
@@ -23,18 +33,64 @@ class PathTree:
                 self.nodes[addr] = PathTree()
             self.nodes[addr].add(path[1:])
 
-    def get(self, path: List[int]) -> int:
-        """Get number of times a given path was covered"""
+    def get(self, path: List[int], default: int = 0) -> int:
+        """Get number of times a given path was covered
+
+        :param path: path for which to return coverage
+        :param default: default value to return if 'path' not in the tree
+        """
+        if isinstance(path, PathCoverageState):
+            path = path.path
+
         if path:
             addr = path[0]
             if addr in self.nodes:
-                return self.nodes[addr].get(path[1:])
+                return self.nodes[addr].get(path[1:], default)
             else:
-                return 0
+                return default
         return self.covered
 
     def __contains__(self, item: List[int]) -> bool:
         return self.get(item) > 0
+
+
+class PathCoverage(Coverage):
+    """A class for computing path coverage in a contract's code
+
+    Attributes:
+
+        bifurcations    A list of possible bifurcations
+        current_input   The UID of the input currently being tracked
+        contract        Optional contract to track. Used only when registered
+                        as a WorldMonitor
+    """
+
+    def __init__(self):
+        super().__init__()
+        self.covered = PathTree()
+        # Current path: list of symbolic branches that were taken
+        self.current_path: List[int] = []
+
+    def get_state(self, inst_addr: int, **kwargs) -> PathCoverageState:
+        """Get coverage state for the path consisting in the current
+        path + a branch to 'inst_addr'
+        """
+        return PathCoverageState(self.current_path + [inst_addr])
+
+    def record_branch(self, m: MaatEngine) -> None:
+        super().record_branch(m)
+
+        # Update current path and record it
+        b = m.info.branch
+        taken_target = (
+            b.target.as_uint(m.vars) if b.taken else b.next.as_uint(m.vars)
+        )
+        self.current_path.append(taken_target)
+        self.covered.add(self.current_path)
+
+    def set_input_uid(self, input_uid: str) -> None:
+        super().set_input_uid(input_uid)
+        self.current_path = []
 
 
 def all_subpaths(path: List[int]) -> List[List[int]]:
@@ -49,124 +105,23 @@ def all_subpaths(path: List[int]) -> List[List[int]]:
     return res
 
 
-class PathCoverage(WorldMonitor):
-    """A class for computing path coverage in a contract's code. It
-    can be used to track standalone engines, or track a deployed contract
-    when attached as WorldMonitor
+class RelaxedPathCoverage(PathCoverage):
+    """Similar to PathCoverage, but if a path is covered, we consider that
+    all subpaths"""
 
-    Attributes:
+    HOOK_ID = "__relaxed_path_coverage"
 
-        bifurcations    A list of possible bifurcations
-        current_input   The UID of the input currently being tracked
-        contract        Optional contract to track. Used only when registered
-                        as a WorldMonitor
-    """
-
-    def __init__(self, strict: bool = True):
+    def __init__(self):
         super().__init__()
-        self.strict = strict
-        self.covered = PathTree()
-        self.bifurcations: List[Bifurcation] = []
-        self.current_input: Optional[str] = None
-        self.contract: Optional[ContractRunner] = None
-        # Current path: list of symbolic branches that were taken
-        self.current_path: List[int] = []
 
     def record_branch(self, m: MaatEngine) -> None:
         """Record execution of a symbolic branch and save the bifurcation
         point information"""
-        b = m.info.branch
-        if b.taken is None:
-            raise CoverageException(
-                "'taken' information missing from branch info"
-            )
-        # Record bifurcation point
-        if b.taken is True:
-            alt_target = b.next.as_uint(m.vars)
-            taken_target = b.target.as_uint(m.vars)
-            alt_constr = b.cond.invert()
-        else:
-            alt_target = b.target.as_uint(m.vars)
-            taken_target = b.next.as_uint(m.vars)
-            alt_constr = b.cond
 
-        # Record only if bifurcation to code that was not yet covered
-        alt_path = self.current_path + [alt_target]
-        if alt_path not in self.covered:
-            self.bifurcations.append(
-                Bifurcation(
-                    inst_addr=m.info.addr,
-                    taken_target=taken_target,
-                    alt_target=alt_target,
-                    path_constraints=list(m.path.constraints()),
-                    alt_target_constraint=alt_constr,
-                    input_uid=self.current_input,
-                    ctx_info=alt_path,
-                )
-            )
+        super().record_branch(m)
 
-        # Update current path and record it
-        self.current_path.append(taken_target)
-        # If not in strict mode, also add the subpaths in coverage
-        if self.strict:
-            all_paths = [self.current_path]
-        else:
-            all_paths = all_subpaths(self.current_path)
-        for p in all_paths:
+        # In relaxed mode we also add sub paths to coverage tree
+        # When running this, super() has already updated the current
+        # path with the branch being taken
+        for p in all_subpaths(self.current_path):
             self.covered.add(p)
-
-    def track(self, m: MaatEngine) -> None:
-        """Set hooks to track path coverage for an Engine"""
-        m.hooks.add(
-            EVENT.PATH,
-            WHEN.BEFORE,
-            callbacks=[PathCoverage.branch_callback],
-            name="__path_coverage_branch_hook",
-            data=self,
-            group="__path_coverage",
-        )
-
-    def set_input_uid(self, input_uid: str) -> None:
-        """Set the input UID of the input currently running, and reset the
-        current path information
-
-        :param input_uid: the unique ID of the input that will be run by 'm'
-        """
-        self.current_input = input_uid
-        self.current_path = []
-
-    def filter_bifurcations(self, visit_max: int = 0) -> None:
-        """Filter the saved bifurcations to keep only the ones
-        that will lead to new code
-
-        :param visit_max: Keep the bifurcations if they lead to instructions
-        that have been visited at most 'visit_max'
-        """
-        self.bifurcations = [
-            b
-            for b in self.bifurcations
-            if self.covered.get(b.ctx_info) <= visit_max
-        ]
-
-    def sort_bifurcations(self) -> None:
-        """Sort bifurcations according to their number of path constraints, from
-        less constraints to more constraints"""
-        self.bifurcations.sort(key=lambda x: len(x.path_constraints))
-
-    @staticmethod
-    def branch_callback(m: MaatEngine, cov: "PathCoverage"):
-        cov.record_branch(m)
-
-    #### WorldMonitor interface
-    def on_attach(self, address: int) -> None:
-        """WorldMonitor interface callback to start tracking a contract"""
-        self.contract = self.world.get_contract(address)
-        for rt in self.contract.runtime_stack:
-            self.track(rt.engine)
-
-    def on_new_runtime(self, rt: EVMRuntime) -> None:
-        """WorldMonitor interface callback to track new engines created by
-        re-entrency"""
-        # If new runtime for the contract we track, track the associated MaatEngine
-        if self.world.current_contract is self.contract:
-            self.track(rt.engine)

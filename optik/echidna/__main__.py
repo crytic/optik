@@ -4,7 +4,12 @@ import os
 
 from .runner import replay_inputs, generate_new_inputs, run_echidna_campaign
 from .interface import extract_contract_bytecode
-from ..coverage import InstCoverage, PathCoverage
+from ..coverage import (
+    InstCoverage,
+    InstTxCoverage,
+    PathCoverage,
+    RelaxedPathCoverage,
+)
 from ..common.logger import logger, handler
 import logging
 from typing import List, Set
@@ -22,14 +27,14 @@ def run_hybrid_echidna(args: List[str]) -> None:
     # Coverage tracker for the whole fuzzing session
     if args.cov_mode == "inst":
         cov = InstCoverage()
-    elif args.cov_mode == "inst-ctx":
-        cov = InstCoverage(record_tx_num=True)
+    elif args.cov_mode == "inst-tx":
+        cov = InstTxCoverage()
     elif args.cov_mode == "path":
         cov = PathCoverage()
     elif args.cov_mode == "path-relaxed":
-        cov = PathCoverage(strict=False)
+        cov = RelaxedPathCoverage()
     else:
-        raise GenericException(f"Unimplemented coverage mode: {args.cov_mode}")
+        raise GenericException(f"Unsupported coverage mode: {args.cov_mode}")
     # Set of corpus files we have already processed
     seen_files = set()
 
@@ -65,7 +70,7 @@ def run_hybrid_echidna(args: List[str]) -> None:
             logger.info(f"Echidna couldn't find new inputs")
             return
         cov.bifurcations = []
-        cov = replay_inputs(new_inputs, contract_file, cov)
+        replay_inputs(new_inputs, contract_file, cov)
 
         # Find inputs to reach new code
         new_inputs_cnt = generate_new_inputs(cov)
@@ -190,7 +195,7 @@ def parse_arguments(args: List[str]) -> argparse.Namespace:
         "--cov-mode",
         type=str,
         help="Coverage mode to use",
-        choices=["inst", "inst-ctx", "path", "path-relaxed"],
+        choices=["inst", "inst-tx", "path", "path-relaxed"],
         default="inst",
         metavar="MODE",
     )

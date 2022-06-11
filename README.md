@@ -46,7 +46,9 @@ A couple additionnal options are available:
 
   - `inst`: reach code/instructions that have never been executed yet
 
-  - `inst-ctx`: same as `inst` but sensitive to the current transaction number. Let's assume a sequence of 2 transactions `[tx0,tx1]` and some solidity statement `A` in the contract's code: even if there is an input in which `A` is executed by `tx0`, Optik will still try to find inputs where `A` is executed by `tx1` if possible. <br><br> 
+  - `inst-storage`: TODO
+
+  - `inst-tx`: same as `inst` but sensitive to the current transaction number. Let's assume a sequence of 2 transactions `[tx0,tx1]` and some solidity statement `A` in the contract's code: even if there is an input in which `A` is executed by `tx0`, Optik will still try to find inputs where `A` is executed by `tx1` if possible. <br><br> 
     <i>Compared to `inst`, `inst-ctx` detects more potential branches in the code. It is thus more likely to discover new inputs, but also puts more load of the symbolic executor</i>
   
   - `path`: reach new execution paths. An execution path is the ordered list of all branches taken when running an input and that directly depend on the input. There is often a quasi-infinite number of possible paths for a contract, so using this coverage mode will generate much more inputs that instruction-base coverage modes. While solving many paths can become a performance bottleneck, it also allows to find deeper bugs in statefull contracts. <br><br>
