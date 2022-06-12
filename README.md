@@ -60,11 +60,12 @@ A couple additionnal options are available:
 
 - `--max-iters`: maxium number of fuzzing iterations to perform (one iteration is one Echidna campaign + one symbolic executor run on the corpus)
 
+- `--debug`: add debugging information to the log output
 
 **Current limitations**:
 
 - Can only run on a single solidity file
 - Can't deploy multiple contracts
 - No re-entrency or calls accross contracts
-- Gas is taken into account
+- Gas is not taken into account
 - Some echidna options are not yet supported (see `hybrid-echidna -h`)
