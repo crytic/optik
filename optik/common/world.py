@@ -72,7 +72,6 @@ class ContractRunner:
         self.root_engine = root_engine._duplicate(share={"vars"})
         # Load the contract the new symbolic engine
         self.root_engine.load(contract_file, envp={"address": str(address)})
-
         # The wrapper holds a stack of pending runtimes. Each runtime represents
         # one transaction call inside the contract. The first runtime in the list
         # is the first transaction, the next ones are re-entrency calls into the
@@ -249,7 +248,9 @@ class EVMWorld:
             if stop == STOP.EXIT:
                 # Handle revert. WARNING: Once we revert the state, 'info' is
                 # no more valid, because it is restored as well
-                if info.exit_status == EVM.REVERT:
+                # Note: doing exit_status.as_uint() is safe here because
+                # exit_status will never be symbolic for the EVM architecture
+                if info.exit_status.as_uint() == EVM.REVERT:
                     rt.revert()
                 # Call exited, delete the runtime
                 self.contracts[self.call_stack[-1]].pop_runtime()
