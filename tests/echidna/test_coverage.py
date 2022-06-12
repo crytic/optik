@@ -6,25 +6,24 @@ from optik.echidna import run_hybrid_echidna
 
 COVERAGE_TARGET_MARKER = "test::coverage"
 
-# List of contracts to test and coverage mode to use
+# List of tests as tuples:
+# (contract, coverage mode, tx sequence length)
 to_test = [
-    ("ExploreMe.sol", "inst"),
-    ("Primality.sol", "inst"),
-    ("MultiMagic.sol", "path-relaxed"),
-    ("CoverageInt.sol", "inst"),
-    ("Time.sol", "inst"),
+    ("ExploreMe.sol", "inst", 40),
+    ("Primality.sol", "inst", 40),
+    ("MultiMagic.sol", "path-relaxed", 10),
+    ("MultiMagic256.sol", "echidna", 40),
+    ("CoverageInt.sol", "inst", 40),
+    ("Time.sol", "inst", 10),
 ]
+
 to_test = [
-    (
-        CONTRACTS_DIR / contract_file,
-        mode,
-    )
-    for contract_file, mode in to_test
+    (CONTRACTS_DIR / contract_file, *rest) for contract_file, *rest in to_test
 ]
 
 # Test coverage on every contract
-@pytest.mark.parametrize("contract,cov_mode", to_test)
-def test_coverage(contract: str, cov_mode: str):
+@pytest.mark.parametrize("contract,cov_mode,seq_len", to_test)
+def test_coverage(contract: str, cov_mode: str, seq_len: int):
     """Test coverage for a given contract. The function
     runs hybrid echidna on the contract and asserts that all target lines in the
     source code were reached. It does so by looking at the `covered.<timestamp>.txt`
@@ -33,7 +32,7 @@ def test_coverage(contract: str, cov_mode: str):
     """
     test_dir = new_test_dir("/tmp/")
     # Run hybrid echidna
-    cmdline_args = f"{contract}  --test-mode assertion --corpus-dir {test_dir} --seq-len 10 --seed 46541521 --max-iters 10 --test-limit 10000 --cov-mode {cov_mode} --debug".split()
+    cmdline_args = f"{contract}  --test-mode assertion --corpus-dir {test_dir} --seq-len {seq_len} --seed 46541521 --max-iters 10 --test-limit 10000 --cov-mode {cov_mode} --debug".split()
     run_hybrid_echidna(cmdline_args)
     # Check coverage
     covered_file = get_coverage_file(test_dir)

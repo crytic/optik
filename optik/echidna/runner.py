@@ -1,5 +1,5 @@
 from .interface import load_tx_sequence, store_new_tx_sequence
-from ..coverage import InstCoverage
+from ..coverage import Coverage
 from ..common.world import EVMWorld, WorldMonitor
 from ..common.logger import logger
 import argparse
@@ -13,12 +13,8 @@ import os
 def replay_inputs(
     corpus_files: List[str],
     contract_file: str,
-    cov: Optional[InstCoverage] = None,
-) -> InstCoverage:
-
-    # Building upon existing coverage?
-    if not cov:
-        cov = InstCoverage()
+    cov: Coverage,
+) -> None:
 
     # Run every input from the corpus
     for corpus_file in corpus_files:
@@ -41,7 +37,7 @@ def replay_inputs(
     return cov
 
 
-def generate_new_inputs(cov: InstCoverage) -> int:
+def generate_new_inputs(cov: Coverage) -> int:
     """Generate new inputs to increase code coverage, base on
     existing coverage
 

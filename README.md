@@ -42,11 +42,14 @@ hybrid-echidna MyContract.sol  --test-mode assertion --corpus-dir /tmp/test
 
 A couple additionnal options are available:
 
-- `--cov-mode`: type of coverage to increase when solving new inputs. . This option has a significant impact on results and performance, as detailed below:
+- `--cov-mode`: type of coverage to increase when solving new inputs. This option has a significant impact on results and performance, as detailed below:
+
+  - `echidna` (**default**): use the same notion of coverage as Echidna. Reach new code/instructions while taking the contract's storage into consideration. If the same code can be reached with significant differences in the contents of the contract's storage, generate inputs for each case.<br><br>
+  <i>If you are unsure about which mode to use, just stick to the `echidna` coverage mode</i>
 
   - `inst`: reach code/instructions that have never been executed yet
 
-  - `inst-ctx`: same as `inst` but sensitive to the current transaction number. Let's assume a sequence of 2 transactions `[tx0,tx1]` and some solidity statement `A` in the contract's code: even if there is an input in which `A` is executed by `tx0`, Optik will still try to find inputs where `A` is executed by `tx1` if possible. <br><br> 
+  - `inst-tx`: same as `inst` but sensitive to the current transaction number. Let's assume a sequence of 2 transactions `[tx0,tx1]` and some solidity statement `A` in the contract's code: even if there is an input in which `A` is executed by `tx0`, Optik will still try to find inputs where `A` is executed by `tx1` if possible. <br><br> 
     <i>Compared to `inst`, `inst-ctx` detects more potential branches in the code. It is thus more likely to discover new inputs, but also puts more load of the symbolic executor</i>
   
   - `path`: reach new execution paths. An execution path is the ordered list of all branches taken when running an input and that directly depend on the input. There is often a quasi-infinite number of possible paths for a contract, so using this coverage mode will generate much more inputs that instruction-base coverage modes. While solving many paths can become a performance bottleneck, it also allows to find deeper bugs in statefull contracts. <br><br>
