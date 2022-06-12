@@ -1,6 +1,7 @@
 from .coverage import Coverage, CoverageState
 from dataclasses import dataclass
-from maat import MaatEngine, EVENT, WHEN
+from maat import contract, MaatEngine, EVENT, WHEN
+from typing import FrozenSet
 
 
 @dataclass(eq=True, frozen=True)
@@ -41,8 +42,7 @@ class InstCoverage(Coverage):
 
 
 @dataclass(eq=True, frozen=True)
-class InstTxCoverageState(CoverageState):
-    inst_addr: int
+class InstTxCoverageState(InstCoverageState):
     tx_num: int
 
 
@@ -59,3 +59,39 @@ class InstTxCoverage(InstCoverage):
 
     def get_state(self, inst_addr: int, **kwargs) -> InstTxCoverageState:
         return InstTxCoverageState(inst_addr, self.world.current_tx_num)
+
+
+@dataclass(eq=True, frozen=True)
+class EchidnaCoverageState(InstCoverageState):
+    storage_use: FrozenSet[int]
+
+
+class EchidnaCoverage(InstCoverage):
+    """This class implements a notion of coverage similar to the one
+    used by Echidna. It basically performs instruction coverage, but
+    also includes the state of the contract's storage in the coverage
+    information.
+
+    The state of a contract's storage is the set of all storage addresses
+    that hold a purely symbolic or non-null value
+    """
+
+    HOOK_ID = "__echidna_coverage"
+
+    def __init__(self):
+        super().__init__()
+
+    def get_state(
+        self, inst_addr: int, engine: MaatEngine, **kwargs
+    ) -> EchidnaCoverageState:
+        return EchidnaCoverageState(
+            inst_addr,
+            frozenset(
+                [
+                    addr
+                    for addr, val in contract(engine).storage.used_slots()
+                    if val.is_symbolic(engine.vars)
+                    or val.as_uint(engine.vars) != 0
+                ]
+            ),
+        )
