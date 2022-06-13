@@ -14,6 +14,7 @@ to_test = [
     ("MultiMagic.sol", "path-relaxed", 10),
     ("MultiMagic256.sol", "echidna", 40),
     ("CoverageInt.sol", "inst", 40),
+    ("CoverageBool.sol", "inst", 10),
     ("Time.sol", "inst", 10),
 ]
 

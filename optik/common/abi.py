@@ -12,6 +12,9 @@ from maat import contract, MaatEngine, Sext, Var, VarContext
 # Constants
 # =========
 ADDRESS_SIZE = 160  # Bit size of Ethereum ADDRESS type
+BOOL_SIZE = 8  # Bit size of Ethereum BOOL type
+BOOL_TRUE = 1  # Uint representation of True
+BOOL_FALSE = 0  # Uint representation of False
 
 # ====================================
 # Methods that encode transaction data
@@ -104,6 +107,25 @@ def intM(
         return [value]
 
 
+def boolEnc(
+    value: Union[bool, Value], ctx: VarContext, name: str
+) -> List[Value]:
+    """Encodes a bool type as a uint8 value
+
+    :param value: either a concrete True or False, or a Value object
+    :param ctx: the VarContext to use to make 'value' concolic
+    :param name: symbolic variable name to use to make 'value' concolic
+    """
+    if isinstance(value, bool):
+        return uintM(
+            BOOL_SIZE, BOOL_TRUE if value is True else BOOL_FALSE, ctx, name
+        )
+    elif isinstance(value, Value):
+        return uintM(BOOL_SIZE, value, ctx, name)
+    else:
+        raise ABIException("'value' must be bool or value")
+
+
 def selector(func_signature: str) -> Value:
     """Return the first 4 bytes of the keccak256 hash of 'func_signature'"""
     k = sha3.keccak_256()
@@ -162,6 +184,8 @@ def function_call(
             res += uintM(ty.sub, args[i], ctx, arg_name)
         elif ty.base == "int":
             res += intM(ty.sub, args[i], ctx, arg_name)
+        elif ty.base == "bool":
+            res += boolEnc(args[i], ctx, arg_name)
         elif ty.base == "address":
             res += uintM(ADDRESS_SIZE, args[i], ctx, arg_name)
         else:

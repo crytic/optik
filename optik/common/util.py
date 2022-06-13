@@ -22,3 +22,16 @@ def twos_complement_convert(arg: int, bits: int) -> int:
     else:
         # Negative number
         return arg - (1 << bits)
+
+
+def int_to_bool(arg: int) -> bool:
+    """Takes a python integer and converts it to a boolean value.
+
+    :param arg: value to convert, integer representing a bool
+
+    :return False if arg is 0, True otherwise"""
+
+    if arg < 0:
+        raise GenericException("Expected a positive value")
+
+    return arg != 0

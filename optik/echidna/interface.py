@@ -4,7 +4,7 @@ from ..common.exceptions import EchidnaException, GenericException
 from ..common.abi import function_call
 from ..common.logger import logger
 from ..common.world import AbstractTx
-from ..common.util import twos_complement_convert
+from ..common.util import twos_complement_convert, int_to_bool
 
 import os
 import json
@@ -37,6 +37,12 @@ def translate_argument(arg: Dict) -> Tuple[str, Union[bytes, int, Value]]:
         val = int(arg["contents"], 16)
         return (
             f"address",
+            val,
+        )
+    elif argType == "AbiBool":
+        val = arg["contents"]
+        return (
+            f"bool",
             val,
         )
     else:
@@ -134,6 +140,9 @@ def update_argument(arg: Dict, arg_name: str, new_model: VarContext) -> None:
         argVal = int(new_model.get(arg_name))
         bits = arg["contents"][0]
         arg["contents"][1] = str(twos_complement_convert(argVal, bits))
+    elif argType == "AbiBool":
+        argVal = new_model.get(arg_name)
+        arg["contents"] = int_to_bool(argVal)
     elif argType == "AbiAddress":
         arg["contents"] = str(hex(new_model.get(arg_name)))
     else:
