@@ -122,7 +122,7 @@ def boolEnc(
         else:
             return uintM(BOOL_SIZE, BOOL_FALSE, ctx, name)
     elif isinstance(value, Value):
-        return [value]
+        return uintM(BOOL_SIZE, value, ctx, name)
     else:
         raise ABIException("'value' must be bool or value")
 
