@@ -117,7 +117,9 @@ def boolEnc(
     :param name: symbolic variable name to use to make 'value' concolic
     """
     if isinstance(value, bool):
-        return uintM(BOOL_SIZE, BOOL_TRUE if value is True else BOOL_FALSE, ctx, name)
+        return uintM(
+            BOOL_SIZE, BOOL_TRUE if value is True else BOOL_FALSE, ctx, name
+        )
     elif isinstance(value, Value):
         return uintM(BOOL_SIZE, value, ctx, name)
     else:
