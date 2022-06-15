@@ -10,7 +10,7 @@ contract BoolArg {
 
             return 5; // test::coverage
         }
-        if (z || x){
+        if ((z || x) && y*3 == 33333){
             if (x) {
                 return 1; // test::coverage
             } else {
