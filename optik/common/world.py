@@ -1,7 +1,6 @@
 from maat import (
     ARCH,
     contract,
-    EVM,
     EVMTransaction,
     increment_block_number,
     increment_block_timestamp,
@@ -9,6 +8,7 @@ from maat import (
     MaatEngine,
     new_evm_runtime,
     STOP,
+    TX_RES,
     Value,
     VarContext,
 )
@@ -250,7 +250,7 @@ class EVMWorld:
                 # no more valid, because it is restored as well
                 # Note: doing exit_status.as_uint() is safe here because
                 # exit_status will never be symbolic for the EVM architecture
-                if info.exit_status.as_uint() == EVM.REVERT:
+                if info.exit_status.as_uint() == TX_RES.REVERT:
                     rt.revert()
                 # Call exited, delete the runtime
                 self.contracts[self.call_stack[-1]].pop_runtime()
