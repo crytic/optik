@@ -13,6 +13,7 @@ import os
 def replay_inputs(
     corpus_files: List[str],
     contract_file: str,
+    contract_deployer: int,
     cov: Coverage,
 ) -> None:
 
@@ -24,8 +25,9 @@ def replay_inputs(
         # TODO(boyan): implement snapshoting in EVMWorld so we don't
         # recreate the whole environment for every input
         world = EVMWorld()
-        world.deploy(contract_file, tx_seq[0].tx.recipient)
-        world.attach_monitor(cov, tx_seq[0].tx.recipient)
+        contract_addr = tx_seq[0].tx.recipient
+        world.deploy(contract_file, contract_addr, contract_deployer)
+        world.attach_monitor(cov, contract_addr)
 
         # Prepare to run transaction
         world.push_transactions(tx_seq)
