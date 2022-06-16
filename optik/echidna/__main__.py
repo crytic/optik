@@ -179,6 +179,14 @@ def parse_arguments(args: List[str]) -> argparse.Namespace:
     )
 
     parser.add_argument(
+        "--sender",
+        type=auto_int,
+        nargs="*",
+        help="Addresses to use for the transactions sent during testing",
+        metavar="ADDRESSES",
+    )
+
+    parser.add_argument(
         "--seed",
         type=auto_int,
         help="Run with a specific seed",

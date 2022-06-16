@@ -84,10 +84,13 @@ def load_tx(tx: Dict, tx_name: str = "") -> AbstractTx:
         block_timestamp_inc.name, int(tx["_delay"][0], 16), block_num_inc.size
     )
 
+    # Translate message sender
+    sender = Var(256, f"{tx_name}_sender")
+    ctx.set(sender.name, int(tx["_src"], 16), sender.size)
+
     # Build transaction
     # TODO: correctly handle gas_limit
     # TODO: make EVMTransaction accept integers as arguments
-    sender = Cst(256, int(tx["_src"], 16))
     value = Cst(256, int(tx["_value"], 16))
     gas_limit = Cst(256, 46546514651)
     recipient = int(tx["_dst"], 16)
@@ -176,6 +179,12 @@ def update_tx(tx: Dict, new_model: VarContext, tx_name: str = "") -> Dict:
     if new_model.contains(block_timestamp_inc):
         tx["_delay"][0] = hex(new_model.get(block_timestamp_inc))
 
+    # Update sender
+    sender = f"{tx_name}_sender"
+    if new_model.contains(sender):
+        # Address so we need to pad it to 40 chars (20bytes)
+        tx["_src"] = f"0x{new_model.get(sender):0{40}X}"
+
     return tx
 
 
@@ -200,7 +209,7 @@ def store_new_tx_sequence(original_file: str, new_model: VarContext) -> None:
         f"{os.path.dirname(original_file)}/{NEW_INPUT_PREFIX}", ".txt"
     )
     with open(new_file, "w") as f:
-        json.dump(data, f)
+        json.dump(new_data, f)
 
 
 def get_available_filename(prefix: str, suffix: str) -> str:

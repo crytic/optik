@@ -97,10 +97,14 @@ def run_echidna_campaign(
     # Build back echidna command line
     cmdline = ["echidna-test"]
     cmdline += args.FILES
+    # Add tx sender(s)
+    if args.sender:
+        for a in args.sender:
+            cmdline += ["--sender", str(a)]
     for arg, val in args.__dict__.items():
         # Ignore Optik specific arguments
         if (
-            arg not in ["FILES", "max_iters", "debug", "cov_mode"]
+            arg not in ["FILES", "max_iters", "debug", "cov_mode", "sender"]
             and not val is None
         ):
             cmdline += [f"--{arg.replace('_', '-')}", str(val)]

@@ -16,6 +16,7 @@ to_test = [
     ("CoverageInt.sol", "inst", 40),
     ("CoverageBool.sol", "path-relaxed", 5),
     ("Time.sol", "inst", 10),
+    ("SmartianExample.sol", "echidna", 40),
 ]
 
 to_test = [
