@@ -16,6 +16,7 @@ from typing import Callable, Dict, List, Optional
 from dataclasses import dataclass
 import enum
 from .exceptions import WorldException
+from .util import compute_new_contract_addr
 
 
 @dataclass(frozen=True)
@@ -84,6 +85,8 @@ class ContractRunner:
         # is the first transaction, the next ones are re-entrency calls into the
         # same contract
         self.runtime_stack: List[EVMRuntime] = []
+        # Contract nonce, starts at 1 as per EIP-161
+        self.nonce = 1
 
     @property
     def current_runtime(self) -> EVMRuntime:
@@ -253,7 +256,7 @@ class EVMWorld:
                 self._on_event("new_runtime", runner.current_runtime)
 
             # Get current runtime and run
-            rt: EVMRuntime = self.contracts[self.call_stack[-1]].current_runtime
+            rt: EVMRuntime = self.current_contract.current_runtime
             info = rt.run()
             stop = info.stop
             # Check stop reason
@@ -265,15 +268,53 @@ class EVMWorld:
                 if info.exit_status.as_uint() == TX_RES.REVERT:
                     rt.revert()
                 # Call exited, delete the runtime
-                self.contracts[self.call_stack[-1]].pop_runtime()
+                self.current_contract.pop_runtime()
                 # Remove it from callstack
                 self.call_stack.pop()
-            # elif TODO(boyan): message call into a contract (trigger CALL event again)
+                # TODO(boyan): handle tx return data if this runtime was
+                # called by another contract
+            elif stop == STOP.NONE and contract(rt.engine).outgoing_transaction:
+                if out_tx.type in [TX.CREATE, TX.CREATE2]:
+                    self._handle_CREATE()
+                # TODO(boyan): other tx types, CALL, DELEGATECALL, ...
+                else:
+                    raise WorldException(
+                        "Contract emitted an unsupported transaction type"
+                    )
+
             # Any other return reason: event hook, error, ... -> we stop
             else:
                 break
 
         return stop
+
+    def _handle_CREATE(self) -> None:
+        """Handle deployment of a new contract by another contract with
+        the CREATE or CREATE2 EVM instructions. This method deploys the new
+        contract, sets the address of the new contract in the caller's
+        stack, and finally resets the 'outgoing_transaction' information
+        from the caller runtime"""
+
+        rt: EVMRuntime = self.current_contract.current_runtime
+        out_tx = contract(rt.engine).outgoing_transaction
+        deployer = out_tx.sender.as_uint(rt.engine.vars)
+
+        # Get address of new contract
+        if out_tx.type == TX.CREATE:
+            new_contract_addr = compute_new_contract_addr(
+                deployer, self.current_contract.nonce
+            )
+        else:
+            # TODO(boyan): support CREATE2
+            raise WorldException("Not implemented")
+        # Increment caller nonce
+        self.current_contract.nonce += 1
+        # Deploy contract
+        self.deploy_bytecode(out_tx.data, new_contract_addr, deployer)
+        # Push new address as result in caller's stack
+        contract(rt.engine).stack.push(Value(256, new_contract_addr))
+        # Reset outgoing_transaction in caller
+        contract(rt.engine).outgoing_transaction = None
 
     def _update_block_info(self, m: MaatEngine, tx: AbstractTx) -> None:
         """Increase the block number and block timestamp when emulating
@@ -286,7 +327,7 @@ class EVMWorld:
         # Update block info in Maat
         increment_block_number(m, tx.block_num_inc)
         increment_block_timestamp(m, tx.block_timestamp_inc)
-        # TODO(boyan): Should we add constraints to force increments to
+        # TODO(boyan): Should we add constraints to force time increments to
         # be within certain bounds?
 
     def attach_monitor(self, monitor: WorldMonitor, *args) -> None:
