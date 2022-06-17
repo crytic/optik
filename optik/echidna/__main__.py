@@ -83,7 +83,7 @@ def run_hybrid_echidna(args: List[str]) -> None:
         replay_inputs(new_inputs, contract_file, deployer, cov)
 
         # Find inputs to reach new code
-        new_inputs_cnt = generate_new_inputs(cov)
+        new_inputs_cnt = generate_new_inputs(cov, args)
         if new_inputs_cnt > 0:
             logger.info(f"Generated {new_inputs_cnt} new inputs")
         else:

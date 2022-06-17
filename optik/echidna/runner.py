@@ -5,7 +5,15 @@ from ..common.logger import logger
 import argparse
 import subprocess
 import logging
-from maat import ARCH, contract, EVMTransaction, MaatEngine, Solver, STOP
+from maat import (
+    ARCH,
+    contract,
+    EVMTransaction,
+    MaatEngine,
+    Solver,
+    STOP,
+    VarContext,
+)
 from typing import List, Optional
 import os
 
@@ -39,13 +47,23 @@ def replay_inputs(
     return cov
 
 
-def generate_new_inputs(cov: Coverage) -> int:
+def generate_new_inputs(cov: Coverage, args: argparse.Namespace) -> int:
     """Generate new inputs to increase code coverage, base on
     existing coverage
 
     :param cov: coverage data
+    :param args: echidna arguments. If the new inputs contain particular
+    'sender' values for transactions, those are included in the echidna
+    list of possible senders
     :return: number of new inputs found
     """
+
+    def _add_new_senders(ctx: VarContext, args: argparse.Namespace) -> None:
+        for var in ctx.contained_vars():
+            if var.endswith("_sender"):
+                sender = f"{ctx.get(var):X}"
+                if not sender in args.sender:
+                    args.sender.append(sender)
 
     # Keep only interesting bifurcations
     cov.filter_bifurcations()
@@ -84,6 +102,7 @@ def generate_new_inputs(cov: Coverage) -> int:
             model = s.get_model()
             # Serialize the new input discovered
             store_new_tx_sequence(bif.input_uid, model)
+            _add_new_senders(model, args)
 
     return success_cnt
 
