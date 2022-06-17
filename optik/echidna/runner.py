@@ -102,7 +102,7 @@ def run_echidna_campaign(
     # Add tx sender(s)
     if args.sender:
         for a in args.sender:
-            cmdline += ["--sender", str(a)]
+            cmdline += ["--sender", a]
     for arg, val in args.__dict__.items():
         # Ignore Optik specific arguments
         if (

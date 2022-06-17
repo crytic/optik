@@ -183,7 +183,7 @@ def update_tx(tx: Dict, new_model: VarContext, tx_name: str = "") -> Dict:
     sender = f"{tx_name}_sender"
     if new_model.contains(sender):
         # Address so we need to pad it to 40 chars (20bytes)
-        tx["_src"] = f"0x{new_model.get(sender):0{40}X}"
+        tx["_src"] = f"0x{new_model.get(sender):0{40}x}"
 
     return tx
 
