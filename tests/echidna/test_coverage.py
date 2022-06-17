@@ -17,6 +17,7 @@ to_test = [
     ("CoverageBool.sol", "path-relaxed", 5),
     ("Time.sol", "inst", 10),
     ("SmartianExample.sol", "inst-tx", 40),
+    ("Payable.sol", "inst", 10),
 ]
 
 to_test = [
