@@ -85,13 +85,16 @@ def load_tx(tx: Dict, tx_name: str = "") -> AbstractTx:
     )
 
     # Translate message sender
-    sender = Var(256, f"{tx_name}_sender")
+    sender = Var(160, f"{tx_name}_sender")
     ctx.set(sender.name, int(tx["_src"], 16), sender.size)
+
+    # Translate message value
+    value = Var(256, f"{tx_name}_value")
+    ctx.set(value.name, int(tx["_value"], 16), value.size)
 
     # Build transaction
     # TODO: correctly handle gas_limit
     # TODO: make EVMTransaction accept integers as arguments
-    value = Cst(256, int(tx["_value"], 16))
     gas_limit = Cst(256, 46546514651)
     recipient = int(tx["_dst"], 16)
     return AbstractTx(
@@ -184,6 +187,11 @@ def update_tx(tx: Dict, new_model: VarContext, tx_name: str = "") -> Dict:
     if new_model.contains(sender):
         # Address so we need to pad it to 40 chars (20bytes)
         tx["_src"] = f"0x{new_model.get(sender):0{40}x}"
+
+    # Update transaction value
+    value = f"{tx_name}_value"
+    if new_model.contains(value):
+        tx["_value"] = hex(new_model.get(value))
 
     return tx
 
