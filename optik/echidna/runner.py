@@ -5,7 +5,15 @@ from ..common.logger import logger
 import argparse
 import subprocess
 import logging
-from maat import ARCH, contract, EVMTransaction, MaatEngine, Solver, STOP
+from maat import (
+    ARCH,
+    contract,
+    EVMTransaction,
+    MaatEngine,
+    Solver,
+    STOP,
+    VarContext,
+)
 from typing import List, Optional
 import os
 
@@ -13,6 +21,7 @@ import os
 def replay_inputs(
     corpus_files: List[str],
     contract_file: str,
+    contract_deployer: int,
     cov: Coverage,
 ) -> None:
 
@@ -24,8 +33,9 @@ def replay_inputs(
         # TODO(boyan): implement snapshoting in EVMWorld so we don't
         # recreate the whole environment for every input
         world = EVMWorld()
-        world.deploy(contract_file, tx_seq[0].tx.recipient)
-        world.attach_monitor(cov, tx_seq[0].tx.recipient)
+        contract_addr = tx_seq[0].tx.recipient
+        world.deploy(contract_file, contract_addr, contract_deployer)
+        world.attach_monitor(cov, contract_addr)
 
         # Prepare to run transaction
         world.push_transactions(tx_seq)
@@ -37,13 +47,26 @@ def replay_inputs(
     return cov
 
 
-def generate_new_inputs(cov: Coverage) -> int:
+def generate_new_inputs(cov: Coverage, args: argparse.Namespace) -> int:
     """Generate new inputs to increase code coverage, base on
     existing coverage
 
     :param cov: coverage data
+    :param args: echidna arguments. If the new inputs contain particular
+    'sender' values for transactions, those are included in the echidna
+    list of possible senders
     :return: number of new inputs found
     """
+
+    def _add_new_senders(ctx: VarContext, args: argparse.Namespace) -> None:
+        for var in ctx.contained_vars():
+            if var.endswith("_sender"):
+                sender = f"{ctx.get(var):X}"
+                if not sender in args.sender:
+                    logger.warning(
+                        f"Automatically adding new tx sender address: {sender}"
+                    )
+                    args.sender.append(sender)
 
     # Keep only interesting bifurcations
     cov.filter_bifurcations()
@@ -82,6 +105,7 @@ def generate_new_inputs(cov: Coverage) -> int:
             model = s.get_model()
             # Serialize the new input discovered
             store_new_tx_sequence(bif.input_uid, model)
+            _add_new_senders(model, args)
 
     return success_cnt
 
@@ -97,10 +121,14 @@ def run_echidna_campaign(
     # Build back echidna command line
     cmdline = ["echidna-test"]
     cmdline += args.FILES
+    # Add tx sender(s)
+    if args.sender:
+        for a in args.sender:
+            cmdline += ["--sender", a]
     for arg, val in args.__dict__.items():
         # Ignore Optik specific arguments
         if (
-            arg not in ["FILES", "max_iters", "debug", "cov_mode"]
+            arg not in ["FILES", "max_iters", "debug", "cov_mode", "sender"]
             and not val is None
         ):
             cmdline += [f"--{arg.replace('_', '-')}", str(val)]

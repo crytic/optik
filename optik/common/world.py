@@ -65,13 +65,20 @@ class ContractRunner:
     handle execution of several transactions with potential re-entrency"""
 
     def __init__(
-        self, root_engine: MaatEngine, contract_file: str, address: int
+        self,
+        root_engine: MaatEngine,
+        contract_file: str,
+        address: int,
+        deployer: int,
     ):
         # Create a new engine that shares the variables context of the
         # root engine, but has its own memory (to hold its own runtime bytecode)
         self.root_engine = root_engine._duplicate(share={"vars"})
         # Load the contract the new symbolic engine
-        self.root_engine.load(contract_file, envp={"address": str(address)})
+        self.root_engine.load(
+            contract_file,
+            envp={"address": f"{address:x}", "deployer": f"{deployer:x}"},
+        )
         # The wrapper holds a stack of pending runtimes. Each runtime represents
         # one transaction call inside the contract. The first runtime in the list
         # is the first transaction, the next ones are re-entrency calls into the
@@ -147,18 +154,23 @@ class EVMWorld:
         # Root engine
         self.root_engine = MaatEngine(ARCH.EVM)
 
-    def deploy(self, contract_file: str, address: int) -> ContractRunner:
+    def deploy(
+        self, contract_file: str, address: int, deployer: int
+    ) -> ContractRunner:
         """Deploy a contract at a given address
 
         :param contract_file: compiled contract file
         :param address: address where to deploy the contract
+        :param deployer: address of the account deploying the contract
         """
         if address in self.contracts:
             raise WorldException(
                 f"Couldn't deploy {contract_file}, address {address} already in use"
             )
         else:
-            runner = ContractRunner(self.root_engine, contract_file, address)
+            runner = ContractRunner(
+                self.root_engine, contract_file, address, deployer
+            )
             self.contracts[address] = runner
             return runner
 
