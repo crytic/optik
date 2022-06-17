@@ -4,7 +4,7 @@ from ..common.exceptions import EchidnaException, GenericException
 from ..common.abi import function_call
 from ..common.logger import logger
 from ..common.world import AbstractTx
-from ..common.util import twos_complement_convert
+from ..common.util import twos_complement_convert, parse_bytes, echidna_byte_converter
 
 import os
 import json
@@ -31,12 +31,26 @@ def translate_argument(arg: Dict) -> Tuple[str, Union[bytes, int, Value]]:
     elif argType == "AbiInt":
         bits = arg["contents"][0]
         val = int(arg["contents"][1])
-        return (f"int{bits}", val)
+        return (
+            f"int{bits}", 
+            val
+        )
 
     elif argType == "AbiAddress":
         val = int(arg["contents"], 16)
         return (
             f"address",
+            val,
+        )
+    elif argType == "AbiBytes":
+        byteLen = arg["contents"][0]
+        val = arg["contents"][1]
+        val = val[1:len(val)-1] # remove double quoted string
+
+        val = parse_bytes(val) # decode into list of bytes
+
+        return (
+            f"bytes{byteLen}",
             val,
         )
     else:
@@ -128,14 +142,17 @@ def update_argument(arg: Dict, arg_name: str, new_model: VarContext) -> None:
         return
 
     argType = arg["tag"]
+    variable = new_model.get(arg_name)
     if argType == "AbiUInt":
-        arg["contents"][1] = str(new_model.get(arg_name))
+        arg["contents"][1] = str(variable)
     elif argType == "AbiInt":
-        argVal = int(new_model.get(arg_name))
+        argVal = int(variable)
         bits = arg["contents"][0]
         arg["contents"][1] = str(twos_complement_convert(argVal, bits))
     elif argType == "AbiAddress":
-        arg["contents"] = str(hex(new_model.get(arg_name)))
+        arg["contents"] = str(hex(variable))
+    elif argType == "AbiBytes":
+        arg["contents"] = echidna_byte_converter(variable) # TODO: currently a stub
     else:
         raise EchidnaException(f"Unsupported argument type: {argType}")
 

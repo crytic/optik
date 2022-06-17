@@ -26,6 +26,14 @@ def _check_int_bits(bits: int) -> None:
     if bits > 256:
         raise ABIException("uint: bits can't exceed 256")
 
+def _check_bytes(byteCount: int) -> None:
+    """Raise an exception if number of bytes is not within
+    the acceptable range"""
+    if byteCount <= 0:
+        raise ABIException("bytes: can't have fewer than zero bytes")
+    if byteCount > 32:
+        raise ABIException("bytes: can't have more than 32 bytes")
+
 
 def uintM(
     bits: int, value: Union[int, Value], ctx: VarContext, name: str
@@ -103,6 +111,22 @@ def intM(
     else:
         return [value]
 
+def bytesM(
+    byte_count: int, value: Union[int, Value], ctx: VarContext, name: str
+) -> List[Value]:
+    """Encodes a bytes<M>, right-padded to 32 bytes (256 bits)
+
+    :param byteCount: number of bytes "M", 0 < M <= 32
+    :param value: 
+    :param ctx: the VarContext to use to make 'value' concolic
+    :param name: symbolic variable name to use to make 'value' concolic
+
+    :return: list of abstract Values to append to transaction data
+    """
+    _check_bytes(byte_count)
+
+    raise NotImplementedError
+
 
 def selector(func_signature: str) -> Value:
     """Return the first 4 bytes of the keccak256 hash of 'func_signature'"""
@@ -158,13 +182,17 @@ def function_call(
     # Encode arguments
     for i, ty in enumerate(args_types.components):
         arg_name = f"{tx_name}_arg{i}"
+        logger.debug(f"Working with value: {args[i]} of type {type(args[i])}, length: {len(args[i])}")
         if ty.base == "uint":
             res += uintM(ty.sub, args[i], ctx, arg_name)
         elif ty.base == "int":
             res += intM(ty.sub, args[i], ctx, arg_name)
         elif ty.base == "address":
             res += uintM(ADDRESS_SIZE, args[i], ctx, arg_name)
+        elif ty.base == "bytes":
+            res += bytesM(ty.sub, args[i], ctx, arg_name)
         else:
+            logger.debug(f"sub: {ty.sub}, base: {ty.base}, value: {args[i]}")
             raise ABIException(f"Unsupported type: {ty.base}")
 
     return res
