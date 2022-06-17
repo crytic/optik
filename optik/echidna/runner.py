@@ -63,6 +63,9 @@ def generate_new_inputs(cov: Coverage, args: argparse.Namespace) -> int:
             if var.endswith("_sender"):
                 sender = f"{ctx.get(var):X}"
                 if not sender in args.sender:
+                    logger.warning(
+                        f"Automatically adding new tx sender address: {sender}"
+                    )
                     args.sender.append(sender)
 
     # Keep only interesting bifurcations
