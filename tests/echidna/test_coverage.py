@@ -18,6 +18,7 @@ to_test = [
     ("Time.sol", "inst", 10),
     ("SmartianExample.sol", "inst-tx", 40),
     ("Payable.sol", "inst", 10),
+    ("IntCast.sol", "inst", 10),
 ]
 
 to_test = [
