@@ -79,14 +79,11 @@ class ContractRunner:
         # root engine, but has its own memory (to hold its own runtime bytecode)
         self.root_engine = root_engine._duplicate(share={"vars"})
         # Load the contract the new symbolic engine
-        # DEBUG
-        self.root_engine.settings.log_insts = True
         self.root_engine.load(
             contract_file,
             args=args,
             envp={"address": f"{address:x}", "deployer": f"{deployer:x}"},
         )
-        self.root_engine.settings.log_insts = False # DEBUG
         # The wrapper holds a stack of pending runtimes. Each runtime represents
         # one transaction call inside the contract. The first runtime in the list
         # is the first transaction, the next ones are re-entrency calls into the

@@ -1,5 +1,5 @@
 from maat import Cst, EVMTransaction, Value, Var, VarContext
-from typing import Dict, Final, List, Tuple, Union
+from typing import Dict, Final, List, Optional, Tuple, Union
 from ..common.exceptions import EchidnaException, GenericException
 from ..common.abi import function_call
 from ..common.logger import logger
@@ -267,7 +267,7 @@ def extract_contract_bytecode(
                 )
                 return None
 
-        for contract_path, contract_data in data["contracts"]:
+        for contract_path, contract_data in data["contracts"].items():
             if contract_name == _name_from_path(contract_path):
                 bytecode = contract_data["bin"]
                 unique_signature = hex(random.getrandbits(32))[2:]
@@ -278,6 +278,7 @@ def extract_contract_bytecode(
                     )
                 )
                 with open(output_file, "w") as f2:
+                    logger.debug(f"Bytecode for contract {contract_name} written in {output_file}")
                     f2.write(bytecode)
                 return output_file
 
