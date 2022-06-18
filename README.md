@@ -65,7 +65,8 @@ A couple additionnal options are available:
 **Current limitations**:
 
 - Can only run on a single solidity file
-- Can't deploy multiple contracts
-- No re-entrency or calls accross contracts
+- Not well tested when multiple contracts are deployed
+- Can't deploy new contracts from a contract constructor
+- No external calls accross contracts
 - Gas is not taken into account
 - Some echidna options are not yet supported (see `hybrid-echidna -h`)

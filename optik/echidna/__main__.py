@@ -124,6 +124,13 @@ def parse_arguments(args: List[str]) -> argparse.Namespace:
     )
 
     parser.add_argument(
+        "--contract",
+        type=str,
+        help="Contract to analyze",
+        metavar="CONTRACT",
+    )
+
+    parser.add_argument(
         "--corpus-dir",
         type=str,
         help="Directory to save and load corpus and coverage data",

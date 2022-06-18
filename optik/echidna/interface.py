@@ -248,12 +248,13 @@ def extract_contract_bytecode(crytic_dir: str) -> str:
     """
     unique_signature = hex(random.getrandbits(32))[2:]
     output_file = str(
-        os.path.join(TMP_CONTRACT_DIR, f"optik_contract_{unique_signature}.sol")
+        os.path.join(TMP_CONTRACT_DIR, f"optik_contract_{unique_signature}.bin")
     )
     with open(str(os.path.join(crytic_dir, "combined_solc.json")), "rb") as f:
         data = json.loads(f.read())
         contract_name, contract_data = next(iter(data["contracts"].items()))
         bytecode = contract_data["bin"]
         with open(output_file, "w") as f2:
+            print(f"DEBUG extracted bytecode in {output_file}")
             f2.write(bytecode)
     return output_file

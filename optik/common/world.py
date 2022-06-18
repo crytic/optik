@@ -1,6 +1,7 @@
 from maat import (
     ARCH,
     contract,
+    Cst,
     EVMTransaction,
     increment_block_number,
     increment_block_timestamp,
@@ -8,11 +9,12 @@ from maat import (
     MaatEngine,
     new_evm_runtime,
     STOP,
+    TX,
     TX_RES,
     Value,
     VarContext,
 )
-from typing import Callable, Dict, List, Optional
+from typing import Callable, Dict, List, Optional, Union
 from dataclasses import dataclass
 import enum
 from .exceptions import WorldException
@@ -71,15 +73,20 @@ class ContractRunner:
         contract_file: str,
         address: int,
         deployer: int,
+        args: List[Union[bytes, List[Value]]] = [],
     ):
         # Create a new engine that shares the variables context of the
         # root engine, but has its own memory (to hold its own runtime bytecode)
         self.root_engine = root_engine._duplicate(share={"vars"})
         # Load the contract the new symbolic engine
+        # DEBUG
+        self.root_engine.settings.log_insts = True
         self.root_engine.load(
             contract_file,
+            args=args,
             envp={"address": f"{address:x}", "deployer": f"{deployer:x}"},
         )
+        self.root_engine.settings.log_insts = False # DEBUG
         # The wrapper holds a stack of pending runtimes. Each runtime represents
         # one transaction call inside the contract. The first runtime in the list
         # is the first transaction, the next ones are re-entrency calls into the
@@ -158,13 +165,18 @@ class EVMWorld:
         self.root_engine = MaatEngine(ARCH.EVM)
 
     def deploy(
-        self, contract_file: str, address: int, deployer: int
+        self,
+        contract_file: str,
+        address: int,
+        deployer: int,
+        args: List[Union[bytes, List[Value]]] = [],
     ) -> ContractRunner:
         """Deploy a contract at a given address
 
         :param contract_file: compiled contract file
         :param address: address where to deploy the contract
         :param deployer: address of the account deploying the contract
+        :param args: arguments to pass to contract constructor
         """
         if address in self.contracts:
             raise WorldException(
@@ -172,7 +184,7 @@ class EVMWorld:
             )
         else:
             runner = ContractRunner(
-                self.root_engine, contract_file, address, deployer
+                self.root_engine, contract_file, address, deployer, args
             )
             self.contracts[address] = runner
             return runner
@@ -274,6 +286,7 @@ class EVMWorld:
                 # TODO(boyan): handle tx return data if this runtime was
                 # called by another contract
             elif stop == STOP.NONE and contract(rt.engine).outgoing_transaction:
+                out_tx = contract(rt.engine).outgoing_transaction
                 if out_tx.type in [TX.CREATE, TX.CREATE2]:
                     self._handle_CREATE()
                 # TODO(boyan): other tx types, CALL, DELEGATECALL, ...
@@ -287,6 +300,7 @@ class EVMWorld:
                 break
 
         return stop
+
 
     def _handle_CREATE(self) -> None:
         """Handle deployment of a new contract by another contract with
@@ -306,15 +320,22 @@ class EVMWorld:
             )
         else:
             # TODO(boyan): support CREATE2
-            raise WorldException("Not implemented")
+            raise WorldException(f"Transaction type {out_tx.type} not implemented")
         # Increment caller nonce
         self.current_contract.nonce += 1
+
         # Deploy contract
-        self.deploy_bytecode(out_tx.data, new_contract_addr, deployer)
+        self.deploy(
+            "",  # No file, bytecode is in the tx data
+            new_contract_addr,
+            deployer,
+            args=[out_tx.data],
+        )
         # Push new address as result in caller's stack
-        contract(rt.engine).stack.push(Value(256, new_contract_addr))
+        contract(rt.engine).stack.push(Cst(256, new_contract_addr))
         # Reset outgoing_transaction in caller
         contract(rt.engine).outgoing_transaction = None
+
 
     def _update_block_info(self, m: MaatEngine, tx: AbstractTx) -> None:
         """Increase the block number and block timestamp when emulating
