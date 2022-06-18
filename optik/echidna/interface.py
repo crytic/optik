@@ -237,24 +237,53 @@ def get_available_filename(prefix: str, suffix: str) -> str:
     return f"{prefix}_{num}{suffix}"
 
 
-# TODO(boyan): make this support multiple files/contracts
-def extract_contract_bytecode(crytic_dir: str) -> str:
-    """Parse compilation information from crytic, extracts the bytecode
-    of a compiled contract, and stores it into a separate file
-    WARNING: currently limited to fuzzing campaigns on a single contract file!
+def extract_contract_bytecode(
+    crytic_dir: str, contract_name: Optional[str]
+) -> Optional[str]:
+    """Parse compilation information from crytic, extracts the bytecodes
+    of compiled contracts, and stores them into separate files.
 
     :param crytic-dir: the "crytic-export" dir created by echidna after a campaign
-    :return: file containing the bytecode of the contract
+    :param contract_name: the name of the contract to extract
+    :return: path to a file containing the bytecode for 'contract', or None on failure
     """
-    unique_signature = hex(random.getrandbits(32))[2:]
-    output_file = str(
-        os.path.join(TMP_CONTRACT_DIR, f"optik_contract_{unique_signature}.bin")
-    )
-    with open(str(os.path.join(crytic_dir, "combined_solc.json")), "rb") as f:
+
+    def _name_from_path(path):
+        return path.split(":")[-1]
+
+    res = {}
+    solc_file = str(os.path.join(crytic_dir, "combined_solc.json"))
+    with open(solc_file, "rb") as f:
         data = json.loads(f.read())
-        contract_name, contract_data = next(iter(data["contracts"].items()))
-        bytecode = contract_data["bin"]
-        with open(output_file, "w") as f2:
-            print(f"DEBUG extracted bytecode in {output_file}")
-            f2.write(bytecode)
-    return output_file
+        contract_key = None
+        all_contracts = data["contracts"]
+        all_contract_names = ",".join(iter(all_contracts))
+        if contract_name is None:
+            if len(all_contracts) == 1:
+                contract_name = _name_from_path(next(iter(all_contracts)))
+            else:
+                logger.error(
+                    f"Please specify the target contract among: {all_contracts_names}"
+                )
+                return None
+
+        for contract_path, contract_data in data["contracts"]:
+            if contract_name == _name_from_path(contract_path):
+                bytecode = contract_data["bin"]
+                unique_signature = hex(random.getrandbits(32))[2:]
+                output_file = str(
+                    os.path.join(
+                        TMP_CONTRACT_DIR,
+                        f"optik_contract_{unique_signature}.sol",
+                    )
+                )
+                with open(output_file, "w") as f2:
+                    f2.write(bytecode)
+                return output_file
+
+        # Didn't find contract
+        logger.fatal(
+            f"Couldn't find bytecode for contract {contract_name} in {solc_file}. "
+            f"Available contracts: {all_contract_names}"
+        )
+        return None
