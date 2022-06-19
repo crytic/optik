@@ -74,16 +74,11 @@ class ContractRunner:
         address: int,
         deployer: int,
         args: List[Union[bytes, List[Value]]] = [],
+        run_init_bytecode: bool = True,
     ):
         # Create a new engine that shares the variables context of the
-        # root engine, but has its own memory (to hold its own runtime bytecode)
+        # root engine, but has its own memory (to hold its own bytecode)
         self.root_engine = root_engine._duplicate(share={"vars"})
-        # Load the contract the new symbolic engine
-        self.root_engine.load(
-            contract_file,
-            args=args,
-            envp={"address": f"{address:x}", "deployer": f"{deployer:x}"},
-        )
         # The wrapper holds a stack of pending runtimes. Each runtime represents
         # one transaction call inside the contract. The first runtime in the list
         # is the first transaction, the next ones are re-entrency calls into the
@@ -91,6 +86,22 @@ class ContractRunner:
         self.runtime_stack: List[EVMRuntime] = []
         # Contract nonce, starts at 1 as per EIP-161
         self.nonce = 1
+        self.address = address
+
+        # Load the contract the new symbolic engine
+        env = {"address": f"{address:x}", "deployer": f"{deployer:x}"}
+        if not run_init_bytecode:
+            # Set "no_run_init_bytecode" to anything to tell Maat to not
+            # run the init bytecode
+            env["no_run_init_bytecode"] = "1"
+
+        self.root_engine.load(
+            contract_file,
+            args=args,
+            envp=env,
+        )
+        # Whether the init bytecode has been run or not
+        self.initialized = run_init_bytecode
 
     @property
     def current_runtime(self) -> EVMRuntime:
@@ -100,6 +111,7 @@ class ContractRunner:
         """Send a new transaction to the contract
 
         :param tx: The incoming transaction for which to create a new runtime
+        :param is_init_runtime: True if the runtime is created
         :return: The new runtime created to execute 'tx'
         """
         # Create a new engine that shares runtime code and symbolic
@@ -147,6 +159,7 @@ class EVMWorld:
                         method calls are currently being executed. The same address
                         can appear twice in case of re-entrency
         tx_queue        A list of transactions to execute
+        current_tx      Transaction currently being run
         monitors        A list of WorldMonitor that can execute callbacks on
                         various events
     """
@@ -155,6 +168,7 @@ class EVMWorld:
         self.contracts: Dict[int, ContractRunner] = {}
         self.call_stack: List[int] = []
         self.tx_queue: List[AbstractTx] = []
+        self.current_tx: Optional[AbstractTx] = None
         self.monitors: List[WorldMonitor] = []
         # Counter for transactions being run
         self._current_tx_num: int = 0
@@ -167,6 +181,7 @@ class EVMWorld:
         address: int,
         deployer: int,
         args: List[Union[bytes, List[Value]]] = [],
+        run_init_bytecode: bool = True,
     ) -> ContractRunner:
         """Deploy a contract at a given address
 
@@ -174,6 +189,9 @@ class EVMWorld:
         :param address: address where to deploy the contract
         :param deployer: address of the account deploying the contract
         :param args: arguments to pass to contract constructor
+        :param run_init_bytecode: if set to False, the contract is deployed
+         but the init bytecode is not executed. A new EVMRuntime is pushed
+         for the pending execution of the init bytecode.
         """
         if address in self.contracts:
             raise WorldException(
@@ -181,7 +199,12 @@ class EVMWorld:
             )
         else:
             runner = ContractRunner(
-                self.root_engine, contract_file, address, deployer, args
+                self.root_engine,
+                contract_file,
+                address,
+                deployer,
+                args,
+                run_init_bytecode,
             )
             self.contracts[address] = runner
             return runner
@@ -241,10 +264,10 @@ class EVMWorld:
         while self.has_pending_transactions or self.call_stack:
             if not self.call_stack:
                 # Pop next transaction to execute
-                tx = self.next_transaction()
+                self.current_tx = self.next_transaction()
                 self._current_tx_num += 1
                 # Find contract runner for the target contract
-                contract_addr = tx.tx.recipient
+                contract_addr = self.current_tx.tx.recipient
                 try:
                     runner = self.contracts[contract_addr]
                 except KeyError as e:
@@ -252,11 +275,11 @@ class EVMWorld:
                         f"Transaction recipient is {contract_addr}, but no contract is deployed there"
                     )
                 # Create new runtime to run this transaction
-                runner.push_runtime(tx)
+                runner.push_runtime(self.current_tx)
                 # Add to call stack
                 self.call_stack.append(contract_addr)
                 # Update block number & timestamp
-                self._update_block_info(self.root_engine, tx)
+                self._update_block_info(self.root_engine, self.current_tx)
                 # Monitor events
                 self._on_event(
                     "transaction",
@@ -270,18 +293,59 @@ class EVMWorld:
             stop = info.stop
             # Check stop reason
             if stop == STOP.EXIT:
+                succeeded: bool = info.exit_status.as_uint() in [
+                    TX_RES.STOP,
+                    TX_RES.RETURN,
+                ]
+                returned: bool = info.exit_status.as_uint() == TX_RES.RETURN
+                caller_contract = None
+                # Set transaction result in potential caller contract
+                if returned and len(self.call_stack) >= 2:
+                    caller_contract = contract(
+                        self.contracts[
+                            self.call_stack[-2]
+                        ].current_runtime.engine
+                    )
+                    caller_contract.result_from_last_call = contract(
+                        rt.engine
+                    ).transaction.result
+
                 # Handle revert. WARNING: Once we revert the state, 'info' is
                 # no more valid, because it is restored as well
                 # Note: doing exit_status.as_uint() is safe here because
                 # exit_status will never be symbolic for the EVM architecture
                 if info.exit_status.as_uint() == TX_RES.REVERT:
                     rt.revert()
-                # Call exited, delete the runtime
+
+                # Delete the runtime
                 self.current_contract.pop_runtime()
-                # Remove it from callstack
+
+                # If contract was still initializing, handle success/failure
+                if not self.current_contract.initialized:
+                    # This pushes the success status in the caller contract
+                    # stack, and deletes the contract runner for current_contract
+                    # if the contract creation failed
+                    self._handle_CREATE_after(succeeded)
+
+                if caller_contract:
+                    # TODO(boyan): push the success status of transaction in caller stack
+                    # if the terminating runtime was called with
+                    # CALL/DELEGATECALL/CALLCODE
+                    if caller_contract.outgoing_transaction.type in [
+                        TX.CALL,
+                        TX.CALLCODE,
+                        TX.DELEGATECALL,
+                    ]:
+                        raise WorldException(
+                            "Message call result handling not implemented"
+                        )
+
+                    # Reset outgoing_transaction in caller
+                    caller_contract.outgoing_transaction = None
+
+                # Remove current contract from callstack
                 self.call_stack.pop()
-                # TODO(boyan): handle tx return data if this runtime was
-                # called by another contract
+
             elif stop == STOP.NONE and contract(rt.engine).outgoing_transaction:
                 out_tx = contract(rt.engine).outgoing_transaction
                 if out_tx.type in [TX.CREATE, TX.CREATE2]:
@@ -322,17 +386,52 @@ class EVMWorld:
         # Increment caller nonce
         self.current_contract.nonce += 1
 
-        # Deploy contract
-        self.deploy(
+        # Deploy contract without running the init bytecode
+        contract_runner = self.deploy(
             "",  # No file, bytecode is in the tx data
             new_contract_addr,
             deployer,
             args=[out_tx.data],
+            run_init_bytecode=False,
         )
-        # Push new address as result in caller's stack
-        contract(rt.engine).stack.push(Cst(256, new_contract_addr))
-        # Reset outgoing_transaction in caller
-        contract(rt.engine).outgoing_transaction = None
+
+        # Create a new runtime for the new contract because its init
+        # code must run next
+        # TODO(boyan): is it OK to use out_tx here?!
+        create_tx = AbstractTx(
+            out_tx,
+            self.current_tx.block_num_inc,
+            self.current_tx.block_timestamp_inc,
+            VarContext(),
+        )
+        new_rt: EVMRuntime = contract_runner.push_runtime(create_tx)
+        self.call_stack.append(new_contract_addr)
+
+    def _handle_CREATE_after(self, succeeded: bool) -> None:
+        """Handles returning from a CREATE message call. In case of
+        failure, the contract runner for the contract being created
+        is deleted.
+
+        This method pushes either the new contract address, or zero (on
+        failure), to the caller runtime stack.
+
+        Prerequisites:
+            - the current_contract MUST be the newly created contract
+            - the call stack must contain at least one contract before
+            the current contract (so minimum 2 contracts in total)
+        """
+        if succeeded:
+            self.current_contract.initialized = True
+            create_result = self.current_contract.address
+        else:
+            # if CREATE failed, remove the contract runner for the
+            # new contract
+            del self.contracts[self.current_contract.address]
+            create_result = 0
+        # Push new contract address in caller contract
+        contract(
+            self.contracts[self.call_stack[-2]].current_runtime.engine
+        ).stack.push(Cst(256, create_result))
 
     def _update_block_info(self, m: MaatEngine, tx: AbstractTx) -> None:
         """Increase the block number and block timestamp when emulating
