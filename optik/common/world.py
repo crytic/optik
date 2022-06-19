@@ -298,7 +298,6 @@ class EVMWorld:
 
         return stop
 
-
     def _handle_CREATE(self) -> None:
         """Handle deployment of a new contract by another contract with
         the CREATE or CREATE2 EVM instructions. This method deploys the new
@@ -317,7 +316,9 @@ class EVMWorld:
             )
         else:
             # TODO(boyan): support CREATE2
-            raise WorldException(f"Transaction type {out_tx.type} not implemented")
+            raise WorldException(
+                f"Transaction type {out_tx.type} not implemented"
+            )
         # Increment caller nonce
         self.current_contract.nonce += 1
 
@@ -332,7 +333,6 @@ class EVMWorld:
         contract(rt.engine).stack.push(Cst(256, new_contract_addr))
         # Reset outgoing_transaction in caller
         contract(rt.engine).outgoing_transaction = None
-
 
     def _update_block_info(self, m: MaatEngine, tx: AbstractTx) -> None:
         """Increase the block number and block timestamp when emulating

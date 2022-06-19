@@ -278,7 +278,9 @@ def extract_contract_bytecode(
                     )
                 )
                 with open(output_file, "w") as f2:
-                    logger.debug(f"Bytecode for contract {contract_name} written in {output_file}")
+                    logger.debug(
+                        f"Bytecode for contract {contract_name} written in {output_file}"
+                    )
                     f2.write(bytecode)
                 return output_file
 

@@ -21,7 +21,7 @@ import os
 # TODO(boyan): pass contract bytecode instead of extracting to file
 def replay_inputs(
     corpus_files: List[str],
-    contract_file: str, 
+    contract_file: str,
     contract_deployer: int,
     cov: Coverage,
 ) -> None:
