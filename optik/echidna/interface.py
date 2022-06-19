@@ -263,7 +263,7 @@ def extract_contract_bytecode(
                 contract_name = _name_from_path(next(iter(all_contracts)))
             else:
                 logger.error(
-                    f"Please specify the target contract among: {all_contracts_names}"
+                    f"Please specify the target contract among: {all_contract_names}"
                 )
                 return None
 
