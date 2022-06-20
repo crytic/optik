@@ -93,9 +93,9 @@ def load_tx(tx: Dict, tx_name: str = "") -> AbstractTx:
     ctx.set(value.name, int(tx["_value"], 16), value.size)
 
     # Build transaction
-    # TODO: correctly handle gas_limit
     # TODO: make EVMTransaction accept integers as arguments
-    gas_limit = Cst(256, 46546514651)
+    gas_limit = Cst(256, int(tx["_gas'"], 16))
+    gas_price = Cst(256, int(tx["_gasprice'"], 16))
     recipient = int(tx["_dst"], 16)
     return AbstractTx(
         EVMTransaction(
@@ -104,6 +104,7 @@ def load_tx(tx: Dict, tx_name: str = "") -> AbstractTx:
             recipient,  # recipient
             value,  # value
             call_data,  # data
+            gas_price,  # gas price
             gas_limit,  # gas_limit
         ),
         block_num_inc,
