@@ -18,7 +18,7 @@ contract CreateContracts2 {
     }
 
     function g(address x) public {
-        if (A(x) == a)
+        if (A(x) == a && (a != A(address(0x0))))
             state = false;
         if ((A(x) == b) && (b != A(address(0x0))))
             state2 = false;

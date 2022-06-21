@@ -90,6 +90,8 @@ def generate_new_inputs(cov: Coverage, args: argparse.Namespace) -> int:
 
         logger.info(f"Solving {i+1} of {count} ({round((i/count)*100, 2)}%)")
         s = Solver()
+        if args.solver_timeout:
+            s.timeout = args.solver_timeout
 
         # Add path constraints in
         for path_constraint in bif.path_constraints:
@@ -129,7 +131,15 @@ def run_echidna_campaign(
     for arg, val in args.__dict__.items():
         # Ignore Optik specific arguments
         if (
-            arg not in ["FILES", "max_iters", "debug", "cov_mode", "sender"]
+            arg
+            not in [
+                "FILES",
+                "max_iters",
+                "debug",
+                "cov_mode",
+                "sender",
+                "solver_timeout",
+            ]
             and not val is None
         ):
             cmdline += [f"--{arg.replace('_', '-')}", str(val)]

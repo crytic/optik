@@ -44,6 +44,6 @@ def compute_new_contract_addr(sender: int, nonce: int) -> int:
     originating from 'sender' with nonce 'nonce'"""
 
     k = sha3.keccak_256()
-    k.update(rlp.encode([sender, nonce]))
+    k.update(rlp.encode([sender.to_bytes(20, "big"), nonce]))
     digest = k.digest()[12:]
     return int.from_bytes(digest, "big")

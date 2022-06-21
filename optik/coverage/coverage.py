@@ -11,9 +11,14 @@ class CoverageState:
     coverage. If we track instructions, a state can be the covered
     instruction addresses, if we track paths, a state can be an
     execution path, ...
+
+    Attributes:
+        contract    Address of the contract being run
+        contract_is_initialized     Whether we are running the init bytecode or the runtime bytecode
     """
 
-    pass
+    contract: int
+    contract_is_initialized: bool
 
 
 @dataclass(frozen=True)
@@ -71,7 +76,6 @@ class Coverage(WorldMonitor):
         self.covered: Dict[CoverageState, int] = {}
         self.bifurcations: List[Bifurcation] = []
         self.current_input: str = "<unspecified>"
-        self.contract: Optional[ContractRunner] = None
 
     def get_state(self, **kwargs) -> CoverageState:
         """Abstract base method that returns the current coverage state"""
@@ -155,13 +159,11 @@ class Coverage(WorldMonitor):
     #### WorldMonitor interface
     def on_attach(self, address: int) -> None:
         """WorldMonitor interface callback to start tracking a contract"""
-        self.contract = self.world.get_contract(address)
-        for rt in self.contract.runtime_stack:
-            self.track(rt.engine)
+        for contract in self.world.contracts.values():
+            for rt in contract.runtime_stack:
+                self.track(rt.engine)
 
     def on_new_runtime(self, rt: EVMRuntime) -> None:
         """WorldMonitor interface callback to track new engines created by
         re-entrency"""
-        # If new runtime for the contract we track, track the associated MaatEngine
-        if self.world.current_contract is self.contract:
-            self.track(rt.engine)
+        self.track(rt.engine)

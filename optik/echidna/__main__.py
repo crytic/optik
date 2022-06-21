@@ -230,6 +230,14 @@ def parse_arguments(args: List[str]) -> argparse.Namespace:
         metavar="MODE",
     )
 
+    parser.add_argument(
+        "--solver-timeout",
+        type=int,
+        help="Maximum solving time (in ms) to spend per potential new input",
+        default=None,
+        metavar="MILLISECONDS",
+    )
+
     parser.add_argument("--debug", action="store_true", help="Print debug logs")
 
     return parser.parse_args(args)
