@@ -3,6 +3,7 @@ from .exceptions import GenericException
 from .logger import logger
 
 import re
+from typing import Union,List,Tuple
 
 
 def twos_complement_convert(arg: int, bits: int) -> int:
@@ -28,10 +29,10 @@ def twos_complement_convert(arg: int, bits: int) -> int:
 
 # textual unicode symbols not handled by python's unicode decode
 UNICODE_SYMBOLS = [
-    "NUL", "SOH", "STX", "ETX", "EOT", "ENQ", "ACK", "BEL", "BS", "HT", "LF", "VT", "FF", "CR", "SO", "SI", "dle", "DC1", "DC2", "DC3", "DC4", "NAK", "SYN", "ETB", "CAN", "EM", "SUB", "ESC", "FS", "GS", "RS", "US"
+    "NUL", "SOH", "STX", "ETX", "EOT", "ENQ", "ACK", "BEL", "BS", "HT", "LF", "VT", "FF", "CR", "SO", "SI", "DLE", "DC1", "DC2", "DC3", "DC4", "NAK", "SYN", "ETB", "CAN", "EM", "SUB", "ESC", "FS", "GS", "RS", "US"
 ]
 
-def parse_bytes(unicode_str: str) -> list[int]:
+def parse_bytes(unicode_str: str) -> tuple[int]:
     """Takes a json + unicode encoded string and converts it
     to a list of bytes
 
@@ -81,7 +82,7 @@ def parse_bytes(unicode_str: str) -> list[int]:
     unicode_str = unicode_str.decode('unicode_escape')
     unicode_str = unicode_str.encode('utf-8') # convert back to bytes
 
-    return [byte for byte in unicode_str]
+    return tuple([byte for byte in unicode_str])
 
 def echidna_byte_converter(byte_vals: list[int]) -> str:
     """Inverse function to `parse_bytes`, it converts a list of bytes into
@@ -91,6 +92,23 @@ def echidna_byte_converter(byte_vals: list[int]) -> str:
     raise NotImplementedError
 
 
+def list_has_types(val: Union[List[type], Tuple[type]], wanted_type: type) -> bool:
+    """Validates that all elements of a given list are of type `wanted_type`
 
+    :param val: the list to inspect types for
+    :param wanted_type: the type that all values of `val` should be
 
+    :return: True if all elements of `val` are of type `wanted_type`, otherwise False
+    """
+
+    # `val` should be a list
+    if not isinstance(val, list) and not isinstance(val, tuple):
+        return False
+
+    # If any single value is not of type `wanted_type`, then False
+    for i,v in enumerate(val):
+        if not isinstance(v, wanted_type):
+            return False
+
+    return True
 

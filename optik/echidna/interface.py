@@ -47,7 +47,7 @@ def translate_argument(arg: Dict) -> Tuple[str, Union[bytes, int, Value]]:
         val = arg["contents"][1]
         val = val[1:len(val)-1] # remove double quoted string
 
-        val = parse_bytes(val) # decode into list of bytes
+        val = parse_bytes(val) # decode into tuple of bytes
 
         return (
             f"bytes{byteLen}",
@@ -143,6 +143,7 @@ def update_argument(arg: Dict, arg_name: str, new_model: VarContext) -> None:
 
     argType = arg["tag"]
     variable = new_model.get(arg_name)
+    logger.debug(f"Updating argument {arg_name} with argtype: {argType}")
     if argType == "AbiUInt":
         arg["contents"][1] = str(variable)
     elif argType == "AbiInt":

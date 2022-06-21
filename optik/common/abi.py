@@ -1,10 +1,12 @@
+from ctypes.wintypes import BYTE
 from maat import Cst, Concat, Extract, Value
 from .exceptions import ABIException
 import sha3
 from eth_abi.grammar import ABIType, BasicType, TupleType, parse, normalize
 from eth_abi.exceptions import ABITypeError, ParseError
-from typing import List, Union
+from typing import Tuple, List, Union
 from .logger import logger
+from ..common.util import list_has_types
 from dataclasses import dataclass
 from maat import contract, MaatEngine, Sext, Var, VarContext
 
@@ -12,6 +14,8 @@ from maat import contract, MaatEngine, Sext, Var, VarContext
 # Constants
 # =========
 ADDRESS_SIZE = 160  # Bit size of Ethereum ADDRESS type
+BYTEM_PAD = 32      # BytesM padded to 32 bytes
+BYTESIZE = 8        # 8 bits to a byte
 
 # ====================================
 # Methods that encode transaction data
@@ -112,12 +116,12 @@ def intM(
         return [value]
 
 def bytesM(
-    byte_count: int, value: Union[int, Value], ctx: VarContext, name: str
+    byte_count: int, value: Union[Tuple[int], Tuple[Value]], ctx: VarContext, name: str
 ) -> List[Value]:
     """Encodes a bytes<M>, right-padded to 32 bytes (256 bits)
 
     :param byteCount: number of bytes "M", 0 < M <= 32
-    :param value: 
+    :param value: either a list of bytes, or a list of Value objects representing bytes
     :param ctx: the VarContext to use to make 'value' concolic
     :param name: symbolic variable name to use to make 'value' concolic
 
@@ -125,7 +129,39 @@ def bytesM(
     """
     _check_bytes(byte_count)
 
-    raise NotImplementedError
+    if list_has_types(value, int):
+        for v in value:
+            if v < 0:
+                logger.warn(f"Byte value {v} treated as unsigned integer")
+            elif v >= 256:
+                logger.warn(f"Byte value {v} can't be greater than 255")
+
+        values = []
+        for i,v in enumerate(value):
+            byte_name = f"{name}_{i}"
+            ctx.set(byte_name, v, BYTESIZE)
+            values += [Var(BYTESIZE, byte_name)]
+
+    elif list_has_types(value, Value):
+        #TODO: any other checks needed for concolic values?
+        if len(value) != byte_count:
+            raise ABIException(
+                f"Mismatch between number of concolic bytesM values found {len(value)} and expected {byte_count}."
+            )
+
+        for val in value:
+            if val.size != BYTESIZE:
+                raise ABIException(
+                    f"Size mismatch between concolic value ({val.size}) and expected 8 bits of a byte"
+                )
+    else:
+        raise ABIException("'value' must be tuple[int] or tuple[Value]")
+
+    if byte_count < 32:
+        # pad with 0 bytes to 32 bytes
+        return values + [Cst(BYTESIZE, 0) for _ in range(BYTEM_PAD - byte_count)]
+    else:
+        return values
 
 
 def selector(func_signature: str) -> Value:
