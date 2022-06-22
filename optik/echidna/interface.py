@@ -209,7 +209,7 @@ def store_new_tx_sequence(original_file: str, new_model: VarContext) -> None:
         f"{os.path.dirname(original_file)}/{NEW_INPUT_PREFIX}", ".txt"
     )
     with open(new_file, "w") as f:
-        json.dump(data, f)
+        json.dump(new_data, f)
 
 
 def get_available_filename(prefix: str, suffix: str) -> str:
