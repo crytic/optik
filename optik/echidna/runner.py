@@ -1,6 +1,6 @@
 from .interface import load_tx_sequence, store_new_tx_sequence
 from ..coverage import Coverage
-from ..common.world import EVMWorld, WorldMonitor
+from ..common.world import EVMWorld, WorldMonitor, AbstractTx
 from ..common.logger import logger
 import argparse
 import subprocess
@@ -8,6 +8,7 @@ import logging
 from maat import (
     ARCH,
     contract,
+    Cst,
     EVMTransaction,
     MaatEngine,
     Solver,
@@ -35,7 +36,29 @@ def replay_inputs(
         # recreate the whole environment for every input
         world = EVMWorld()
         contract_addr = tx_seq[0].tx.recipient
-        world.deploy(contract_file, contract_addr, contract_deployer)
+        # Push initial transaction that initialises the target contract
+        world.push_transaction(
+            AbstractTx(
+                EVMTransaction(
+                    Cst(160, contract_deployer),  # origin
+                    Cst(160, contract_deployer),  # sender
+                    contract_addr,  # recipient
+                    Cst(256, 0),  # value
+                    [],  # data
+                    Cst(256, 50),  # gas price
+                    Cst(256, 123456),  # gas limit
+                ),
+                Cst(256, 0),  # block num inc
+                Cst(256, 0),  # block ts inc
+                VarContext(),
+            )
+        )
+        world.deploy(
+            contract_file,
+            contract_addr,
+            contract_deployer,
+            run_init_bytecode=False,
+        )
         world.attach_monitor(cov, contract_addr)
 
         # Prepare to run transaction

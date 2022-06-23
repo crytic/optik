@@ -65,8 +65,6 @@ A couple additionnal options are available:
 **Current limitations**:
 
 - Can only run on a single solidity file
-- Limited support for multi-contract environments
-  - `CREATE2` instruction not yet supported
-  - Can't deploy new contracts from the target contract's constructor
+- `CREATE2`, `CALLCODE`, and `DELEGATECALL` are not yet supported
 - Gas is not taken into account
 - Some echidna options are not yet supported (see `hybrid-echidna -h`)

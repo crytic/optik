@@ -19,7 +19,8 @@ to_test = [
     ("SmartianExample.sol", "inst-tx", 40),
     ("Payable.sol", "inst", 10),
     ("IntCast.sol", "inst", 10),
-    ("CreateContracts2.sol", "inst-tx", 40),
+    ("CreateContracts.sol", "inst-tx", 10),
+    ("CreateContracts2.sol", "inst-tx", 30),
     ("MessageCall.sol", "inst-tx", 1),
     ("Reentrency.sol", "inst-tx", 10),
 ]

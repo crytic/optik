@@ -44,12 +44,13 @@ class EVMRuntime:
     """A wrapper class for executing a single transaction in a deployed
     contract"""
 
-    def __init__(self, engine: MaatEngine, tx: AbstractTx):
+    def __init__(self, engine: MaatEngine, tx: Optional[AbstractTx]):
         self.engine = engine
-        # Load the var context of the transaction in the engine
-        self.engine.vars.update_from(tx.ctx)
-        # Set transaction data in contract
-        contract(self.engine).transaction = tx.tx
+        if tx:
+            # Load the var context of the transaction in the engine
+            self.engine.vars.update_from(tx.ctx)
+            # Set transaction data in contract
+            contract(self.engine).transaction = tx.tx
         self.init_state = self.engine.take_snapshot()
 
     def run(self) -> Info:
@@ -111,7 +112,7 @@ class ContractRunner:
     def current_runtime(self) -> EVMRuntime:
         return self.runtime_stack[-1]
 
-    def push_runtime(self, tx: AbstractTx) -> EVMRuntime:
+    def push_runtime(self, tx: Optional[AbstractTx]) -> EVMRuntime:
         """Send a new transaction to the contract
 
         :param tx: The incoming transaction for which to create a new runtime
@@ -187,6 +188,7 @@ class EVMWorld:
         deployer: int,
         args: List[Union[bytes, List[Value]]] = [],
         run_init_bytecode: bool = True,
+        add_to_call_stack: bool = False,
     ) -> ContractRunner:
         """Deploy a contract at a given address
 
@@ -197,6 +199,9 @@ class EVMWorld:
         :param run_init_bytecode: if set to False, the contract is deployed
          but the init bytecode is not executed. A new EVMRuntime is pushed
          for the pending execution of the init bytecode.
+        :param add_to_call_stack: push the newly deployed contract on the
+         all stack. This means that the next frame to run will be this contract.
+         Setting this parameter to True requires `run_init_bytecode` to be False
         """
         if address in self.contracts:
             raise WorldException(
@@ -263,7 +268,7 @@ class EVMWorld:
         return self.current_contract.current_runtime.engine
 
     def _push_runtime(
-        self, runner: ContractRunner, tx: AbstractTx
+        self, runner: ContractRunner, tx: Optional[AbstractTx]
     ) -> EVMRuntime:
         """Wrapper function to push a new runtime for a contract runner, and
         trigger the corresponding event"""
@@ -450,10 +455,11 @@ class EVMWorld:
             # new contract
             del self.contracts[self.current_contract.address]
             create_result = 0
-        # Push new contract address in caller contract
-        contract(
-            self.contracts[self.call_stack[-2]].current_runtime.engine
-        ).stack.push(Cst(256, create_result))
+        # Push new contract address in caller contract if any
+        if len(self.call_stack) > 1:
+            contract(
+                self.contracts[self.call_stack[-2]].current_runtime.engine
+            ).stack.push(Cst(256, create_result))
 
     def _handle_CALL(self) -> None:
         """Handles message call into another contract. This method

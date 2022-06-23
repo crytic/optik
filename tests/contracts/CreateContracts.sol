@@ -2,28 +2,25 @@ pragma solidity ^0.7.1;
 
 // Contract to test
 contract CreateContracts {
-    bool state = true;
-    bool state2 = true;
+    bool state = false;
+    bool state2 = false;
     A a;
     A b;
 
-    constructor() public {
-        a = new A();
+    constructor (){
+        a = new A(468745);
+        b = new A(9894565814);
     }
 
-    function f() public {
-        if (b == A(address(0x0)))
-            b = new A();
+    function f(address x, uint guess1, uint guess2) public {
+        if (A(x) == a){
+            state = a.check(guess1);
+            if (state)
+                state2 = b.check(guess2);
+        }
     }
 
-    function g(address x) public {
-        if (A(x) == a)
-            state = false;
-        if ((A(x) == b) && (b != A(address(0x0))))
-            state2 = false;
-    }
-
-    function h() public returns (bool) {
+    function g() public returns (bool) {
         if (!(state || state2))
             return false; // test::coverage
         else
@@ -31,15 +28,15 @@ contract CreateContracts {
     }
 }
 
-// TODO: test calling some function in A 
-// TODO: test with a constructor that takes arguments
-
 // Some dummy contract
 contract A {
-    uint a = 42;
-    uint b = 43;
+    uint key;
 
-    function f() public {
-        a = a+1;
+    constructor (uint k){
+        key = k;
+    }
+
+    function check(uint val) public returns (bool) {
+        return (val % key == 22);
     }
 }
