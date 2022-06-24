@@ -1,10 +1,10 @@
 from maat import Cst, EVMTransaction, Value, Var, VarContext
-from typing import Dict, Final, List, Tuple, Union
+from typing import Dict, Final, List, Optional, Tuple, Union
 from ..common.exceptions import EchidnaException, GenericException
 from ..common.abi import function_call
 from ..common.logger import logger
 from ..common.world import AbstractTx
-from ..common.util import twos_complement_convert, parse_bytes, echidna_byte_converter
+from ..common.util import twos_complement_convert, int_to_bool, parse_bytes, echidna_byte_converter
 
 import os
 import json
@@ -42,6 +42,7 @@ def translate_argument(arg: Dict) -> Tuple[str, Union[bytes, int, Value]]:
             f"address",
             val,
         )
+
     elif argType == "AbiBytes":
         byteLen = arg["contents"][0]
         val = arg["contents"][1]
@@ -51,6 +52,11 @@ def translate_argument(arg: Dict) -> Tuple[str, Union[bytes, int, Value]]:
 
         return (
             f"bytes{byteLen}",
+
+    elif argType == "AbiBool":
+        val = arg["contents"]
+        return (
+            f"bool",
             val,
         )
     else:
@@ -92,12 +98,18 @@ def load_tx(tx: Dict, tx_name: str = "") -> AbstractTx:
         block_timestamp_inc.name, int(tx["_delay"][0], 16), block_num_inc.size
     )
 
+    # Translate message sender
+    sender = Var(160, f"{tx_name}_sender")
+    ctx.set(sender.name, int(tx["_src"], 16), sender.size)
+
+    # Translate message value
+    value = Var(256, f"{tx_name}_value")
+    ctx.set(value.name, int(tx["_value"], 16), value.size)
+
     # Build transaction
-    # TODO: correctly handle gas_limit
     # TODO: make EVMTransaction accept integers as arguments
-    sender = Cst(256, int(tx["_src"], 16))
-    value = Cst(256, int(tx["_value"], 16))
-    gas_limit = Cst(256, 46546514651)
+    gas_limit = Cst(256, int(tx["_gas'"], 16))
+    gas_price = Cst(256, int(tx["_gasprice'"], 16))
     recipient = int(tx["_dst"], 16)
     return AbstractTx(
         EVMTransaction(
@@ -106,6 +118,7 @@ def load_tx(tx: Dict, tx_name: str = "") -> AbstractTx:
             recipient,  # recipient
             value,  # value
             call_data,  # data
+            gas_price,  # gas price
             gas_limit,  # gas_limit
         ),
         block_num_inc,
@@ -150,6 +163,9 @@ def update_argument(arg: Dict, arg_name: str, new_model: VarContext) -> None:
         argVal = int(variable)
         bits = arg["contents"][0]
         arg["contents"][1] = str(twos_complement_convert(argVal, bits))
+    elif argType == "AbiBool":
+        argVal = new_model.get(arg_name)
+        arg["contents"] = int_to_bool(argVal)
     elif argType == "AbiAddress":
         arg["contents"] = str(hex(variable))
     elif argType == "AbiBytes":
@@ -184,6 +200,17 @@ def update_tx(tx: Dict, new_model: VarContext, tx_name: str = "") -> Dict:
         tx["_delay"][1] = hex(new_model.get(block_num_inc))
     if new_model.contains(block_timestamp_inc):
         tx["_delay"][0] = hex(new_model.get(block_timestamp_inc))
+
+    # Update sender
+    sender = f"{tx_name}_sender"
+    if new_model.contains(sender):
+        # Address so we need to pad it to 40 chars (20bytes)
+        tx["_src"] = f"0x{new_model.get(sender):0{40}x}"
+
+    # Update transaction value
+    value = f"{tx_name}_value"
+    if new_model.contains(value):
+        tx["_value"] = hex(new_model.get(value))
 
     return tx
 
@@ -229,23 +256,56 @@ def get_available_filename(prefix: str, suffix: str) -> str:
     return f"{prefix}_{num}{suffix}"
 
 
-# TODO(boyan): make this support multiple files/contracts
-def extract_contract_bytecode(crytic_dir: str) -> str:
-    """Parse compilation information from crytic, extracts the bytecode
-    of a compiled contract, and stores it into a separate file
-    WARNING: currently limited to fuzzing campaigns on a single contract file!
+def extract_contract_bytecode(
+    crytic_dir: str, contract_name: Optional[str]
+) -> Optional[str]:
+    """Parse compilation information from crytic, extracts the bytecodes
+    of compiled contracts, and stores them into separate files.
 
     :param crytic-dir: the "crytic-export" dir created by echidna after a campaign
-    :return: file containing the bytecode of the contract
+    :param contract_name: the name of the contract to extract
+    :return: path to a file containing the bytecode for 'contract', or None on failure
     """
-    unique_signature = hex(random.getrandbits(32))[2:]
-    output_file = str(
-        os.path.join(TMP_CONTRACT_DIR, f"optik_contract_{unique_signature}.sol")
-    )
-    with open(str(os.path.join(crytic_dir, "combined_solc.json")), "rb") as f:
+
+    def _name_from_path(path):
+        return path.split(":")[-1]
+
+    res = {}
+    solc_file = str(os.path.join(crytic_dir, "combined_solc.json"))
+    with open(solc_file, "rb") as f:
         data = json.loads(f.read())
-        contract_name, contract_data = next(iter(data["contracts"].items()))
-        bytecode = contract_data["bin"]
-        with open(output_file, "w") as f2:
-            f2.write(bytecode)
-    return output_file
+        contract_key = None
+        all_contracts = data["contracts"]
+        all_contract_names = ",".join(iter(all_contracts))
+        if contract_name is None:
+            if len(all_contracts) == 1:
+                contract_name = _name_from_path(next(iter(all_contracts)))
+            else:
+                logger.error(
+                    f"Please specify the target contract among: {all_contract_names}"
+                )
+                return None
+
+        for contract_path, contract_data in data["contracts"].items():
+            if contract_name == _name_from_path(contract_path):
+                bytecode = contract_data["bin"]
+                unique_signature = hex(random.getrandbits(32))[2:]
+                output_file = str(
+                    os.path.join(
+                        TMP_CONTRACT_DIR,
+                        f"optik_contract_{unique_signature}.sol",
+                    )
+                )
+                with open(output_file, "w") as f2:
+                    logger.debug(
+                        f"Bytecode for contract {contract_name} written in {output_file}"
+                    )
+                    f2.write(bytecode)
+                return output_file
+
+        # Didn't find contract
+        logger.fatal(
+            f"Couldn't find bytecode for contract {contract_name} in {solc_file}. "
+            f"Available contracts: {all_contract_names}"
+        )
+        return None

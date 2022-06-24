@@ -20,6 +20,11 @@ def run_hybrid_echidna(args: List[str]) -> None:
     """Main hybrid echidna script"""
 
     args = parse_arguments(args)
+    try:
+        deployer = int(args.deployer, 16)
+    except:
+        logger.error(f"Invalid deployer address: {args.deployer}")
+        return
 
     if args.debug:
         handler.setLevel(logging.DEBUG)
@@ -55,13 +60,19 @@ def run_hybrid_echidna(args: List[str]) -> None:
             logger.fatal(f"Echidna stderr: \n{p.stderr}")
             return
 
+        logger.debug(f"Echidna stdout: \n{p.stdout}")
+
         # Extract contract bytecodes in separate files for Maat. This is done
         # only once after the first fuzzing campaign
         if iter_cnt == 1:
-            # TODO(boyan): this should return a list of contracts if multiple contracts
             # TODO(boyan): is it OK to assume crytic-export is always located in the
             #       current working directory?
-            contract_file = extract_contract_bytecode("./crytic-export")
+            contract_file = extract_contract_bytecode(
+                "./crytic-export", args.contract
+            )
+            if not contract_file:
+                logger.fatal("Failed to extract contract bytecode")
+                return
 
         # Replay new corpus inputs symbolically
         new_inputs = pull_new_corpus_files(coverage_dir, seen_files)
@@ -73,10 +84,10 @@ def run_hybrid_echidna(args: List[str]) -> None:
             logger.info(f"Echidna couldn't find new inputs")
             return
         cov.bifurcations = []
-        replay_inputs(new_inputs, contract_file, cov)
+        replay_inputs(new_inputs, contract_file, deployer, cov)
 
         # Find inputs to reach new code
-        new_inputs_cnt = generate_new_inputs(cov)
+        new_inputs_cnt = generate_new_inputs(cov, args)
         if new_inputs_cnt > 0:
             logger.info(f"Generated {new_inputs_cnt} new inputs")
         else:
@@ -114,6 +125,13 @@ def parse_arguments(args: List[str]) -> argparse.Namespace:
     # Echidna arguments
     parser.add_argument(
         "FILES", type=str, nargs="*", help="Solidity files to analyze"
+    )
+
+    parser.add_argument(
+        "--contract",
+        type=str,
+        help="Contract to analyze",
+        metavar="CONTRACT",
     )
 
     parser.add_argument(
@@ -164,18 +182,27 @@ def parse_arguments(args: List[str]) -> argparse.Namespace:
 
     parser.add_argument(
         "--contract-addr",
-        type=auto_int,
-        help="Address to deploy the contract to test",
-        default=0x00A329C0648769A73AFAC7F9381E08FB43DBEA72,
+        type=str,
+        help="Address to deploy the contract to test (hex)",
+        default="00A329C0648769A73AFAC7F9381E08FB43DBEA72",
         metavar="ADDRESS",
     )
 
     parser.add_argument(
         "--deployer",
-        type=auto_int,
-        help="Address of the deployer of the contract to test",
-        default=0x0000000000000000000000000000000000030000,
+        type=str,
+        help="Address of the deployer of the contract to test (hex)",
+        default="30000",
         metavar="ADDRESS",
+    )
+
+    parser.add_argument(
+        "--sender",
+        type=str,
+        nargs="*",
+        default=["10000", "20000", "30000"],
+        help="Addresses to use for the transactions sent during testing (hex)",
+        metavar="ADDRESSES",
     )
 
     parser.add_argument(
@@ -201,6 +228,14 @@ def parse_arguments(args: List[str]) -> argparse.Namespace:
         choices=["inst", "inst-tx", "path", "path-relaxed", "echidna"],
         default="echidna",
         metavar="MODE",
+    )
+
+    parser.add_argument(
+        "--solver-timeout",
+        type=int,
+        help="Maximum solving time (in ms) to spend per potential new input",
+        default=None,
+        metavar="MILLISECONDS",
     )
 
     parser.add_argument("--debug", action="store_true", help="Print debug logs")

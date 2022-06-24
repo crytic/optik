@@ -14,7 +14,15 @@ to_test = [
     ("MultiMagic.sol", "path-relaxed", 10),
     ("MultiMagic256.sol", "echidna", 40),
     ("CoverageInt.sol", "inst", 40),
+    ("CoverageBool.sol", "path-relaxed", 5),
     ("Time.sol", "inst", 10),
+    ("SmartianExample.sol", "inst-tx", 40),
+    ("Payable.sol", "inst", 10),
+    ("IntCast.sol", "inst", 10),
+    ("CreateContracts.sol", "inst-tx", 10),
+    ("CreateContracts2.sol", "inst-tx", 30),
+    ("MessageCall.sol", "inst-tx", 1),
+    ("Reentrency.sol", "inst-tx", 10),
 ]
 
 to_test = [
@@ -31,8 +39,9 @@ def test_coverage(contract: str, cov_mode: str, seq_len: int):
     with the coverage test marker was reached (indicated by '*').
     """
     test_dir = new_test_dir("/tmp/")
+    contract_name = contract.stem
     # Run hybrid echidna
-    cmdline_args = f"{contract}  --test-mode assertion --corpus-dir {test_dir} --seq-len {seq_len} --seed 46541521 --max-iters 10 --test-limit 10000 --cov-mode {cov_mode} --debug".split()
+    cmdline_args = f"{contract}  --contract {contract_name} --test-mode assertion --corpus-dir {test_dir} --seq-len {seq_len} --seed 46541521 --max-iters 10 --test-limit 10000 --cov-mode {cov_mode} --debug ".split()
     run_hybrid_echidna(cmdline_args)
     # Check coverage
     covered_file = get_coverage_file(test_dir)

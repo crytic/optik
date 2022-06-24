@@ -1,18 +1,29 @@
 from .interface import load_tx_sequence, store_new_tx_sequence
 from ..coverage import Coverage
-from ..common.world import EVMWorld, WorldMonitor
+from ..common.world import EVMWorld, WorldMonitor, AbstractTx
 from ..common.logger import logger
 import argparse
 import subprocess
 import logging
-from maat import ARCH, contract, EVMTransaction, MaatEngine, Solver, STOP
+from maat import (
+    ARCH,
+    contract,
+    Cst,
+    EVMTransaction,
+    MaatEngine,
+    Solver,
+    STOP,
+    VarContext,
+)
 from typing import List, Optional
 import os
 
 
+# TODO(boyan): pass contract bytecode instead of extracting to file
 def replay_inputs(
     corpus_files: List[str],
     contract_file: str,
+    contract_deployer: int,
     cov: Coverage,
 ) -> None:
 
@@ -24,8 +35,31 @@ def replay_inputs(
         # TODO(boyan): implement snapshoting in EVMWorld so we don't
         # recreate the whole environment for every input
         world = EVMWorld()
-        world.deploy(contract_file, tx_seq[0].tx.recipient)
-        world.attach_monitor(cov, tx_seq[0].tx.recipient)
+        contract_addr = tx_seq[0].tx.recipient
+        # Push initial transaction that initialises the target contract
+        world.push_transaction(
+            AbstractTx(
+                EVMTransaction(
+                    Cst(160, contract_deployer),  # origin
+                    Cst(160, contract_deployer),  # sender
+                    contract_addr,  # recipient
+                    Cst(256, 0),  # value
+                    [],  # data
+                    Cst(256, 50),  # gas price
+                    Cst(256, 123456),  # gas limit
+                ),
+                Cst(256, 0),  # block num inc
+                Cst(256, 0),  # block ts inc
+                VarContext(),
+            )
+        )
+        world.deploy(
+            contract_file,
+            contract_addr,
+            contract_deployer,
+            run_init_bytecode=False,
+        )
+        world.attach_monitor(cov, contract_addr)
 
         # Prepare to run transaction
         world.push_transactions(tx_seq)
@@ -37,13 +71,26 @@ def replay_inputs(
     return cov
 
 
-def generate_new_inputs(cov: Coverage) -> int:
+def generate_new_inputs(cov: Coverage, args: argparse.Namespace) -> int:
     """Generate new inputs to increase code coverage, base on
     existing coverage
 
     :param cov: coverage data
+    :param args: echidna arguments. If the new inputs contain particular
+    'sender' values for transactions, those are included in the echidna
+    list of possible senders
     :return: number of new inputs found
     """
+
+    def _add_new_senders(ctx: VarContext, args: argparse.Namespace) -> None:
+        for var in ctx.contained_vars():
+            if var.endswith("_sender"):
+                sender = f"{ctx.get(var):X}"
+                if not sender in args.sender:
+                    logger.warning(
+                        f"Automatically adding new tx sender address: {sender}"
+                    )
+                    args.sender.append(sender)
 
     # Keep only interesting bifurcations
     cov.filter_bifurcations()
@@ -66,6 +113,8 @@ def generate_new_inputs(cov: Coverage) -> int:
 
         logger.info(f"Solving {i+1} of {count} ({round((i/count)*100, 2)}%)")
         s = Solver()
+        if args.solver_timeout:
+            s.timeout = args.solver_timeout
 
         # Add path constraints in
         for path_constraint in bif.path_constraints:
@@ -82,6 +131,7 @@ def generate_new_inputs(cov: Coverage) -> int:
             model = s.get_model()
             # Serialize the new input discovered
             store_new_tx_sequence(bif.input_uid, model)
+            _add_new_senders(model, args)
 
     return success_cnt
 
@@ -97,10 +147,22 @@ def run_echidna_campaign(
     # Build back echidna command line
     cmdline = ["echidna-test"]
     cmdline += args.FILES
+    # Add tx sender(s)
+    if args.sender:
+        for a in args.sender:
+            cmdline += ["--sender", a]
     for arg, val in args.__dict__.items():
         # Ignore Optik specific arguments
         if (
-            arg not in ["FILES", "max_iters", "debug", "cov_mode"]
+            arg
+            not in [
+                "FILES",
+                "max_iters",
+                "debug",
+                "cov_mode",
+                "sender",
+                "solver_timeout",
+            ]
             and not val is None
         ):
             cmdline += [f"--{arg.replace('_', '-')}", str(val)]

@@ -18,7 +18,8 @@ setup(
     python_requires=">=3.7",
     install_requires=[
         "pymaat",
-        "eth_abi"
+        "eth_abi",
+        "rlp"
     ],
     extras_require = {
         "lint": lint_deps,
