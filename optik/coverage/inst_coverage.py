@@ -34,7 +34,11 @@ class InstCoverage(Coverage):
         self.covered[state] = self.covered.get(state, 0) + 1
 
     def get_state(self, inst_addr: int, **kwargs) -> InstCoverageState:
-        return InstCoverageState(inst_addr)
+        return InstCoverageState(
+            self.world.current_contract.address,
+            self.world.current_contract.initialized,
+            inst_addr,
+        )
 
     @staticmethod
     def inst_callback(m: MaatEngine, cov: "Coverage"):
@@ -58,7 +62,12 @@ class InstTxCoverage(InstCoverage):
         super().__init__()
 
     def get_state(self, inst_addr: int, **kwargs) -> InstTxCoverageState:
-        return InstTxCoverageState(inst_addr, self.world.current_tx_num)
+        return InstTxCoverageState(
+            self.world.current_contract.address,
+            self.world.current_contract.initialized,
+            inst_addr,
+            self.world.current_tx_num,
+        )
 
 
 @dataclass(eq=True, frozen=True)
@@ -85,6 +94,8 @@ class EchidnaCoverage(InstCoverage):
         self, inst_addr: int, engine: MaatEngine, **kwargs
     ) -> EchidnaCoverageState:
         return EchidnaCoverageState(
+            self.world.current_contract.address,
+            self.world.current_contract.initialized,
             inst_addr,
             frozenset(
                 [

@@ -1,6 +1,6 @@
 pragma solidity ^0.7.1;
 
-contract BoolArg {
+contract CoverageBool {
 
     function testBool(bool x, uint128 y, bool z) public returns (int16) {
         if (y > 0x8000000 || x == z) {

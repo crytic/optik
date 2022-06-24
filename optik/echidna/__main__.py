@@ -65,10 +65,14 @@ def run_hybrid_echidna(args: List[str]) -> None:
         # Extract contract bytecodes in separate files for Maat. This is done
         # only once after the first fuzzing campaign
         if iter_cnt == 1:
-            # TODO(boyan): this should return a list of contracts if multiple contracts
             # TODO(boyan): is it OK to assume crytic-export is always located in the
             #       current working directory?
-            contract_file = extract_contract_bytecode("./crytic-export")
+            contract_file = extract_contract_bytecode(
+                "./crytic-export", args.contract
+            )
+            if not contract_file:
+                logger.fatal("Failed to extract contract bytecode")
+                return
 
         # Replay new corpus inputs symbolically
         new_inputs = pull_new_corpus_files(coverage_dir, seen_files)
@@ -121,6 +125,13 @@ def parse_arguments(args: List[str]) -> argparse.Namespace:
     # Echidna arguments
     parser.add_argument(
         "FILES", type=str, nargs="*", help="Solidity files to analyze"
+    )
+
+    parser.add_argument(
+        "--contract",
+        type=str,
+        help="Contract to analyze",
+        metavar="CONTRACT",
     )
 
     parser.add_argument(
@@ -217,6 +228,14 @@ def parse_arguments(args: List[str]) -> argparse.Namespace:
         choices=["inst", "inst-tx", "path", "path-relaxed", "echidna"],
         default="echidna",
         metavar="MODE",
+    )
+
+    parser.add_argument(
+        "--solver-timeout",
+        type=int,
+        help="Maximum solving time (in ms) to spend per potential new input",
+        default=None,
+        metavar="MILLISECONDS",
     )
 
     parser.add_argument("--debug", action="store_true", help="Print debug logs")

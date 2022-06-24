@@ -1,6 +1,6 @@
 from .interface import load_tx_sequence, store_new_tx_sequence
 from ..coverage import Coverage
-from ..common.world import EVMWorld, WorldMonitor
+from ..common.world import EVMWorld, WorldMonitor, AbstractTx
 from ..common.logger import logger
 import argparse
 import subprocess
@@ -8,6 +8,7 @@ import logging
 from maat import (
     ARCH,
     contract,
+    Cst,
     EVMTransaction,
     MaatEngine,
     Solver,
@@ -18,6 +19,7 @@ from typing import List, Optional
 import os
 
 
+# TODO(boyan): pass contract bytecode instead of extracting to file
 def replay_inputs(
     corpus_files: List[str],
     contract_file: str,
@@ -34,7 +36,29 @@ def replay_inputs(
         # recreate the whole environment for every input
         world = EVMWorld()
         contract_addr = tx_seq[0].tx.recipient
-        world.deploy(contract_file, contract_addr, contract_deployer)
+        # Push initial transaction that initialises the target contract
+        world.push_transaction(
+            AbstractTx(
+                EVMTransaction(
+                    Cst(160, contract_deployer),  # origin
+                    Cst(160, contract_deployer),  # sender
+                    contract_addr,  # recipient
+                    Cst(256, 0),  # value
+                    [],  # data
+                    Cst(256, 50),  # gas price
+                    Cst(256, 123456),  # gas limit
+                ),
+                Cst(256, 0),  # block num inc
+                Cst(256, 0),  # block ts inc
+                VarContext(),
+            )
+        )
+        world.deploy(
+            contract_file,
+            contract_addr,
+            contract_deployer,
+            run_init_bytecode=False,
+        )
         world.attach_monitor(cov, contract_addr)
 
         # Prepare to run transaction
@@ -89,6 +113,8 @@ def generate_new_inputs(cov: Coverage, args: argparse.Namespace) -> int:
 
         logger.info(f"Solving {i+1} of {count} ({round((i/count)*100, 2)}%)")
         s = Solver()
+        if args.solver_timeout:
+            s.timeout = args.solver_timeout
 
         # Add path constraints in
         for path_constraint in bif.path_constraints:
@@ -128,7 +154,15 @@ def run_echidna_campaign(
     for arg, val in args.__dict__.items():
         # Ignore Optik specific arguments
         if (
-            arg not in ["FILES", "max_iters", "debug", "cov_mode", "sender"]
+            arg
+            not in [
+                "FILES",
+                "max_iters",
+                "debug",
+                "cov_mode",
+                "sender",
+                "solver_timeout",
+            ]
             and not val is None
         ):
             cmdline += [f"--{arg.replace('_', '-')}", str(val)]

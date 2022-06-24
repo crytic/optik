@@ -1,6 +1,6 @@
 pragma solidity ^0.7.1;
 
-contract C {
+contract SmartianExample {
     address owner;
     uint private stateA = 0;
     uint private stateB = 0;

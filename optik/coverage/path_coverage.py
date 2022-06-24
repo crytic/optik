@@ -11,10 +11,19 @@ class PathCoverageState(CoverageState):
     path: List[int]
 
     def __eq__(self, other) -> bool:
-        return self.path == other.path
+        return (
+            super(PathCoverageState, self).__eq__(other)
+            and self.path == other.path
+        )
 
     def __hash__(self):
-        return hash(tuple(self.path))
+        return hash(
+            tuple(self.path)
+            + (
+                self.contract,
+                self.contract_is_initialized,
+            )
+        )
 
 
 @dataclass(frozen=False)
@@ -75,7 +84,11 @@ class PathCoverage(Coverage):
         """Get coverage state for the path consisting in the current
         path + a branch to 'inst_addr'
         """
-        return PathCoverageState(self.current_path + [inst_addr])
+        return PathCoverageState(
+            self.world.current_contract.address,
+            self.world.current_contract.initialized,
+            self.current_path + [inst_addr],
+        )
 
     def record_branch(self, m: MaatEngine) -> None:
         super().record_branch(m)
