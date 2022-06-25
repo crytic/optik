@@ -2,7 +2,7 @@ from maat import Value
 from .exceptions import GenericException
 from .logger import logger
 import re
-from typing import Union,List,Tuple
+from typing import Union, List, Tuple
 import rlp
 import sha3
 
@@ -30,11 +30,48 @@ def twos_complement_convert(arg: int, bits: int) -> int:
 
 
 # textual unicode symbols not handled by python's unicode decode
-UNICODE_SYMBOLS = [
-    "NUL", "SOH", "STX", "ETX", "EOT", "ENQ", "ACK", "BEL", "BS", "HT", "LF", "VT", "FF", "CR", "SO", "SI", "DLE", "DC1", "DC2", "DC3", "DC4", "NAK", "SYN", "ETB", "CAN", "EM", "SUB", "ESC", "FS", "GS", "RS", "US"
+_UNICODE_SYMBOLS = [
+    "NUL",
+    "SOH",
+    "STX",
+    "ETX",
+    "EOT",
+    "ENQ",
+    "ACK",
+    "BEL",
+    "BS",
+    "HT",
+    "LF",
+    "VT",
+    "FF",
+    "CR",
+    "SO",
+    "SI",
+    "DLE",
+    "DC1",
+    "DC2",
+    "DC3",
+    "DC4",
+    "NAK",
+    "SYN",
+    "ETB",
+    "CAN",
+    "EM",
+    "SUB",
+    "ESC",
+    "FS",
+    "GS",
+    "RS",
+    "US",
 ]
+UNICODE_SYMBOLS = dict()
+for i, s in enumerate(_UNICODE_SYMBOLS):
+    UNICODE_SYMBOLS[i] = s
+    UNICODE_SYMBOLS[s] = i
+UNICODE_SYMBOLS.update({"DEL": 0x7F, 0x7F: "DEL"})
 
-def parse_bytes(unicode_str: str) -> tuple[int]:
+
+def echidna_parse_bytes(unicode_str: str) -> List[int]:
     """Takes a json + unicode encoded string and converts it
     to a list of bytes
 
@@ -44,8 +81,8 @@ def parse_bytes(unicode_str: str) -> tuple[int]:
     """
 
     # convert values to bytes for parsing
-    unicode_str = unicode_str.encode('utf-8') 
-    
+    unicode_str = unicode_str.encode("utf-8")
+
     """
     The bytes strings we receive are unicode encoded, but characters are escaped with decimal values,
     and with textual representatives of unicode characters (such as `STX`). Neither of these
@@ -53,20 +90,21 @@ def parse_bytes(unicode_str: str) -> tuple[int]:
     is supported, and then proceed with decoding.
     """
     # https://stackoverflow.com/questions/21300996/process-decimal-escape-in-string
-    def replaceDecimals(match):
-        """Converts escaped decimal characters to hexadecimal
-        """
-        return int(match.group(1)).to_bytes(1, byteorder='big')
+    def replaceDecimals(match) -> bytes:
+        """Converts escaped decimal characters to hexadecimal"""
+        return int(match.group(1)).to_bytes(1, byteorder="big")
 
-    def replaceTextual(match):
-        """Converts text-based unicode escaped characters into their 
+    def replaceTextual(match) -> bytes:
+        """Converts text-based unicode escaped characters into their
         decimal representation, i.e. `\STX` -> `\u0003`
         """
         sym = match.group(1).decode()
         if sym not in UNICODE_SYMBOLS:
             raise GenericException(f"Unknown unicode escape sequence {sym}")
 
-        return bytes("\\u" + str(UNICODE_SYMBOLS.index(sym)).zfill(4), 'utf-8')
+        return UNICODE_SYMBOLS[sym].to_bytes(1, byteorder="big")
+
+    unicode_str = unicode_str[1:-1]  # remove double quoted string
 
     # convert instances of escaped decimal values to escaped hexadecimal
     # regex: match `\XXX` where `X` is a decimal digit
@@ -74,27 +112,35 @@ def parse_bytes(unicode_str: str) -> tuple[int]:
     unicode_str = regex.sub(replaceDecimals, unicode_str)
 
     # convert escaped text unicode characters to their `\uXXXX` equivalent
-    # regex: unicode texts are either 2 or 3 characters long, comprised 
+    # regex: unicode texts are either 2 or 3 characters long, comprised
     #   of letters, or numbers from 1-4
     regex = re.compile(rb"\\([A-Z1-4]{2,3})")
-    logger.debug(f"Type now: {type(unicode_str)} with val: {unicode_str}")
     unicode_str = regex.sub(replaceTextual, unicode_str)
 
-    # all escape characters should be python-decodeable now
-    unicode_str = unicode_str.decode('unicode_escape')
-    unicode_str = unicode_str.encode('utf-8') # convert back to bytes
+    return list(unicode_str)
 
-    return tuple([byte for byte in unicode_str])
 
-def echidna_byte_converter(byte_vals: list[int]) -> str:
-    """Inverse function to `parse_bytes`, it converts a list of bytes into
-    the cursed unicode format that `echidna` requires, with decimal encoded codes
+def echidna_encode_bytes(string: bytes) -> str:
+    """Inverse function to `parse_bytes`, it converts a python string into
+    the unicode format that `echidna` requires, with decimal encoded codes
     and textual escape sequences
     """
-    raise NotImplementedError
+    res = ""
+    for b in string:
+        if b in UNICODE_SYMBOLS:
+            res += f"\\{UNICODE_SYMBOLS[b]}"
+        else:
+            if b <= 0x7E:  # '~' is biggest printable char
+                res += chr(b)
+            else:
+                res += f"\\{b}"
+    res = f'"{res}"'
+    return res
 
 
-def list_has_types(val: Union[List[type], Tuple[type]], wanted_type: type) -> bool:
+def list_has_types(
+    val: Union[List[type], Tuple[type]], wanted_type: type
+) -> bool:
     """Validates that all elements of a given list are of type `wanted_type`
 
     :param val: the list to inspect types for
@@ -108,7 +154,7 @@ def list_has_types(val: Union[List[type], Tuple[type]], wanted_type: type) -> bo
         return False
 
     # If any single value is not of type `wanted_type`, then False
-    for i,v in enumerate(val):
+    for i, v in enumerate(val):
         if not isinstance(v, wanted_type):
             return False
 

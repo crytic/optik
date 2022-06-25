@@ -14,8 +14,8 @@ from maat import contract, MaatEngine, Sext, Var, VarContext
 # Constants
 # =========
 ADDRESS_SIZE = 160  # Bit size of Ethereum ADDRESS type
-BYTEM_PAD = 32      # BytesM padded to 32 bytes
-BYTESIZE = 8        # 8 bits to a byte
+BYTEM_PAD = 32  # BytesM padded to 32 bytes
+BYTESIZE = 8  # 8 bits to a byte
 BOOL_SIZE = 8  # Bit size of Ethereum BOOL type
 BOOL_TRUE = 1  # Uint representation of True
 BOOL_FALSE = 0  # Uint representation of False
@@ -32,6 +32,7 @@ def _check_int_bits(bits: int) -> None:
         raise ABIException("uint: bits must be greater than zero")
     if bits > 256:
         raise ABIException("uint: bits can't exceed 256")
+
 
 def _check_bytes(byteCount: int) -> None:
     """Raise an exception if number of bytes is not within
@@ -118,8 +119,12 @@ def intM(
     else:
         return [value]
 
+
 def bytesM(
-    byte_count: int, value: Union[Tuple[int], Tuple[Value]], ctx: VarContext, name: str
+    byte_count: int,
+    value: Union[List[int], List[Value]],
+    ctx: VarContext,
+    name: str,
 ) -> List[Value]:
     """Encodes a bytes<M>, right-padded to 32 bytes (256 bits)
 
@@ -135,36 +140,38 @@ def bytesM(
     if list_has_types(value, int):
         for v in value:
             if v < 0:
-                logger.warn(f"Byte value {v} treated as unsigned integer")
+                raise ABIException(f"byte value {v} must be positive")
             elif v >= 256:
-                logger.warn(f"Byte value {v} can't be greater than 255")
+                raise ABIException(
+                    f"ABI: byte value {v} greater than 255 overflows"
+                )
 
         values = []
-        for i,v in enumerate(value):
+        for i, v in enumerate(value):
             byte_name = f"{name}_{i}"
             ctx.set(byte_name, v, BYTESIZE)
             values += [Var(BYTESIZE, byte_name)]
 
     elif list_has_types(value, Value):
-        #TODO: any other checks needed for concolic values?
-        if len(value) != byte_count:
-            raise ABIException(
-                f"Mismatch between number of concolic bytesM values found {len(value)} and expected {byte_count}."
-            )
-
         for val in value:
             if val.size != BYTESIZE:
                 raise ABIException(
                     f"Size mismatch between concolic value ({val.size}) and expected 8 bits of a byte"
                 )
-    else:
-        raise ABIException("'value' must be tuple[int] or tuple[Value]")
 
-    if byte_count < 32:
-        # pad with 0 bytes to 32 bytes
-        return values + [Cst(BYTESIZE, 0) for _ in range(BYTEM_PAD - byte_count)]
+        if len(value) != byte_count:
+            raise ABIException(
+                f"Mismatch between number of concolic bytesM values found {len(value)} and expected {byte_count}."
+            )
+
     else:
-        return values
+        raise ABIException("'value' must be List[int] or List[Value]")
+
+    # pad with 0 bytes to 32 bytes if needed
+    if byte_count < 32:
+        values += [Cst(BYTESIZE, 0) for _ in range(BYTEM_PAD - byte_count)]
+
+    return values
 
 
 def boolEnc(
@@ -240,7 +247,6 @@ def function_call(
     # Encode arguments
     for i, ty in enumerate(args_types.components):
         arg_name = f"{tx_name}_arg{i}"
-        logger.debug(f"Working with value: {args[i]} of type {type(args[i])}, length: {len(args[i])}")
         if ty.base == "uint":
             res += uintM(ty.sub, args[i], ctx, arg_name)
         elif ty.base == "int":

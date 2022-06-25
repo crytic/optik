@@ -2,7 +2,7 @@ pragma solidity ^0.7.1;
 
 contract CoverageBool {
 
-    function testBool(bool x, uint128 y, bool z) public returns (int16) {
+    function f(bool x, uint128 y, bool z) public returns (int16) {
         if (y > 0x8000000 || x == z) {
             if ((y % 0x10000 == 0) == z) {
                 return 3; // test::coverage

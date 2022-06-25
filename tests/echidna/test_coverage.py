@@ -15,6 +15,7 @@ to_test = [
     ("MultiMagic256.sol", "echidna", 40),
     ("CoverageInt.sol", "inst", 40),
     ("CoverageBool.sol", "path-relaxed", 5),
+    ("CoverageBytesM.sol", "path-relaxed", 1),
     ("Time.sol", "inst", 10),
     ("SmartianExample.sol", "inst-tx", 40),
     ("Payable.sol", "inst", 10),
