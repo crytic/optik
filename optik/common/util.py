@@ -154,9 +154,8 @@ def list_has_types(
         return False
 
     # If any single value is not of type `wanted_type`, then False
-    for i, v in enumerate(val):
-        if not isinstance(v, wanted_type):
-            return False
+    if any([v for v in val if not isinstance(v, wanted_type)]):
+        return False
 
     return True
 
