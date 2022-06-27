@@ -12,7 +12,7 @@ to_test = [
     ("ExploreMe.sol", "inst", 40),
     ("Primality.sol", "inst", 40),
     ("MultiMagic.sol", "path-relaxed", 10),
-    ("MultiMagic256.sol", "echidna", 40),
+    ("MultiMagic256.sol", "inst-sg", 40),
     ("CoverageInt.sol", "inst", 40),
     ("CoverageBool.sol", "path-relaxed", 5),
     ("CoverageBytesM.sol", "path-relaxed", 1),

@@ -71,13 +71,13 @@ class InstTxCoverage(InstCoverage):
 
 
 @dataclass(eq=True, frozen=True)
-class EchidnaCoverageState(InstCoverageState):
+class InstSgCoverageState(InstCoverageState):
     storage_use: FrozenSet[int]
 
 
-class EchidnaCoverage(InstCoverage):
-    """This class implements a notion of coverage similar to the one
-    used by Echidna. It basically performs instruction coverage, but
+class InstSgCoverage(InstCoverage):
+    """This class implements a notion of coverage that is storage-
+    sensitive. It basically performs instruction coverage, but
     also includes the state of the contract's storage in the coverage
     information.
 
@@ -85,15 +85,15 @@ class EchidnaCoverage(InstCoverage):
     that hold a purely symbolic or non-null value
     """
 
-    HOOK_ID = "__echidna_coverage"
+    HOOK_ID = "__inst_sg_coverage"
 
     def __init__(self):
         super().__init__()
 
     def get_state(
         self, inst_addr: int, engine: MaatEngine, **kwargs
-    ) -> EchidnaCoverageState:
-        return EchidnaCoverageState(
+    ) -> InstSgCoverageState:
+        return InstSgCoverageState(
             self.world.current_contract.address,
             self.world.current_contract.initialized,
             inst_addr,
