@@ -75,7 +75,7 @@ def echidna_parse_bytes(unicode_str: str) -> List[int]:
     """Takes a json + unicode encoded string and converts it
     to a list of bytes
 
-    :param unicode_str: the json, unciode encoded string
+    :param unicode_str: the json, unicode encoded string
 
     :return list of bytes (big byte order) of the original bytes
     """
