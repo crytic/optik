@@ -45,7 +45,7 @@ A couple additionnal options are available:
 - `--cov-mode`: type of coverage to increase when solving new inputs. This option has a significant impact on results and performance, as detailed below:
 
   - `inst-tx` (**default**): same as `inst` but sensitive to the current transaction number. Let's assume a sequence of 2 transactions `[tx0,tx1]` and some solidity statement `A` in the contract's code: even if there is an input in which `A` is executed by `tx0`, Optik will still try to find inputs where `A` is executed by `tx1` if possible. <br><br>
-    <i>If you are unsure about which mode to use, just stick to the `echidna` coverage mode</i>
+    <i>If you are unsure about which mode to use, just stick to the `inst-tx` coverage mode</i>
 
   - `inst`: reach code/instructions that have never been executed yet
 
