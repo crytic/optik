@@ -4,7 +4,12 @@ from ..common.exceptions import EchidnaException, GenericException
 from ..common.abi import function_call
 from ..common.logger import logger
 from ..common.world import AbstractTx
-from ..common.util import twos_complement_convert, int_to_bool
+from ..common.util import (
+    twos_complement_convert,
+    int_to_bool,
+    echidna_parse_bytes,
+    echidna_encode_bytes,
+)
 
 import os
 import json
@@ -39,6 +44,15 @@ def translate_argument(arg: Dict) -> Tuple[str, Union[bytes, int, Value]]:
             f"address",
             val,
         )
+
+    elif argType == "AbiBytes":
+        byteLen = arg["contents"][0]
+        val = echidna_parse_bytes(arg["contents"][1])
+        return (
+            f"bytes{byteLen}",
+            val,
+        )
+
     elif argType == "AbiBool":
         val = arg["contents"]
         return (
@@ -137,10 +151,13 @@ def update_argument(arg: Dict, arg_name: str, new_model: VarContext) -> None:
     """
     # Update the argument only if the model contains a new value
     # for this argument
-    if not new_model.contains(arg_name):
+    if not new_model.contains(arg_name) and not new_model.contains(
+        f"{arg_name}_0"
+    ):
         return
 
     argType = arg["tag"]
+
     if argType == "AbiUInt":
         arg["contents"][1] = str(new_model.get(arg_name))
     elif argType == "AbiInt":
@@ -152,6 +169,14 @@ def update_argument(arg: Dict, arg_name: str, new_model: VarContext) -> None:
         arg["contents"] = int_to_bool(argVal)
     elif argType == "AbiAddress":
         arg["contents"] = str(hex(new_model.get(arg_name)))
+    elif argType == "AbiBytes":
+        length = arg["contents"][0]
+        val = echidna_parse_bytes(arg["contents"][1])
+        for i in range(length):
+            byte_name = f"{arg_name}_{i}"
+            if new_model.contains(byte_name):
+                val[i] = new_model.get(byte_name) & 0xFF
+        arg["contents"][1] = echidna_encode_bytes(val)
     else:
         raise EchidnaException(f"Unsupported argument type: {argType}")
 

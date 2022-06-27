@@ -1,10 +1,12 @@
+from ctypes.wintypes import BYTE
 from maat import Cst, Concat, Extract, Value
 from .exceptions import ABIException
 import sha3
 from eth_abi.grammar import ABIType, BasicType, TupleType, parse, normalize
 from eth_abi.exceptions import ABITypeError, ParseError
-from typing import List, Union
+from typing import Tuple, List, Union
 from .logger import logger
+from ..common.util import list_has_types
 from dataclasses import dataclass
 from maat import contract, MaatEngine, Sext, Var, VarContext
 
@@ -12,6 +14,8 @@ from maat import contract, MaatEngine, Sext, Var, VarContext
 # Constants
 # =========
 ADDRESS_SIZE = 160  # Bit size of Ethereum ADDRESS type
+BYTEM_PAD = 32  # BytesM padded to 32 bytes
+BYTESIZE = 8  # 8 bits to a byte
 BOOL_SIZE = 8  # Bit size of Ethereum BOOL type
 BOOL_TRUE = 1  # Uint representation of True
 BOOL_FALSE = 0  # Uint representation of False
@@ -28,6 +32,15 @@ def _check_int_bits(bits: int) -> None:
         raise ABIException("uint: bits must be greater than zero")
     if bits > 256:
         raise ABIException("uint: bits can't exceed 256")
+
+
+def _check_bytes(byteCount: int) -> None:
+    """Raise an exception if number of bytes is not within
+    the acceptable range"""
+    if byteCount <= 0:
+        raise ABIException("bytes: can't have fewer than zero bytes")
+    if byteCount > 32:
+        raise ABIException("bytes: can't have more than 32 bytes")
 
 
 def uintM(
@@ -105,6 +118,60 @@ def intM(
         return [Sext(256, value)]
     else:
         return [value]
+
+
+def bytesM(
+    byte_count: int,
+    value: Union[List[int], List[Value]],
+    ctx: VarContext,
+    name: str,
+) -> List[Value]:
+    """Encodes a bytes<M>, right-padded to 32 bytes (256 bits)
+
+    :param byteCount: number of bytes "M", 0 < M <= 32
+    :param value: either a list of bytes, or a list of Value objects representing bytes
+    :param ctx: the VarContext to use to make 'value' concolic
+    :param name: symbolic variable name to use to make 'value' concolic
+
+    :return: list of abstract Values to append to transaction data
+    """
+    _check_bytes(byte_count)
+
+    if list_has_types(value, int):
+        for v in value:
+            if v < 0:
+                raise ABIException(f"byte value {v} must be positive")
+            elif v >= 256:
+                raise ABIException(
+                    f"ABI: byte value {v} greater than 255 overflows"
+                )
+
+        values = []
+        for i, v in enumerate(value):
+            byte_name = f"{name}_{i}"
+            ctx.set(byte_name, v, BYTESIZE)
+            values += [Var(BYTESIZE, byte_name)]
+
+    elif list_has_types(value, Value):
+        for val in value:
+            if val.size != BYTESIZE:
+                raise ABIException(
+                    f"Size mismatch between concolic value ({val.size}) and expected 8 bits of a byte"
+                )
+
+        if len(value) != byte_count:
+            raise ABIException(
+                f"Mismatch between number of concolic bytesM values found {len(value)} and expected {byte_count}."
+            )
+
+    else:
+        raise ABIException("'value' must be List[int] or List[Value]")
+
+    # pad with 0 bytes to 32 bytes if needed
+    if byte_count < 32:
+        values += [Cst(BYTESIZE, 0) for _ in range(BYTEM_PAD - byte_count)]
+
+    return values
 
 
 def boolEnc(
@@ -188,7 +255,10 @@ def function_call(
             res += boolEnc(args[i], ctx, arg_name)
         elif ty.base == "address":
             res += uintM(ADDRESS_SIZE, args[i], ctx, arg_name)
+        elif ty.base == "bytes":
+            res += bytesM(ty.sub, args[i], ctx, arg_name)
         else:
+            logger.debug(f"sub: {ty.sub}, base: {ty.base}, value: {args[i]}")
             raise ABIException(f"Unsupported type: {ty.base}")
 
     return res

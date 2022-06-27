@@ -86,6 +86,7 @@ class Coverage(WorldMonitor):
     def record_branch(self, m: MaatEngine) -> None:
         """Record execution of a symbolic branch and save the bifurcation
         point information"""
+
         b = m.info.branch
         if b.taken is None:
             raise CoverageException(
