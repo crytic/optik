@@ -87,7 +87,10 @@ def run_hybrid_echidna(args: List[str]) -> None:
         replay_inputs(new_inputs, contract_file, deployer, cov)
 
         # Find inputs to reach new code
-        new_inputs_cnt = generate_new_inputs(cov, args)
+        new_inputs_cnt, timeout_cnt = generate_new_inputs(cov, args)
+        if timeout_cnt > 0:
+            logger.warning(f"Timed out on {timeout_cnt} cases")
+
         if new_inputs_cnt > 0:
             logger.info(f"Generated {new_inputs_cnt} new inputs")
         else:

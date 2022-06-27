@@ -15,7 +15,7 @@ from maat import (
     STOP,
     VarContext,
 )
-from typing import List, Optional
+from typing import List, Optional, Tuple
 import os
 
 
@@ -71,7 +71,9 @@ def replay_inputs(
     return cov
 
 
-def generate_new_inputs(cov: Coverage, args: argparse.Namespace) -> int:
+def generate_new_inputs(
+    cov: Coverage, args: argparse.Namespace
+) -> Tuple[int, int]:
     """Generate new inputs to increase code coverage, base on
     existing coverage
 
@@ -79,7 +81,7 @@ def generate_new_inputs(cov: Coverage, args: argparse.Namespace) -> int:
     :param args: echidna arguments. If the new inputs contain particular
     'sender' values for transactions, those are included in the echidna
     list of possible senders
-    :return: number of new inputs found
+    :return: tuple: (number of new inputs found, number of solver timeouts)
     """
 
     def _add_new_senders(ctx: VarContext, args: argparse.Namespace) -> None:
@@ -97,6 +99,7 @@ def generate_new_inputs(cov: Coverage, args: argparse.Namespace) -> int:
     cov.sort_bifurcations()
 
     res = []
+    timeout_cnt = 0
     # Only keep unique bifurcations. Unique means that they have the
     # same target and occurred during the same transaction number in the
     # input sequence
@@ -132,8 +135,13 @@ def generate_new_inputs(cov: Coverage, args: argparse.Namespace) -> int:
             # Serialize the new input discovered
             store_new_tx_sequence(bif.input_uid, model)
             _add_new_senders(model, args)
+        elif s.did_time_out:
+            timeout_cnt += 1
 
-    return success_cnt
+    return (
+        success_cnt,
+        timeout_cnt,
+    )
 
 
 def run_echidna_campaign(
