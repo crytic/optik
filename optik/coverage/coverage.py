@@ -110,7 +110,9 @@ class Coverage(WorldMonitor):
                     inst_addr=m.info.addr,
                     taken_target=taken_target,
                     alt_target=alt_target,
-                    path_constraints=list(m.path.constraints()),
+                    path_constraints=list(
+                        m.path.get_related_constraints(alt_constr)
+                    ),
                     alt_target_constraint=alt_constr,
                     input_uid=self.current_input,
                     alt_state=alt_state,
