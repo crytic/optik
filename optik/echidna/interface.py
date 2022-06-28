@@ -31,27 +31,16 @@ def parse_array(arr: List[Dict[str, str]]) -> Tuple[List, str]:
     :return: tuple containing the abi type of elements in the list, and the list of Pythonic elements
     """
 
-    el_arr = [] # array of elements
-    el_types = [] # abi type of each element in array
-    for el in arr:
-        # translate each element of the array
-        logger.debug(f"Have the element: {el}")
-        el_type, el_val = translate_argument(el)
+    # translate each of the arguments
+    el_arr = [ translate_argument(el) for el in arr ]
+    
+    # `translate_argument` returns type as well, so use that as the type
+    arr_type = el_arr[0][0]
 
-        el_types.append(el_type)
-        el_arr.append(el_val)
+    # retrieve all the values
+    el_arr = [ el[1] for el in el_arr ]
 
-    if not el_types.count(el_types[0]) == len(el_types):
-        # This checks to see if we have any inconsistent types
-        # TODO: should we do anything here? Perhaps we could modify this to work 
-        #   for tuples, which have general typing
-        pass
-
-    # grabbing type of first element easier than parsing stated array type 
-    # TODO: this assumes the correct type of the array will be given - can we make that assumption here?
-    arr_type = el_types[0]
-    logger.debug(f"We got the array: {el_arr})")
-    return el_arr, arr_type
+    return arr_type, el_arr
 
 def translate_argument(arg: Dict) -> Tuple[str, Union[bytes, int, Value]]:
     """Translate a parsed Echidna transaction argument into a '(type, value)' tuple.
@@ -95,16 +84,15 @@ def translate_argument(arg: Dict) -> Tuple[str, Union[bytes, int, Value]]:
         )
     elif argType == "AbiArray":
         num_elems = arg["contents"][0]
-        #type_info = arg["contents"][1]
         array = arg["contents"][2]
 
-        arr, arr_type = parse_array(array)
+        arr_type, arr = parse_array(array)
 
         logger.debug(f"Array type: {arr_type}[{num_elems}] with contents: {arr}")
 
         return (
             f"{arr_type}[{num_elems}]",
-            arr 
+            arr
         )
 
     else:
