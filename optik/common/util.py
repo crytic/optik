@@ -2,7 +2,7 @@ from maat import Value
 from .exceptions import GenericException
 from .logger import logger
 import re
-from typing import Union, List, Tuple
+from typing import Union, List, Tuple, Dict
 import rlp
 import sha3
 

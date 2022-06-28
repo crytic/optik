@@ -212,6 +212,8 @@ def function_call(
     :param tx_name: unique transaction name, used to name symbolic variables
         created for function arguments. Can be empty.
     """
+    logger.debug(f"function call args: {args}")
+    logger.debug(f"args spec: {args_spec}")
     # Parse function arguments
     try:
         args_spec = "".join(args_spec.split())  # strip all whitespaces
@@ -225,6 +227,8 @@ def function_call(
     except ABITypeError as e:
         raise ABIException(f"Error in function args specification: {str(e)}")
 
+    logger.debug(f"args types: {args_types}")
+    logger.debug(f"the components: {args_types.components}")
     # Check number of arguments supplied
     if (
         isinstance(args_types, BasicType)
@@ -246,19 +250,25 @@ def function_call(
 
     # Encode arguments
     for i, ty in enumerate(args_types.components):
-        arg_name = f"{tx_name}_arg{i}"
-        if ty.base == "uint":
-            res += uintM(ty.sub, args[i], ctx, arg_name)
-        elif ty.base == "int":
-            res += intM(ty.sub, args[i], ctx, arg_name)
-        elif ty.base == "bool":
-            res += boolEnc(args[i], ctx, arg_name)
-        elif ty.base == "address":
-            res += uintM(ADDRESS_SIZE, args[i], ctx, arg_name)
-        elif ty.base == "bytes":
-            res += bytesM(ty.sub, args[i], ctx, arg_name)
+        if ty.is_array:
+            # add elements independently or through an encoding function?            
+            pass
         else:
-            logger.debug(f"sub: {ty.sub}, base: {ty.base}, value: {args[i]}")
-            raise ABIException(f"Unsupported type: {ty.base}")
+            # just a bare element
+            logger.debug(f"components: {dir(ty)}")
+            arg_name = f"{tx_name}_arg{i}"
+            if ty.base == "uint":
+                res += uintM(ty.sub, args[i], ctx, arg_name)
+            elif ty.base == "int":
+                res += intM(ty.sub, args[i], ctx, arg_name)
+            elif ty.base == "bool":
+                res += boolEnc(args[i], ctx, arg_name)
+            elif ty.base == "address":
+                res += uintM(ADDRESS_SIZE, args[i], ctx, arg_name)
+            elif ty.base == "bytes":
+                res += bytesM(ty.sub, args[i], ctx, arg_name)
+            else:
+                logger.debug(f"sub: {ty.sub}, base: {ty.base}, value: {args[i]}")
+                raise ABIException(f"Unsupported type: {ty.base}")
 
     return res

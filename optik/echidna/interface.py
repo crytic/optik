@@ -21,6 +21,37 @@ NEW_INPUT_PREFIX: Final[str] = "optik_solved_input"
 # Directory for temporary contract binaries to be stored for processing
 TMP_CONTRACT_DIR: Final[str] = "/tmp/"
 
+def parse_array(arr: List[Dict[str, str]]) -> Tuple[List, str]:
+    """Takes an array 
+    
+    :param num_elems: number of elements in `arr` if list is static, -1 if dynamic
+    :param abi_type: the string representation of the ABI type
+    :param arr: array of dictionaries containing types and contents
+    
+    :return: tuple containing the abi type of elements in the list, and the list of Pythonic elements
+    """
+
+    el_arr = [] # array of elements
+    el_types = [] # abi type of each element in array
+    for el in arr:
+        # translate each element of the array
+        logger.debug(f"Have the element: {el}")
+        el_type, el_val = translate_argument(el)
+
+        el_types.append(el_type)
+        el_arr.append(el_val)
+
+    if not el_types.count(el_types[0]) == len(el_types):
+        # This checks to see if we have any inconsistent types
+        # TODO: should we do anything here? Perhaps we could modify this to work 
+        #   for tuples, which have general typing
+        pass
+
+    # grabbing type of first element easier than parsing stated array type 
+    # TODO: this assumes the correct type of the array will be given - can we make that assumption here?
+    arr_type = el_types[0]
+    logger.debug(f"We got the array: {el_arr})")
+    return el_arr, arr_type
 
 def translate_argument(arg: Dict) -> Tuple[str, Union[bytes, int, Value]]:
     """Translate a parsed Echidna transaction argument into a '(type, value)' tuple.
@@ -36,7 +67,10 @@ def translate_argument(arg: Dict) -> Tuple[str, Union[bytes, int, Value]]:
     elif argType == "AbiInt":
         bits = arg["contents"][0]
         val = int(arg["contents"][1])
-        return (f"int{bits}", val)
+        return (
+            f"int{bits}", 
+            val
+        )
 
     elif argType == "AbiAddress":
         val = int(arg["contents"], 16)
@@ -59,6 +93,20 @@ def translate_argument(arg: Dict) -> Tuple[str, Union[bytes, int, Value]]:
             f"bool",
             val,
         )
+    elif argType == "AbiArray":
+        num_elems = arg["contents"][0]
+        #type_info = arg["contents"][1]
+        array = arg["contents"][2]
+
+        arr, arr_type = parse_array(array)
+
+        logger.debug(f"Array type: {arr_type}[{num_elems}] with contents: {arr}")
+
+        return (
+            f"{arr_type}[{num_elems}]",
+            arr 
+        )
+
     else:
         raise EchidnaException(f"Unsupported argument type: {argType}")
 
@@ -83,7 +131,7 @@ def load_tx(tx: Dict, tx_name: str = "") -> AbstractTx:
             t, val = translate_argument(arg)
             arg_types.append(t)
             arg_values.append(val)
-
+    logger.debug(f"Parsed arg values: {arg_values} with types: {arg_types}")
     func_signature = f"({','.join(arg_types)})"
     ctx = VarContext()
     call_data = function_call(
