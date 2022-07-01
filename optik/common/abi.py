@@ -95,6 +95,7 @@ def intM(
     :return: list of abstract Values to append to the transaction data
     """
     _check_int_bits(bits)
+    logger.debug(f"Value is: {value}")
     # Sanity check
     if isinstance(value, int):
         # Signed 2's complement bounds
@@ -119,6 +120,18 @@ def intM(
     else:
         return [value]
 
+def addressEnc(
+    _: int, value: Union[int, Value], ctx: VarContext, name: str
+) -> List[Value]:
+    """Encodes an address. Addresses are equivalent to `ADDRESS_SIZE` sized
+    unsigned integers, so simply encode as that
+    :param _: unneeded variable (required for modularity)
+    :param value: either a concrete value, or a Value object
+    :param ctx: the VarCOntext to use to make 'value' concolic
+    :param name: symbolic variable name to use to make 'value' concolic
+    """
+
+    return uintM(ADDRESS_SIZE, value, ctx, name)
 
 def bytesM(
     byte_count: int,
@@ -192,6 +205,84 @@ def boolEnc(
     else:
         raise ABIException("'value' must be bool or value")
 
+def tupleEnc(
+    ty: ABIType, value: Union[List, Value], ctx: VarContext, name: str
+) -> List[Value]:
+    """Encodes a dynamically typed and sized tuple (general form of arrays)
+
+    :param ty: ETH Grammar type information about tuple
+    :param value: either a tuple of values or a Value object
+    :param ctx: the VarContext to use to make 'value' concolic
+    :param name: symbolic variable base name to use to make 'value' concolic
+    """
+
+    def head(x: ABIType, length: int, name: str) -> List[Value]:
+        """As defined in the ABI specification, encodes x
+
+        :param x: the value to encode
+        :param length: number of types (for dynamic)
+        :param name: name to encode this type as
+        """
+        res = []
+        if x.is_dynamic:
+            res += [uintM(256, length, ctx, )]
+        else:
+            pass
+
+    def tail(x: ABIType, type_name: str) -> List[Value]:
+        """As defined in the ABI specification, encodes x
+        
+        """
+        if x.is_dynamic:
+            return []
+        else:
+            return [  ]
+
+    if ty.is_dynamic:
+        
+        pass
+    else:
+        # Type is not dynamic and size is not dynamic
+        pass
+def arrayStatic(
+    ty: ABIType, arr: Union[List, Value], ctx: VarContext, name: str
+) -> List[Value]:
+    """Encodes a static sized list
+    
+    :param ty: ETH Grammar type information
+    :param arr: the array to encode, an array of either concrete or symbolic variables
+    :param ctx: the VarCOntext to use to make 'value' concolic
+    :param name: symbolic variable name to use to make 'value' concolic
+    """
+
+ 
+
+    raise NotImplementedError
+
+
+def arrayDynamic(
+    sub: int, arr: Union[List, Value], ctx, VarContext, name: str
+) -> List[Value]:
+    """Encoded a dynamic array of variables
+
+    :param sub: meta information about the variables
+    :param arr: the array to encode, an array of either concrete or symbolic variables
+    :param ctx: the VarCOntext to use to make 'value' concolic
+    :param name: symbolic variable name to use to make 'value' concolic
+    """
+    pass
+
+
+# List of types and their encoder functions
+encoder_functions = {
+    "uint": uintM,
+    "int": intM,
+    "address": addressEnc,
+    "bool": boolEnc,
+    "bytes": bytesM,
+    "static_array": arrayStatic,
+    "dynamic_array": arrayDynamic
+}
 
 def selector(func_signature: str) -> Value:
     """Return the first 4 bytes of the keccak256 hash of 'func_signature'"""
@@ -200,6 +291,53 @@ def selector(func_signature: str) -> Value:
     digest = k.digest()[:4]
     return Cst(32, int.from_bytes(digest, "big"))
 
+def encode_arguments(arg_components: Tuple[ABIType], ctx: VarContext, tx_name: str, *args) -> List[Value]:
+    """Encodes arguments for a function call
+
+    :param arg_components: tupe of ABI types containing their components
+    :param ctx: the VarContext to use to make function arguments concolic
+    :param tx_name: unique transaction name, used to make symbolic variables
+
+    :returns: list of values
+    """
+
+    arg_encodings = []
+
+    logger.debug(f"args: {args}")
+
+    # Encode arguments
+    for i, ty in enumerate(arg_components):
+        arg_name = f"{tx_name}_arg{i}"
+
+        logger.debug(f"ty type: {type(ty)}, value: {ty}")
+
+        if isinstance(ty, TupleType):
+            # type is a tuple
+            arg_encodings += tupleEnc(ty, args[i], ctx, arg_name)
+            continue
+
+        if ty.is_array:
+            if ty.is_dynamic:
+                # array with type that is dynamic or dynamic size
+                # TODO: add additional check to restrict this to only dynamic size?
+                #   - will have to happen
+                arg_encodings += arrayDynamic(ty, args[i], ctx, arg_name)
+            else:
+                # is a static array and has static type
+                logger.debug(f"sub: {ty.sub}, args: {args[i]}, ctx: {type(ctx)}, arg_name: {arg_name}")
+                arg_encodings += arrayStatic(ty, args[i], ctx, arg_name)
+        else:
+            # just a bare element
+            logger.debug(f"components: {dir(ty)}")
+
+            if not ty.base in encoder_functions:
+                logger.debug(f"sub: {ty.sub}, base: {ty.base}, value: {args[i]}")
+                raise ABIException(f"Unsupported type: {ty.base}")
+
+            encoder = encoder_functions[ty.base]
+            arg_encodings += encoder(ty.sub, args[i], ctx, arg_name)
+
+    return arg_encodings
 
 def function_call(
     func: str, args_spec: str, ctx: VarContext, tx_name: str, *args
@@ -248,27 +386,9 @@ def function_call(
     )
     res = [selector(func_prototype)]
 
-    # Encode arguments
-    for i, ty in enumerate(args_types.components):
-        if ty.is_array:
-            # add elements independently or through an encoding function?            
-            pass
-        else:
-            # just a bare element
-            logger.debug(f"components: {dir(ty)}")
-            arg_name = f"{tx_name}_arg{i}"
-            if ty.base == "uint":
-                res += uintM(ty.sub, args[i], ctx, arg_name)
-            elif ty.base == "int":
-                res += intM(ty.sub, args[i], ctx, arg_name)
-            elif ty.base == "bool":
-                res += boolEnc(args[i], ctx, arg_name)
-            elif ty.base == "address":
-                res += uintM(ADDRESS_SIZE, args[i], ctx, arg_name)
-            elif ty.base == "bytes":
-                res += bytesM(ty.sub, args[i], ctx, arg_name)
-            else:
-                logger.debug(f"sub: {ty.sub}, base: {ty.base}, value: {args[i]}")
-                raise ABIException(f"Unsupported type: {ty.base}")
+    # encode the arguments too
+    logger.debug(f"args_types: {args_types}")
+    logger.debug(f"args_types components: {args_types.components}")
+    res += encode_arguments(args_types.components, ctx, tx_name, *args)
 
     return res

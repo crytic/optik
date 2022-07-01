@@ -22,13 +22,11 @@ NEW_INPUT_PREFIX: Final[str] = "optik_solved_input"
 TMP_CONTRACT_DIR: Final[str] = "/tmp/"
 
 def parse_array(arr: List[Dict[str, str]]) -> Tuple[List, str]:
-    """Takes an array 
+    """Takes a formatted array and converts it to a list of its elements
     
-    :param num_elems: number of elements in `arr` if list is static, -1 if dynamic
-    :param abi_type: the string representation of the ABI type
     :param arr: array of dictionaries containing types and contents
     
-    :return: tuple containing the abi type of elements in the list, and the list of Pythonic elements
+    :return: tuple containing the list of Pythonic elements, and the abi type of elements in the list 
     """
 
     # translate each of the arguments
@@ -41,6 +39,26 @@ def parse_array(arr: List[Dict[str, str]]) -> Tuple[List, str]:
     el_arr = [ el[1] for el in el_arr ]
 
     return arr_type, el_arr
+
+def parse_tuple(tup: List[Dict[str, str]]) -> Tuple[List, List]:
+    """Takes a dynamically typed tuple and parses its values and types
+    
+    :param tup: the tuple to parse (contains ABI type representations)
+    
+    :returns tuple of ( list of types, list of values )
+    """
+
+    # translate each argument (elements are (type, value))
+    el_tup = [ translate_argument(el) for el in tup ]
+
+    # grab types for each element 
+    type_tup = [ el[0] for el in el_tup ]
+
+    # extract values for each element
+    el_tup = [ el[1] for el in el_tup ]
+
+    return type_tup, el_tup
+    
 
 def translate_argument(arg: Dict) -> Tuple[str, Union[bytes, int, Value]]:
     """Translate a parsed Echidna transaction argument into a '(type, value)' tuple.
@@ -93,6 +111,22 @@ def translate_argument(arg: Dict) -> Tuple[str, Union[bytes, int, Value]]:
         return (
             f"{arr_type}[{num_elems}]",
             arr
+        )
+    elif argType == "AbiTuple":
+        contents = arg["contents"]
+
+        types, values = parse_tuple(contents)
+
+        type_descriptor = f"({','.join(types)})"
+
+        logger.debug(f"Tuple types: {types}")
+        logger.debug(f"Type descriptor: {type_descriptor}")
+        logger.debug(f"Tuple values: {values}")
+        
+
+        return (
+            type_descriptor,
+            values
         )
 
     else:
