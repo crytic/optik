@@ -190,7 +190,7 @@ def bytesM(
 
 
 def bool_enc(
-    value: Union[bool, Value], ctx: VarContext, name: str
+    _, value: Union[bool, Value], ctx: VarContext, name: str
 ) -> List[Value]:
     """Encodes a bool type as a uint8 value
 

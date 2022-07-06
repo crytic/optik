@@ -16,6 +16,7 @@ to_test = [
     ("CoverageInt.sol", "inst", 40),
     ("CoverageBool.sol", "path-relaxed", 5),
     ("CoverageBytesM.sol", "path-relaxed", 1),
+    ("CoverageStaticTuple.sol", "path-relaxed", 1),
     ("Time.sol", "inst", 10),
     ("SmartianExample.sol", "inst-tx", 40),
     ("Payable.sol", "inst", 10),

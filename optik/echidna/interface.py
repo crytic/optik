@@ -116,12 +116,7 @@ def translate_argument(arg: Dict) -> Tuple[str, Union[bytes, int, Value]]:
         contents = arg["contents"]
 
         types, values = parse_tuple(contents)
-
         type_descriptor = f"({','.join(types)})"
-
-        logger.debug(f"Tuple types: {types}")
-        logger.debug(f"Type descriptor: {type_descriptor}")
-        logger.debug(f"Tuple values: {values}")
 
         return (type_descriptor, values)
 
@@ -267,9 +262,7 @@ def update_tx(tx: Dict, new_model: VarContext, tx_name: str = "") -> Dict:
     # Update call arguments
     call = tx["_call"]
     args = call["contents"][1]
-    logger.debug(f"List of vars: {new_model.contained_vars()}")
     for i, arg in enumerate(args):
-        logger.debug(f"Updating argument {i}: {arg}")
         update_argument(arg, f"{tx_name}_arg{i}", new_model)
 
     # Update block number & timestamp
