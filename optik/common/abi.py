@@ -15,7 +15,7 @@ from maat import Sext, Var, VarContext
 # Constants
 # =========
 ADDRESS_SIZE = 160  # Bit size of Ethereum ADDRESS type
-BASE_HEAD_SIZE = 32 # Elementary types have 32 byte sized heads
+BASE_HEAD_SIZE = 32  # Elementary types have 32 byte sized heads
 BYTEM_PAD = 32  # BytesM padded to 32 bytes
 BYTESIZE = 8  # 8 bits to a byte
 BOOL_SIZE = 8  # Bit size of Ethereum BOOL type
@@ -121,6 +121,7 @@ def intM(
     else:
         return [value]
 
+
 def address_enc(
     _: int, value: Union[int, Value], ctx: VarContext, name: str
 ) -> List[Value]:
@@ -131,8 +132,8 @@ def address_enc(
     :param ctx: the VarCOntext to use to make 'value' concolic
     :param name: symbolic variable name to use to make 'value' concolic
     """
-
     return uintM(ADDRESS_SIZE, value, ctx, name)
+
 
 def bytesM(
     byte_count: int,
@@ -206,16 +207,6 @@ def bool_enc(
     else:
         raise ABIException("'value' must be bool or value")
 
-# Byte length of heads of elementary types
-head_sizes = {
-    "uint": 32,
-    "int": 32,
-    "address": 32,
-    "bool": 32,
-    "fixed": 32,
-    "bytesM": 32,
-    "function": 32,
-}
 
 def compute_head_lengths(ty: ABIType) -> int:
     """Determine byte length of heads of types contained in `ty`
@@ -225,7 +216,7 @@ def compute_head_lengths(ty: ABIType) -> int:
 
     if isinstance(ty, TupleType) and not ty.is_dynamic:
         # if non-dynamic tuple, encoded in place
-        return sum([ compute_head_lengths(t) for t in ty.components ])
+        return sum([compute_head_lengths(t) for t in ty.components])
 
     if ty.is_dynamic:
         # all dynamic types are referenced by an offset, which is encoded as a uint
@@ -235,16 +226,20 @@ def compute_head_lengths(ty: ABIType) -> int:
         # static array, so has static type and static size
         dimensions = ty.arrlist
         # compute total size of matrix
-        size = reduce(lambda a,b: a*b, [ dim[0] for dim in dimensions ])
+        size = reduce(lambda a, b: a * b, [dim[0] for dim in dimensions])
 
         return size * BASE_HEAD_SIZE
 
     # is an elementary type
     return BASE_HEAD_SIZE
-    
+
 
 def tuple_enc(
-    tup: TupleType, values: Union[List, Value], ctx: VarContext, name: str, is_top: bool = False
+    tup: TupleType,
+    values: Union[List, Value],
+    ctx: VarContext,
+    name: str,
+    is_top: bool = False,
 ) -> List[Value]:
     """Encodes a dynamically typed and sized tuple (general form of arrays)
 
@@ -261,35 +256,31 @@ def tuple_enc(
     def head(x: ABIType, value, ctx: VarContext, base_name: str) -> List[Value]:
         """As defined in the ABI specification, encodes head(x)
 
-        :param x: The value to encode
-        :param value:
-        :param ctx:
-        :param base_name:
+        :param x: type to encode
+        :param value: concrete value to encode
+        :param ctx: the VarContext to use to make 'value' concolic
+        :param base_name: name to build upon for use as a symbolic variable name
         """
         if x.is_dynamic:
             # head(X(i)) = enc(len( head(X(1) ... X(k) tail(X(1)) ... tail(X(i-1))) ))
             offset = base_head_length + cum_tail_length
-            logger.debug(f'tup: dynamic head')
-            return [ Cst(256, offset) ]
+            return [Cst(256, offset)]
         else:
             v = encode_value(x, value, ctx, base_name)
-            logger.debug(f"tup: static head value: {v}")
             return v
 
     def tail(x: ABIType, value, ctx: VarContext, base_name: str) -> List[Value]:
         """As defined in the ABI specification, encodes tail(x)
-        
-        :param x:
-        :param value:
-        :param ctx:
-        :param base_namea: 
+
+        :param x: type to encode
+        :param value: concrete value to encode
+        :param ctx: the VarContext to use to make 'value' concolic
+        :param base_name: name to build upon for use as a symbolic variable name
         """
         if x.is_dynamic:
             v = encode_value(x, value, ctx, base_name)
-            logger.debug(f"tup: dynamic tail val: {v}")
             return v
         else:
-            logger.debug(f"tup: static tail empty")
             return []
 
     def tail_length(tail: List[Value]) -> int:
@@ -299,7 +290,7 @@ def tuple_enc(
         """
 
         # number of bits in the tail
-        size = sum([ val.size for val in tail ])
+        size = sum([val.size for val in tail])
 
         # 8 bits to a byte
         return size / 8
@@ -313,9 +304,6 @@ def tuple_enc(
         else:
             arg_name = f"{name}_{i}"
 
-        logger.debug(f"tuple_enc - encoding arg {i} with value: {values[i]}, name: {arg_name}")
-
-
         # compute encodings
         ty_head = head(ty, values[i], ctx, arg_name)
         ty_tail = tail(ty, values[i], ctx, arg_name)
@@ -326,22 +314,20 @@ def tuple_enc(
         heads += ty_head
         tails += ty_tail
 
+    # not a coin toss
     return heads + tails
 
-    
+
 def array_static(
     ty: ABIType, arr: Union[List, Value], ctx: VarContext, name: str
 ) -> List[Value]:
     """Encodes a static sized list
-    
+
     :param ty: ETH Grammar type information
     :param arr: the array to encode, an array of either concrete or symbolic variables
     :param ctx: the VarCOntext to use to make 'value' concolic
     :param name: symbolic variable name to use to make 'value' concolic
     """
-
- 
-
     raise NotImplementedError
 
 
@@ -355,7 +341,7 @@ def array_dynamic(
     :param ctx: the VarCOntext to use to make 'value' concolic
     :param name: symbolic variable name to use to make 'value' concolic
     """
-    pass
+    raise NotImplementedError
 
 
 # List of elementary types and their encoder functions
@@ -367,6 +353,7 @@ encoder_functions = {
     "bytes": bytesM,
 }
 
+
 def selector(func_signature: str) -> Value:
     """Return the first 4 bytes of the keccak256 hash of 'func_signature'"""
     k = sha3.keccak_256()
@@ -374,7 +361,10 @@ def selector(func_signature: str) -> Value:
     digest = k.digest()[:4]
     return Cst(32, int.from_bytes(digest, "big"))
 
-def encode_value(ty: ABIType, value: Any, ctx: VarContext, arg_name: str) -> List[Value]:
+
+def encode_value(
+    ty: ABIType, value: Any, ctx: VarContext, arg_name: str
+) -> List[Value]:
     """ABI encode a value of type `ty`
 
     :param ty: type of the value
@@ -382,17 +372,14 @@ def encode_value(ty: ABIType, value: Any, ctx: VarContext, arg_name: str) -> Lis
     :param ctx: The VarContext to use to make 'value' concolic
     :param name: symbolic variable name to use to make 'value' concolic
     """
-
-    logger.debug(f"encode_value - type: {ty}, value: {value}, name: {arg_name}")
-
     if isinstance(ty, TupleType):
-        # type is a tuple 
+        # type is a tuple
         return tuple_enc(ty, value, ctx, arg_name)
 
     if ty.is_array:
         if ty.is_dynamic:
             # array with type that is dynamic or dynamic size
-             return array_dynamic(ty, value, ctx, arg_name)
+            return array_dynamic(ty, value, ctx, arg_name)
         else:
             # is a static array and has static type
             return array_static(ty, value, ctx, arg_name)
@@ -404,7 +391,10 @@ def encode_value(ty: ABIType, value: Any, ctx: VarContext, arg_name: str) -> Lis
         encoder = encoder_functions[ty.base]
         return encoder(ty.sub, value, ctx, arg_name)
 
-def encode_arguments(ty: TupleType, ctx: VarContext, tx_name: str, *args) -> List[Value]:
+
+def encode_arguments(
+    ty: TupleType, ctx: VarContext, tx_name: str, *args
+) -> List[Value]:
     """Encodes arguments for a function call
 
     :param arg_components: tuple of ABI types containing their components
@@ -413,11 +403,9 @@ def encode_arguments(ty: TupleType, ctx: VarContext, tx_name: str, *args) -> Lis
 
     :returns: list of values
     """
+    # function arguments are encoded as a tuple
+    return tuple_enc(ty, args, ctx, tx_name, is_top=True)
 
-    logger.debug(f"`encode_arguments` - types: {ty}, values: {args}")
-
-    # arguments encoded as a tuple
-    return tuple_enc(ty, args, ctx, tx_name, is_top = True)
 
 def function_call(
     func: str, args_spec: str, ctx: VarContext, tx_name: str, *args
@@ -465,5 +453,4 @@ def function_call(
     # encode the arguments too
     res += encode_arguments(args_types, ctx, tx_name, *args)
 
-    logger.debug(f"`function_call` - res: {res}")
     return res

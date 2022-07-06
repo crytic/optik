@@ -135,8 +135,12 @@ def generate_new_inputs(
             # Serialize the new input discovered
             store_new_tx_sequence(bif.input_uid, model)
             _add_new_senders(model, args)
-        elif s.did_time_out:
-            timeout_cnt += 1
+        else:
+            if s.did_time_out:
+                logger.debug(f"Timeout, skipping...")
+                timeout_cnt += 1
+            else:
+                logger.debug(f"Failed to solve...")
 
     return (
         success_cnt,

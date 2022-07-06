@@ -21,44 +21,46 @@ NEW_INPUT_PREFIX: Final[str] = "optik_solved_input"
 # Directory for temporary contract binaries to be stored for processing
 TMP_CONTRACT_DIR: Final[str] = "/tmp/"
 
+
 def parse_array(arr: List[Dict[str, str]]) -> Tuple[List, str]:
     """Takes a formatted array and converts it to a list of its elements
-    
+
     :param arr: array of dictionaries containing types and contents
-    
-    :return: tuple containing the list of Pythonic elements, and the abi type of elements in the list 
+
+    :return: tuple containing the list of Pythonic elements, and the abi type of elements in the list
     """
 
     # translate each of the arguments
-    el_arr = [ translate_argument(el) for el in arr ]
-    
+    el_arr = [translate_argument(el) for el in arr]
+
     # `translate_argument` returns type as well, so use that as the type
     arr_type = el_arr[0][0]
 
     # retrieve all the values
-    el_arr = [ el[1] for el in el_arr ]
+    el_arr = [el[1] for el in el_arr]
 
     return arr_type, el_arr
 
+
 def parse_tuple(tup: List[Dict[str, str]]) -> Tuple[List, List]:
     """Takes a dynamically typed tuple and parses its values and types
-    
+
     :param tup: the tuple to parse (contains ABI type representations)
-    
+
     :returns tuple of ( list of types, list of values )
     """
 
     # translate each argument (elements are (type, value))
-    el_tup = [ translate_argument(el) for el in tup ]
+    el_tup = [translate_argument(el) for el in tup]
 
-    # grab types for each element 
-    type_tup = [ el[0] for el in el_tup ]
+    # grab types for each element
+    type_tup = [el[0] for el in el_tup]
 
     # extract values for each element
-    el_tup = [ el[1] for el in el_tup ]
+    el_tup = [el[1] for el in el_tup]
 
     return type_tup, el_tup
-    
+
 
 def translate_argument(arg: Dict) -> Tuple[str, Union[bytes, int, Value]]:
     """Translate a parsed Echidna transaction argument into a '(type, value)' tuple.
@@ -74,10 +76,7 @@ def translate_argument(arg: Dict) -> Tuple[str, Union[bytes, int, Value]]:
     elif argType == "AbiInt":
         bits = arg["contents"][0]
         val = int(arg["contents"][1])
-        return (
-            f"int{bits}", 
-            val
-        )
+        return (f"int{bits}", val)
 
     elif argType == "AbiAddress":
         val = int(arg["contents"], 16)
@@ -107,12 +106,11 @@ def translate_argument(arg: Dict) -> Tuple[str, Union[bytes, int, Value]]:
 
         arr_type, arr = parse_array(array)
 
-        logger.debug(f"Array type: {arr_type}[{num_elems}] with contents: {arr}")
-
-        return (
-            f"{arr_type}[{num_elems}]",
-            arr
+        logger.debug(
+            f"Array type: {arr_type}[{num_elems}] with contents: {arr}"
         )
+
+        return (f"{arr_type}[{num_elems}]", arr)
 
     elif argType == "AbiTuple":
         contents = arg["contents"]
@@ -125,10 +123,7 @@ def translate_argument(arg: Dict) -> Tuple[str, Union[bytes, int, Value]]:
         logger.debug(f"Type descriptor: {type_descriptor}")
         logger.debug(f"Tuple values: {values}")
 
-        return (
-            type_descriptor,
-            values
-        )
+        return (type_descriptor, values)
 
     else:
         raise EchidnaException(f"Unsupported argument type: {argType}")
@@ -222,9 +217,7 @@ def update_argument(arg: Dict, arg_name: str, new_model: VarContext) -> None:
     """
     # Update the argument only if the model contains a new value
     # for this argument
-    if not new_model.contains(arg_name) and not new_model.contains(
-        f"{arg_name}_0"
-    ):
+    if all([arg_name not in var for var in new_model.contained_vars()]):
         return
 
     argType = arg["tag"]
@@ -248,6 +241,12 @@ def update_argument(arg: Dict, arg_name: str, new_model: VarContext) -> None:
             if new_model.contains(byte_name):
                 val[i] = new_model.get(byte_name) & 0xFF
         arg["contents"][1] = echidna_encode_bytes(val)
+    elif argType == "AbiTuple":
+        tuple_els = arg["contents"]
+
+        for i, el in enumerate(tuple_els):
+            sub_arg_name = f"{arg_name}_{i}"
+            update_argument(el, sub_arg_name, new_model)
     else:
         raise EchidnaException(f"Unsupported argument type: {argType}")
 
@@ -268,7 +267,9 @@ def update_tx(tx: Dict, new_model: VarContext, tx_name: str = "") -> Dict:
     # Update call arguments
     call = tx["_call"]
     args = call["contents"][1]
+    logger.debug(f"List of vars: {new_model.contained_vars()}")
     for i, arg in enumerate(args):
+        logger.debug(f"Updating argument {i}: {arg}")
         update_argument(arg, f"{tx_name}_arg{i}", new_model)
 
     # Update block number & timestamp
