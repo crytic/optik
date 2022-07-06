@@ -100,6 +100,7 @@ def translate_argument(arg: Dict) -> Tuple[str, Union[bytes, int, Value]]:
             f"bool",
             val,
         )
+
     elif argType == "AbiArray":
         num_elems = arg["contents"][0]
         array = arg["contents"][2]
@@ -112,6 +113,7 @@ def translate_argument(arg: Dict) -> Tuple[str, Union[bytes, int, Value]]:
             f"{arr_type}[{num_elems}]",
             arr
         )
+
     elif argType == "AbiTuple":
         contents = arg["contents"]
 
@@ -122,7 +124,6 @@ def translate_argument(arg: Dict) -> Tuple[str, Union[bytes, int, Value]]:
         logger.debug(f"Tuple types: {types}")
         logger.debug(f"Type descriptor: {type_descriptor}")
         logger.debug(f"Tuple values: {values}")
-        
 
         return (
             type_descriptor,

@@ -112,9 +112,9 @@ def echidna_parse_bytes(unicode_str: str) -> List[int]:
     unicode_str = regex.sub(replaceDecimals, unicode_str)
 
     # convert escaped text unicode characters to their `\uXXXX` equivalent
-    # regex: unicode texts are either 2 or 3 characters long, comprised
-    #   of letters, or numbers from 1-4
-    regex = re.compile(rb"\\([A-Z1-4]{2,3})")
+    # regex: match from list of unicode symbols
+    pattern = rb"\\(" + b"|".join([s.encode() for s in _UNICODE_SYMBOLS]) + rb")"
+    regex = re.compile(pattern)
     unicode_str = regex.sub(replaceTextual, unicode_str)
 
     return list(unicode_str)
