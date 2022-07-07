@@ -106,10 +106,6 @@ def translate_argument(arg: Dict) -> Tuple[str, Union[bytes, int, Value]]:
 
         arr_type, arr = parse_array(array)
 
-        logger.debug(
-            f"Array type: {arr_type}[{num_elems}] with contents: {arr}"
-        )
-
         return (f"{arr_type}[{num_elems}]", arr)
 
     elif argType == "AbiTuple":
@@ -231,6 +227,7 @@ def update_argument(arg: Dict, arg_name: str, new_model: VarContext) -> None:
     elif argType == "AbiBytes":
         length = arg["contents"][0]
         val = echidna_parse_bytes(arg["contents"][1])
+
         for i in range(length):
             byte_name = f"{arg_name}_{i}"
             if new_model.contains(byte_name):
@@ -240,6 +237,12 @@ def update_argument(arg: Dict, arg_name: str, new_model: VarContext) -> None:
         tuple_els = arg["contents"]
 
         for i, el in enumerate(tuple_els):
+            sub_arg_name = f"{arg_name}_{i}"
+            update_argument(el, sub_arg_name, new_model)
+    elif argType == "AbiArray":
+        arr_els = arg["contents"][2]
+
+        for i, el in enumerate(arr_els):
             sub_arg_name = f"{arg_name}_{i}"
             update_argument(el, sub_arg_name, new_model)
     else:

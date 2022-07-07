@@ -318,30 +318,44 @@ def tuple_enc(
     return heads + tails
 
 
-def array_static(
+def array_fixed(
     ty: ABIType, arr: Union[List, Value], ctx: VarContext, name: str
 ) -> List[Value]:
-    """Encodes a static sized list
+    """Encodes a statically sized array of values
 
-    :param ty: ETH Grammar type information
+    :param ty: type information for array
     :param arr: the array to encode, an array of either concrete or symbolic variables
     :param ctx: the VarCOntext to use to make 'value' concolic
     :param name: symbolic variable name to use to make 'value' concolic
     """
-    raise NotImplementedError
+    
+    # fixed sized arrays encoded as tuple of elements with constant type
+    el_type = ty.item_type.to_type_str()
+    tup_descriptor = "(" + ",".join([ el_type for _ in range(len(arr)) ]) + ")"
+    tup_type = parse(tup_descriptor)
+
+    return tuple_enc(tup_type, arr, ctx, name)
 
 
 def array_dynamic(
-    sub: int, arr: Union[List, Value], ctx, VarContext, name: str
+    ty: ABIType, arr: Union[List, Value], ctx: VarContext, name: str
 ) -> List[Value]:
-    """Encoded a dynamic array of variables
+    """Encoded a dynamically sized array of values
 
-    :param sub: meta information about the variables
+    :param ty: type information for array
     :param arr: the array to encode, an array of either concrete or symbolic variables
     :param ctx: the VarCOntext to use to make 'value' concolic
     :param name: symbolic variable name to use to make 'value' concolic
     """
-    raise NotImplementedError
+    
+    el_count = len(arr)
+    # encode number of elements as a constant
+    # TODO: support variable length arrays up for debate
+    k_enc = [Cst(256, el_count)]
+
+    # dynamic size array encoded as concatenation of: enc(len(X)) + enc(X)
+    return k_enc + array_fixed(ty, arr, ctx, name) 
+
 
 
 # List of elementary types and their encoder functions
@@ -377,12 +391,12 @@ def encode_value(
         return tuple_enc(ty, value, ctx, arg_name)
 
     if ty.is_array:
-        if ty.is_dynamic:
-            # array with type that is dynamic or dynamic size
+        if ty._has_dynamic_arrlist:
+            # array is dynamically sized
             return array_dynamic(ty, value, ctx, arg_name)
         else:
-            # is a static array and has static type
-            return array_static(ty, value, ctx, arg_name)
+            # is a static sized array
+            return array_fixed(ty, value, ctx, arg_name)
     else:
         # elementary type
         if not ty.base in encoder_functions:
