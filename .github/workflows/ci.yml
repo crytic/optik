@@ -22,16 +22,15 @@ jobs:
         black --version
         black --diff --check optik
 
-  # TODO: enable tests in CI once Maat has a release with EVM support
-  # hybrid-echidna:
-  #   runs-on: ubuntu-20.04
-  #   steps:
-  #   - uses: actions/checkout@v2
-  #   - name: Set up Python 3.8
-  #     uses: actions/setup-python@v2
-  #     with:
-  #       python-version: 3.8
-  #   - name: Run tests
-  #     run: |
-  #       pip install -e .[tests]
-  #       python3 -m pytest tests/echidna
+  hybrid-echidna:
+    runs-on: ubuntu-20.04
+    steps:
+    - uses: actions/checkout@v2
+    - name: Set up Python 3.8
+      uses: actions/setup-python@v2
+      with:
+        python-version: 3.8
+    - name: Run tests
+      run: |
+        pip install -e .[tests]
+        python3 -m pytest tests/echidna
