@@ -30,6 +30,10 @@ jobs:
       uses: actions/setup-python@v2
       with:
         python-version: 3.8
+    - name: Install solc 0.7.1
+      run: |
+        pip3 install solc-select
+        solc-select install 0.7.1 && solc-select use 0.7.1
     - name: Install echidna
       run: |
         wget -O echidna.tar.gz -c https://github.com/crytic/echidna/releases/download/v2.0.2/echidna-test-2.0.2-Ubuntu-18.04.tar.gz
