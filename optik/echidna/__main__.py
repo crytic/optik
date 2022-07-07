@@ -100,6 +100,9 @@ def run_hybrid_echidna(args: List[str]) -> None:
             logger.info(f"Generated {new_inputs_cnt} new inputs")
         else:
             logger.info(f"Couldn't generate more inputs")
+            logger.info(
+                f"Corpus and coverage info written in {args.corpus_dir}"
+            )
             return
 
 
