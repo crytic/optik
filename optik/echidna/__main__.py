@@ -1,6 +1,7 @@
 import argparse
 import sys
 import os
+import tempfile
 
 from .runner import replay_inputs, generate_new_inputs, run_echidna_campaign
 from .interface import extract_contract_bytecode
@@ -28,6 +29,10 @@ def run_hybrid_echidna(args: List[str]) -> None:
 
     if args.debug:
         handler.setLevel(logging.DEBUG)
+
+    if args.corpus_dir is None:
+        args.corpus_dir = tempfile.TemporaryDirectory().name
+
     coverage_dir = os.path.join(args.corpus_dir, "coverage")
 
     # Coverage tracker for the whole fuzzing session
@@ -142,6 +147,7 @@ def parse_arguments(args: List[str]) -> argparse.Namespace:
         type=str,
         help="Directory to save and load corpus and coverage data",
         metavar="PATH",
+        default=None,
     )
 
     parser.add_argument(
