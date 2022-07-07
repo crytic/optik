@@ -1,5 +1,5 @@
 from maat import Cst, EVMTransaction, Value, Var, VarContext
-from typing import Dict, Final, List, Optional, Tuple, Union
+from typing import Dict, Final, List, Optional, Tuple, Union, Any
 from ..common.exceptions import EchidnaException, GenericException
 from ..common.abi import function_call
 from ..common.logger import logger
@@ -22,7 +22,7 @@ NEW_INPUT_PREFIX: Final[str] = "optik_solved_input"
 TMP_CONTRACT_DIR: Final[str] = "/tmp/"
 
 
-def parse_array(arr: List[Dict[str, str]]) -> Tuple[List, str]:
+def parse_array(arr: List[Dict[str, str]]) -> Tuple[str, List[Any]]:
     """Takes a formatted array and converts it to a list of its elements
 
     :param arr: array of dictionaries containing types and contents
@@ -42,7 +42,7 @@ def parse_array(arr: List[Dict[str, str]]) -> Tuple[List, str]:
     return arr_type, el_arr
 
 
-def parse_tuple(tup: List[Dict[str, str]]) -> Tuple[List, List]:
+def parse_tuple(tup: List[Dict[str, str]]) -> Tuple[List[str], List[Any]]:
     """Takes a dynamically typed tuple and parses its values and types
 
     :param tup: the tuple to parse (contains ABI type representations)
@@ -144,7 +144,6 @@ def load_tx(tx: Dict, tx_name: str = "") -> AbstractTx:
             t, val = translate_argument(arg)
             arg_types.append(t)
             arg_values.append(val)
-    logger.debug(f"Parsed arg values: {arg_values} with types: {arg_types}")
     func_signature = f"({','.join(arg_types)})"
     ctx = VarContext()
     call_data = function_call(

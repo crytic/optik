@@ -224,11 +224,8 @@ def compute_head_lengths(ty: ABIType) -> int:
 
     if ty.is_array:
         # static array, so has static type and static size
-        dimensions = ty.arrlist
-        # compute total size of matrix
-        size = reduce(lambda a, b: a * b, [dim[0] for dim in dimensions])
-
-        return size * BASE_HEAD_SIZE
+        size = ty.arrlist[-1][0]
+        return size * compute_head_lengths(ty.item_type)
 
     # is an elementary type
     return BASE_HEAD_SIZE
@@ -236,14 +233,14 @@ def compute_head_lengths(ty: ABIType) -> int:
 
 def tuple_enc(
     tup: TupleType,
-    values: Union[List, Value],
+    values: Union[List[Any], List[Value]],
     ctx: VarContext,
     name: str,
     is_top: bool = False,
 ) -> List[Value]:
     """Encodes a dynamically typed and sized tuple (general form of arrays)
 
-    :param ty: ETH Grammar type information about tuple
+    :param tup: ETH Grammar type information about tuple
     :param values: Either a tuple of values or a Value object
     :param ctx: The VarContext to use to make 'value' concolic
     :param name: Symbolic variable base name to use to make 'value' concolic
@@ -287,11 +284,8 @@ def tuple_enc(
         :param tail: Tail of values
         """
 
-        # number of bits in the tail
-        size = sum([val.size for val in tail])
-
-        # 8 bits to a byte
-        return size / 8
+        # number of bytes in the tail
+        return sum([val.size for val in tail]) / 8
 
     heads = []
     tails = []
@@ -301,6 +295,8 @@ def tuple_enc(
             arg_name = f"{name}_arg{i}"
         else:
             arg_name = f"{name}_{i}"
+
+        arg_name = f"{name}_arg{i}" if is_top else f"{name}_{i}"
 
         # compute encodings
         ty_head = head(ty, values[i], ctx, arg_name)
