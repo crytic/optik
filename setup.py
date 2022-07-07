@@ -19,6 +19,7 @@ setup(
     install_requires=[
         "pymaat>=0.6.1",
         "eth_abi",
+        "pysha3",
         "rlp"
     ],
     extras_require = {
