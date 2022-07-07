@@ -266,8 +266,7 @@ def tuple_enc(
             offset = base_head_length + cum_tail_length
             return [Cst(256, offset)]
         else:
-            v = encode_value(x, value, ctx, base_name)
-            return v
+            return encode_value(x, value, ctx, base_name)
 
     def tail(x: ABIType, value, ctx: VarContext, base_name: str) -> List[Value]:
         """As defined in the ABI specification, encodes tail(x)
@@ -278,8 +277,7 @@ def tuple_enc(
         :param base_name: name to build upon for use as a symbolic variable name
         """
         if x.is_dynamic:
-            v = encode_value(x, value, ctx, base_name)
-            return v
+            return encode_value(x, value, ctx, base_name)
         else:
             return []
 
