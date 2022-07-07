@@ -106,7 +106,20 @@ def translate_argument(arg: Dict) -> Tuple[str, Union[bytes, int, Value]]:
 
         arr_type, arr = parse_array(array)
 
-        return (f"{arr_type}[{num_elems}]", arr)
+        return (
+            f"{arr_type}[{num_elems}]", 
+            arr
+        )
+
+    elif argType == "AbiArrayDynamic":
+        array = arg["contents"][1]
+
+        arr_type, arr = parse_array(array)
+
+        return (
+            f"{arr_type}[]",
+            arr
+        )
 
     elif argType == "AbiTuple":
         contents = arg["contents"]
@@ -241,6 +254,12 @@ def update_argument(arg: Dict, arg_name: str, new_model: VarContext) -> None:
             update_argument(el, sub_arg_name, new_model)
     elif argType == "AbiArray":
         arr_els = arg["contents"][2]
+
+        for i, el in enumerate(arr_els):
+            sub_arg_name = f"{arg_name}_{i}"
+            update_argument(el, sub_arg_name, new_model)
+    elif argType == "AbiArrayDynamic":
+        arr_els = arg["contents"][1]
 
         for i, el in enumerate(arr_els):
             sub_arg_name = f"{arg_name}_{i}"

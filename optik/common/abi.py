@@ -3,6 +3,7 @@ from maat import Cst, Concat, Extract, Value
 from .exceptions import ABIException
 import sha3
 from functools import reduce
+from itertools import accumulate
 from eth_abi.grammar import ABIType, BasicType, TupleType, parse, normalize
 from eth_abi.exceptions import ABITypeError, ParseError
 from typing import Tuple, List, Union, Any
@@ -467,4 +468,15 @@ def function_call(
     # encode the arguments too
     res += encode_arguments(args_types, ctx, tx_name, *args)
 
+    def pprint_encoding() -> str:
+        """Formats `res` into a hexadecimal view of the encoding
+        """
+
+        cum_bit_sizes = list(accumulate([v.size for v in res[1:]]))
+        res_sizes = list(zip(cum_bit_sizes, res[1:]))
+
+        return "0x" + "".join([ f"{v.as_uint(ctx):02x}".zfill(64) for size,v in res_sizes if size % 256 == 0 ])
+
+    logger.debug(f"Selector: {'0x' + str(res[0])[2:].zfill(48)}")
+    logger.debug(f"Argument  encoding: {pprint_encoding()}")
     return res
