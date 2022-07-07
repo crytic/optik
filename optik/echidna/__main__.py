@@ -31,7 +31,7 @@ def run_hybrid_echidna(args: List[str]) -> None:
         handler.setLevel(logging.DEBUG)
 
     if args.corpus_dir is None:
-        args.corpus_dir = tempfile.TemporaryDirectory().name
+        args.corpus_dir = tempfile.TemporaryDirectory(dir=".").name
 
     coverage_dir = os.path.join(args.corpus_dir, "coverage")
 
