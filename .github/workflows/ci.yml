@@ -30,6 +30,10 @@ jobs:
       uses: actions/setup-python@v2
       with:
         python-version: 3.8
+    - name: Install echidna
+      run: |
+        wget -O echidna.tar.gz -c https://github.com/crytic/echidna/releases/download/v2.0.2/echidna-test-2.0.2-Ubuntu-18.04.tar.gz
+        sudo tar xvf echidna.tar.gz -C /usr/bin/
     - name: Run tests
       run: |
         pip install -e .[tests]
