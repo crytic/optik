@@ -106,20 +106,14 @@ def translate_argument(arg: Dict) -> Tuple[str, Union[bytes, int, Value]]:
 
         arr_type, arr = parse_array(array)
 
-        return (
-            f"{arr_type}[{num_elems}]", 
-            arr
-        )
+        return (f"{arr_type}[{num_elems}]", arr)
 
     elif argType == "AbiArrayDynamic":
         array = arg["contents"][1]
 
         arr_type, arr = parse_array(array)
 
-        return (
-            f"{arr_type}[]",
-            arr
-        )
+        return (f"{arr_type}[]", arr)
 
     elif argType == "AbiTuple":
         contents = arg["contents"]

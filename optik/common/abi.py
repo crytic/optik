@@ -329,10 +329,10 @@ def array_fixed(
     :param ctx: the VarCOntext to use to make 'value' concolic
     :param name: symbolic variable name to use to make 'value' concolic
     """
-    
+
     # fixed sized arrays encoded as tuple of elements with constant type
     el_type = ty.item_type.to_type_str()
-    tup_descriptor = "(" + ",".join([ el_type for _ in range(len(arr)) ]) + ")"
+    tup_descriptor = "(" + ",".join([el_type for _ in range(len(arr))]) + ")"
     tup_type = parse(tup_descriptor)
 
     return tuple_enc(tup_type, arr, ctx, name)
@@ -348,15 +348,14 @@ def array_dynamic(
     :param ctx: the VarCOntext to use to make 'value' concolic
     :param name: symbolic variable name to use to make 'value' concolic
     """
-    
+
     el_count = len(arr)
     # encode number of elements as a constant
     # TODO: support variable length arrays up for debate
     k_enc = [Cst(256, el_count)]
 
     # dynamic size array encoded as concatenation of: enc(len(X)) + enc(X)
-    return k_enc + array_fixed(ty, arr, ctx, name) 
-
+    return k_enc + array_fixed(ty, arr, ctx, name)
 
 
 # List of elementary types and their encoder functions
@@ -469,13 +468,18 @@ def function_call(
     res += encode_arguments(args_types, ctx, tx_name, *args)
 
     def pprint_encoding() -> str:
-        """Formats `res` into a hexadecimal view of the encoding
-        """
+        """Formats `res` into a hexadecimal view of the encoding"""
 
         cum_bit_sizes = list(accumulate([v.size for v in res[1:]]))
         res_sizes = list(zip(cum_bit_sizes, res[1:]))
 
-        return "0x" + "".join([ f"{v.as_uint(ctx):02x}".zfill(64) for size,v in res_sizes if size % 256 == 0 ])
+        return "0x" + "".join(
+            [
+                f"{v.as_uint(ctx):02x}".zfill(64)
+                for size, v in res_sizes
+                if size % 256 == 0
+            ]
+        )
 
     logger.debug(f"Selector: {'0x' + str(res[0])[2:].zfill(48)}")
     logger.debug(f"Argument  encoding: {pprint_encoding()}")
