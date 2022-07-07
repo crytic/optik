@@ -17,7 +17,7 @@ setup(
     packages=find_packages(exclude=["tests", "tests.*"]),
     python_requires=">=3.7",
     install_requires=[
-        "pymaat",
+        "pymaat>=0.6.1",
         "eth_abi",
         "rlp"
     ],
