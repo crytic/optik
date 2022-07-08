@@ -1,4 +1,3 @@
-from async_timeout import timeout
 from .interface import load_tx_sequence, store_new_tx_sequence
 from ..coverage import Coverage
 from ..common.world import EVMWorld, WorldMonitor, AbstractTx
