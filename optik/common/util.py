@@ -86,7 +86,7 @@ ESCAPE_SEQUENCES = {
     "\\": 0x5C,
 }
 # Revert the dict
-for s,val in ESCAPE_SEQUENCES.copy().items():
+for s, val in ESCAPE_SEQUENCES.copy().items():
     ESCAPE_SEQUENCES[val] = s
 
 
@@ -148,7 +148,7 @@ def echidna_parse_bytes(unicode_str: str) -> List[int]:
     regex = re.compile(pattern)
     unicode_str = regex.sub(replaceTextual, unicode_str)
 
-    # convert
+    # convert haskell specific escape sequences like \a, \&, ...
     regex = re.compile(rb"\\(.)", re.DOTALL)
     unicode_str = regex.sub(replaceEscapes, unicode_str)
 
