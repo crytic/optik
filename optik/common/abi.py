@@ -322,7 +322,6 @@ def array_fixed(
     :param name: symbolic variable name to use to make 'value' concolic
     """
 
-
     # fixed sized arrays encoded as tuple of elements with constant type
     el_type = ty.item_type.to_type_str()
     tup_descriptor = f"({','.join([el_type]*len(arr))})"
