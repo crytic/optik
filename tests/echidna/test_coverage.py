@@ -23,7 +23,7 @@ to_test = [
     ("CreateContracts.sol", "inst-tx", 10),
     ("CreateContracts2.sol", "inst-tx", 30),
     ("MessageCall.sol", "inst-tx", 1),
-    ("Reentrency.sol", "inst-tx", 10),
+    ("Reentrency.sol", "inst-tx", 20),
 ]
 
 to_test = [
