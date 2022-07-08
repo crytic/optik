@@ -256,7 +256,7 @@ def update_argument(arg: Dict, arg_name: str, new_model: VarContext) -> None:
         for i, el in enumerate(arr_els):
             sub_arg_name = f"{arg_name}_{i}"
             update_argument(el, sub_arg_name, new_model)
-            
+
     else:
         raise EchidnaException(f"Unsupported argument type: {argType}")
 
