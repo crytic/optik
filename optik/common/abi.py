@@ -332,7 +332,7 @@ def array_fixed(
 
     # fixed sized arrays encoded as tuple of elements with constant type
     el_type = ty.item_type.to_type_str()
-    tup_descriptor = "(" + ",".join([el_type for _ in range(len(arr))]) + ")"
+    tup_descriptor = f"({','.join([el_type]*len(arr))})"
     tup_type = parse(tup_descriptor)
 
     return tuple_enc(tup_type, arr, ctx, name)

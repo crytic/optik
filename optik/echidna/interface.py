@@ -73,6 +73,7 @@ def translate_argument(arg: Dict) -> Tuple[str, Union[bytes, int, Value]]:
             f"uint{bits}",
             val,
         )
+
     elif argType == "AbiInt":
         bits = arg["contents"][0]
         val = int(arg["contents"][1])
@@ -103,24 +104,18 @@ def translate_argument(arg: Dict) -> Tuple[str, Union[bytes, int, Value]]:
     elif argType == "AbiArray":
         num_elems = arg["contents"][0]
         array = arg["contents"][2]
-
         arr_type, arr = parse_array(array)
-
         return (f"{arr_type}[{num_elems}]", arr)
 
     elif argType == "AbiArrayDynamic":
         array = arg["contents"][1]
-
         arr_type, arr = parse_array(array)
-
         return (f"{arr_type}[]", arr)
 
     elif argType == "AbiTuple":
         contents = arg["contents"]
-
         types, values = parse_tuple(contents)
         type_descriptor = f"({','.join(types)})"
-
         return (type_descriptor, values)
 
     else:
@@ -222,42 +217,46 @@ def update_argument(arg: Dict, arg_name: str, new_model: VarContext) -> None:
 
     if argType == "AbiUInt":
         arg["contents"][1] = str(new_model.get(arg_name))
+
     elif argType == "AbiInt":
         argVal = int(new_model.get(arg_name))
         bits = arg["contents"][0]
         arg["contents"][1] = str(twos_complement_convert(argVal, bits))
+
     elif argType == "AbiBool":
         argVal = new_model.get(arg_name)
         arg["contents"] = int_to_bool(argVal)
+
     elif argType == "AbiAddress":
         arg["contents"] = str(hex(new_model.get(arg_name)))
+
     elif argType == "AbiBytes":
         length = arg["contents"][0]
         val = echidna_parse_bytes(arg["contents"][1])
-
         for i in range(length):
             byte_name = f"{arg_name}_{i}"
             if new_model.contains(byte_name):
                 val[i] = new_model.get(byte_name) & 0xFF
         arg["contents"][1] = echidna_encode_bytes(val)
+
     elif argType == "AbiTuple":
         tuple_els = arg["contents"]
-
         for i, el in enumerate(tuple_els):
             sub_arg_name = f"{arg_name}_{i}"
             update_argument(el, sub_arg_name, new_model)
+
     elif argType == "AbiArray":
         arr_els = arg["contents"][2]
-
         for i, el in enumerate(arr_els):
             sub_arg_name = f"{arg_name}_{i}"
             update_argument(el, sub_arg_name, new_model)
+
     elif argType == "AbiArrayDynamic":
         arr_els = arg["contents"][1]
-
         for i, el in enumerate(arr_els):
             sub_arg_name = f"{arg_name}_{i}"
             update_argument(el, sub_arg_name, new_model)
+            
     else:
         raise EchidnaException(f"Unsupported argument type: {argType}")
 
