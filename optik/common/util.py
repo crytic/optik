@@ -63,12 +63,31 @@ _UNICODE_SYMBOLS = [
     "GS",
     "RS",
     "US",
+    "DEL",
 ]
 UNICODE_SYMBOLS = dict()
 for i, s in enumerate(_UNICODE_SYMBOLS):
     UNICODE_SYMBOLS[i] = s
     UNICODE_SYMBOLS[s] = i
+# Manually set DEL because its value doesn't correspond to its index
 UNICODE_SYMBOLS.update({"DEL": 0x7F, 0x7F: "DEL"})
+
+ESCAPE_SEQUENCES = {
+    "0": 0,
+    "a": 7,
+    "b": 8,
+    "f": 0xC,
+    "n": 0xA,
+    "r": 0xD,
+    "t": 9,
+    "v": 0xB,
+    '"': 0x22,
+    "'": 0x27,
+    "\\": 0x5C,
+}
+# Revert the dict
+for s, val in ESCAPE_SEQUENCES.copy().items():
+    ESCAPE_SEQUENCES[val] = s
 
 
 def echidna_parse_bytes(unicode_str: str) -> List[int]:
@@ -104,6 +123,16 @@ def echidna_parse_bytes(unicode_str: str) -> List[int]:
 
         return UNICODE_SYMBOLS[sym].to_bytes(1, byteorder="big")
 
+    def replaceEscapes(match) -> bytes:
+        """Converts haskell escape sequences into python bytes"""
+        sym = match.group(1).decode()
+        if sym in ESCAPE_SEQUENCES:
+            return ESCAPE_SEQUENCES(sym).to_bytes()
+        elif sym == "&":
+            return b""  # In haskell \& is an empty string...
+        else:
+            raise GenericException(f"Unknown escape sequence {sym}")
+
     unicode_str = unicode_str[1:-1]  # remove double quoted string
 
     # convert instances of escaped decimal values to escaped hexadecimal
@@ -119,6 +148,10 @@ def echidna_parse_bytes(unicode_str: str) -> List[int]:
     regex = re.compile(pattern)
     unicode_str = regex.sub(replaceTextual, unicode_str)
 
+    # convert haskell specific escape sequences like \a, \&, ...
+    regex = re.compile(rb"\\(.)", re.DOTALL)
+    unicode_str = regex.sub(replaceEscapes, unicode_str)
+
     return list(unicode_str)
 
 
@@ -128,14 +161,24 @@ def echidna_encode_bytes(string: bytes) -> str:
     and textual escape sequences
     """
     res = ""
+    last_was_num: bool = False
     for b in string:
+        if last_was_num and b <= 0x30 and b <= 0x39:
+            # If last character was a numeric encoding (e.g \245)
+            # and the next char to encoding is a number we need
+            # to add an empty string escape in between
+            res += "\\&"
+        last_was_num = False
         if b in UNICODE_SYMBOLS:
             res += f"\\{UNICODE_SYMBOLS[b]}"
+        elif b in ESCAPE_SEQUENCES:
+            res += f"\\{ESCAPE_SEQUENCES[b]}"
         else:
             if b <= 0x7E:  # '~' is biggest printable char
                 res += chr(b)
             else:
                 res += f"\\{b}"
+                last_was_num = True
     res = f'"{res}"'
     return res
 

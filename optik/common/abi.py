@@ -229,7 +229,7 @@ def compute_head_lengths(ty: ABIType) -> int:
         # compute total size of matrix
         size = reduce(lambda a, b: a * b, [dim[0] for dim in dimensions])
 
-        return size * BASE_HEAD_SIZE
+        return size * compute_head_lengths(ty.item_type)
 
     # is an elementary type
     return BASE_HEAD_SIZE
@@ -237,14 +237,14 @@ def compute_head_lengths(ty: ABIType) -> int:
 
 def tuple_enc(
     tup: TupleType,
-    values: Union[List, Value],
+    values: Union[List[Any], List[Value]],
     ctx: VarContext,
     name: str,
     is_top: bool = False,
 ) -> List[Value]:
     """Encodes a dynamically typed and sized tuple (general form of arrays)
 
-    :param ty: ETH Grammar type information about tuple
+    :param tup: ETH Grammar type information about tuple
     :param values: Either a tuple of values or a Value object
     :param ctx: The VarContext to use to make 'value' concolic
     :param name: Symbolic variable base name to use to make 'value' concolic
@@ -267,8 +267,7 @@ def tuple_enc(
             offset = base_head_length + cum_tail_length
             return [Cst(256, offset)]
         else:
-            v = encode_value(x, value, ctx, base_name)
-            return v
+            return encode_value(x, value, ctx, base_name)
 
     def tail(x: ABIType, value, ctx: VarContext, base_name: str) -> List[Value]:
         """As defined in the ABI specification, encodes tail(x)
@@ -279,8 +278,7 @@ def tuple_enc(
         :param base_name: name to build upon for use as a symbolic variable name
         """
         if x.is_dynamic:
-            v = encode_value(x, value, ctx, base_name)
-            return v
+            return encode_value(x, value, ctx, base_name)
         else:
             return []
 
@@ -290,20 +288,14 @@ def tuple_enc(
         :param tail: Tail of values
         """
 
-        # number of bits in the tail
-        size = sum([val.size for val in tail])
-
-        # 8 bits to a byte
-        return size / 8
+        # number of bytes in the tail
+        return sum([val.size for val in tail]) / 8
 
     heads = []
     tails = []
 
     for i, ty in enumerate(tup.components):
-        if is_top:
-            arg_name = f"{name}_arg{i}"
-        else:
-            arg_name = f"{name}_{i}"
+        arg_name = f"{name}_arg{i}" if is_top else f"{name}_{i}"
 
         # compute encodings
         ty_head = head(ty, values[i], ctx, arg_name)
@@ -330,11 +322,11 @@ def array_fixed(
     :param name: symbolic variable name to use to make 'value' concolic
     """
 
+
     # fixed sized arrays encoded as tuple of elements with constant type
     el_type = ty.item_type.to_type_str()
     tup_descriptor = f"({','.join([el_type]*len(arr))})"
     tup_type = parse(tup_descriptor)
-
     return tuple_enc(tup_type, arr, ctx, name)
 
 

@@ -9,24 +9,13 @@ assistance during smart-contract audits.
 
 ## Installation
 
-### Dev install
-Installation currently doesn't work with `pip` because we need a locally built `pymaat` package which supports EVM, and Maat doesn't have a release on `PyPI` with EVM support yet. So install the dependencies and then run:
+We plan on publishing a `PyPI` package for `pip` installation when Optik becomes more stable.
+For now you can install it by running:
 
 ```
-python3 setup.py install --force 
+git clone https://github.com/trailofbits/optik && cd optik
+python3 -m pip install .
 ```
-
-### User install
-
-**Warning: this won't work until we publish an official Maat release with EVM support**
-
-> We plan on publishing a `PyPI` package for `pip` installation when Optik becomes more stable.
-> For now you can install it by running:
-> 
-> ```
-> git clone https://github.com/trailofbits/optik && cd optik
-> python3 -m pip install .
-> ```
 
 ## Hybrid Echidna
 Optik allows to run the [Echidna](https://github.com/crytic/echidna) smart-contract fuzzer in _hybrid_ mode. It basically couples Echidna with a symbolic executor that replays the Echidna corpus and extends it with new inputs that increase coverage. Attained coverage is computed incrementally for the whole `hybrid-echidna` run, accross multiple fuzzing campaign iterations.
@@ -44,7 +33,7 @@ A couple additionnal options are available:
 
 - `--cov-mode`: type of coverage to increase when solving new inputs. This option has a significant impact on results and performance. The available modes are described in the next paragraph
 
-- `--max-iters`: maxium number of fuzzing iterations to perform (one iteration is one Echidna campaign + one symbolic executor run on the corpus)
+- `--max-iters`: maximum number of fuzzing iterations to perform (one iteration is one Echidna campaign + one symbolic executor run on the corpus)
 
 - `--solver-timeout`: maximum time in milliseconds to spend solving each possible new input
 
