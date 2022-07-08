@@ -291,11 +291,6 @@ def tuple_enc(
     tails = []
 
     for i, ty in enumerate(tup.components):
-        if is_top:
-            arg_name = f"{name}_arg{i}"
-        else:
-            arg_name = f"{name}_{i}"
-
         arg_name = f"{name}_arg{i}" if is_top else f"{name}_{i}"
 
         # compute encodings
