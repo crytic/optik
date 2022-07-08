@@ -137,7 +137,6 @@ def generate_new_inputs(
             _add_new_senders(model, args)
         elif s.did_time_out:
             timeout_cnt += 1
-
     return (
         success_cnt,
         timeout_cnt,
