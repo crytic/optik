@@ -215,15 +215,15 @@ def compute_head_lengths(ty: ABIType) -> int:
     :param ty: the type to compute head lengths over
     """
 
-    if isinstance(ty, TupleType) and not ty.is_dynamic:
+    if isinstance(ty, TupleType):
         # if non-dynamic tuple, encoded in place
         return sum([compute_head_lengths(t) for t in ty.components])
 
-    if ty.is_dynamic:
+    elif ty.is_dynamic:
         # all dynamic types are referenced by an offset, which is encoded as a uint
         return BASE_HEAD_SIZE
 
-    if ty.is_array:
+    elif ty.is_array:
         # static array, so has static type and static size
         dimensions = ty.arrlist
         # compute total size of matrix
@@ -231,8 +231,9 @@ def compute_head_lengths(ty: ABIType) -> int:
 
         return size * compute_head_lengths(ty.item_type)
 
-    # is an elementary type
-    return BASE_HEAD_SIZE
+    else:
+        # is an elementary type
+        return BASE_HEAD_SIZE
 
 
 def tuple_enc(
@@ -288,8 +289,10 @@ def tuple_enc(
         :param tail: Tail of values
         """
 
-        # number of bytes in the tail
-        return sum([val.size for val in tail]) / 8
+        bit_length = sum([val.size for val in tail])
+        if bit_length % 8 != 0:
+            raise ABIException("Tail length in bits is not a multiple of 8")
+        return bit_length // 8
 
     heads = []
     tails = []
@@ -321,7 +324,6 @@ def array_fixed(
     :param ctx: the VarCOntext to use to make 'value' concolic
     :param name: symbolic variable name to use to make 'value' concolic
     """
-
     # fixed sized arrays encoded as tuple of elements with constant type
     el_type = ty.item_type.to_type_str()
     tup_descriptor = f"({','.join([el_type]*len(arr))})"
@@ -339,12 +341,10 @@ def array_dynamic(
     :param ctx: the VarCOntext to use to make 'value' concolic
     :param name: symbolic variable name to use to make 'value' concolic
     """
-
     el_count = len(arr)
     # encode number of elements as a constant
     # TODO: support variable length arrays up for debate
     k_enc = [Cst(256, el_count)]
-
     # dynamic size array encoded as concatenation of: enc(len(X)) + enc(X)
     return k_enc + array_fixed(ty, arr, ctx, name)
 
@@ -382,7 +382,7 @@ def encode_value(
         return tuple_enc(ty, value, ctx, arg_name)
 
     if ty.is_array:
-        if ty._has_dynamic_arrlist:
+        if len(ty.arrlist[-1]) == 0:
             # array is dynamically sized
             return array_dynamic(ty, value, ctx, arg_name)
         else:
@@ -472,6 +472,4 @@ def function_call(
             ]
         )
 
-    logger.debug(f"Selector: {'0x' + str(res[0])[2:].zfill(48)}")
-    logger.debug(f"Argument  encoding: {pprint_encoding()}")
     return res

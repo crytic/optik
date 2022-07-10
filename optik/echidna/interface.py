@@ -245,12 +245,22 @@ def update_argument(arg: Dict, arg_name: str, new_model: VarContext) -> None:
     argument
     :param new_model: symbolic model to use to update the argument value
     """
-    # Update the argument only if the model contains a new value
-    # for this argument
-    if all([arg_name not in var for var in new_model.contained_vars()]):
-        return
+
+    def is_array_like_type(arg_type: str) -> bool:
+        """Return True if encoding the type results in multiple variables,
+        i.e arg_0, arg_1, ... arg_N"""
+        return any([x for x in ["Tuple", "Array", "Bytes"] if x in arg_type])
 
     argType = arg["tag"]
+
+    # Update the argument only if the model contains a new value
+    # for this argument
+    if is_array_like_type(argType) and all(
+        [arg_name not in var for var in new_model.contained_vars()]
+    ):
+        return
+    elif not is_array_like_type(argType) and not new_model.contains(arg_name):
+        return
 
     if argType == "AbiUInt":
         arg["contents"][1] = str(new_model.get(arg_name))
