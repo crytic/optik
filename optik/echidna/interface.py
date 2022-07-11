@@ -139,7 +139,7 @@ def load_tx(tx: Dict, tx_name: str = "") -> AbstractTx:
             t, val = translate_argument(arg)
             arg_types.append(t)
             arg_values.append(val)
-    logger.debug(f"Parsed arg values: {arg_values} with types: {arg_types}")
+
     func_signature = f"({','.join(arg_types)})"
     ctx = VarContext()
     call_data = function_call(
