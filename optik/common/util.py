@@ -86,8 +86,9 @@ ESCAPE_SEQUENCES = {
     "\\": 0x5C,
 }
 # Revert the dict
+REVERT_ESCAPE_SEQUENCES = {}
 for s, val in ESCAPE_SEQUENCES.copy().items():
-    ESCAPE_SEQUENCES[val] = s
+    REVERT_ESCAPE_SEQUENCES[val] = s
 
 
 def echidna_parse_bytes(unicode_str: str) -> List[int]:
@@ -127,13 +128,17 @@ def echidna_parse_bytes(unicode_str: str) -> List[int]:
         """Converts haskell escape sequences into python bytes"""
         sym = match.group(1).decode()
         if sym in ESCAPE_SEQUENCES:
-            return ESCAPE_SEQUENCES(sym).to_bytes()
+            return ESCAPE_SEQUENCES[sym].to_bytes(1, "big")
         elif sym == "&":
             return b""  # In haskell \& is an empty string...
         else:
-            raise GenericException(f"Unknown escape sequence {sym}")
+            return match.group()
 
     unicode_str = unicode_str[1:-1]  # remove double quoted string
+
+    # convert haskell specific escape sequences like \a, \&, ...
+    regex = re.compile(rb"\\(.)", re.DOTALL)
+    unicode_str = regex.sub(replaceEscapes, unicode_str)
 
     # convert instances of escaped decimal values to escaped hexadecimal
     # regex: match `\XXX` where `X` is a decimal digit
@@ -148,10 +153,6 @@ def echidna_parse_bytes(unicode_str: str) -> List[int]:
     regex = re.compile(pattern)
     unicode_str = regex.sub(replaceTextual, unicode_str)
 
-    # convert haskell specific escape sequences like \a, \&, ...
-    regex = re.compile(rb"\\(.)", re.DOTALL)
-    unicode_str = regex.sub(replaceEscapes, unicode_str)
-
     return list(unicode_str)
 
 
@@ -163,7 +164,7 @@ def echidna_encode_bytes(string: bytes) -> str:
     res = ""
     last_was_num: bool = False
     for b in string:
-        if last_was_num and b <= 0x30 and b <= 0x39:
+        if last_was_num and b >= 0x30 and b <= 0x39:
             # If last character was a numeric encoding (e.g \245)
             # and the next char to encoding is a number we need
             # to add an empty string escape in between
@@ -171,8 +172,8 @@ def echidna_encode_bytes(string: bytes) -> str:
         last_was_num = False
         if b in UNICODE_SYMBOLS:
             res += f"\\{UNICODE_SYMBOLS[b]}"
-        elif b in ESCAPE_SEQUENCES:
-            res += f"\\{ESCAPE_SEQUENCES[b]}"
+        elif b in REVERT_ESCAPE_SEQUENCES:
+            res += f"\\{REVERT_ESCAPE_SEQUENCES[b]}"
         else:
             if b <= 0x7E:  # '~' is biggest printable char
                 res += chr(b)

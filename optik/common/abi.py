@@ -3,6 +3,7 @@ from maat import Cst, Concat, Extract, Value
 from .exceptions import ABIException
 import sha3
 from functools import reduce
+from itertools import accumulate
 from eth_abi.grammar import ABIType, BasicType, TupleType, parse, normalize
 from eth_abi.exceptions import ABITypeError, ParseError
 from typing import Tuple, List, Union, Any
@@ -208,27 +209,42 @@ def bool_enc(
         raise ABIException("'value' must be bool or value")
 
 
-def compute_head_lengths(ty: ABIType) -> int:
-    """Determine byte length of heads of types contained in `ty`
+def compute_head_lengths(ty: ABIType, _iter_tuple: bool = True) -> int:
+    """Determine total byte length of the 'heads' contained in ty.
 
     :param ty: the type to compute head lengths over
+    :param _iter_tuple: iternal parameter, DO NOT USE. It is used to
+        handle nested dynamic tuples. If we request the head lengths of (a,b,c) we
+        want head_len(a) + head_len(b) + head_len(c). However if we request
+        head lengths of (a,(b,c)) with (b,c) dynamic, then we don't want to iterate
+        through the head lengths of (b,c), but return head_len(a) + 32 because
+        (b,c) will be encoded in the tail as a dynamic type.
     """
-
-    if isinstance(ty, TupleType) and not ty.is_dynamic:
+    # eth_abi stores arrays of tuples are TupleType -___-, so explicitely
+    # rule out arrays here to keep only tuples
+    if (
+        isinstance(ty, TupleType)
+        and (not ty.is_array)
+        and (_iter_tuple or not ty.is_dynamic)
+    ):
         # if non-dynamic tuple, encoded in place
-        return sum([compute_head_lengths(t) for t in ty.components])
+        return sum([compute_head_lengths(t, False) for t in ty.components])
 
-    if ty.is_dynamic:
+    elif ty.is_dynamic:
         # all dynamic types are referenced by an offset, which is encoded as a uint
         return BASE_HEAD_SIZE
 
-    if ty.is_array:
+    elif ty.is_array:
         # static array, so has static type and static size
-        size = ty.arrlist[-1][0]
-        return size * compute_head_lengths(ty.item_type)
+        dimensions = ty.arrlist
+        # compute total size of matrix
+        size = dimensions[-1][0]
+        res = size * compute_head_lengths(ty.item_type, False)
+        return res
 
-    # is an elementary type
-    return BASE_HEAD_SIZE
+    else:
+        # is an elementary type
+        return BASE_HEAD_SIZE
 
 
 def tuple_enc(
@@ -284,8 +300,10 @@ def tuple_enc(
         :param tail: Tail of values
         """
 
-        # number of bytes in the tail
-        return sum([val.size for val in tail]) / 8
+        bit_length = sum([val.size for val in tail])
+        if bit_length % 8 != 0:
+            raise ABIException("Tail length in bits is not a multiple of 8")
+        return bit_length // 8
 
     heads = []
     tails = []
@@ -307,30 +325,39 @@ def tuple_enc(
     return heads + tails
 
 
-def array_static(
-    ty: ABIType, arr: Union[List, Value], ctx: VarContext, name: str
+def array_fixed(
+    ty: ABIType, arr: List, ctx: VarContext, name: str
 ) -> List[Value]:
-    """Encodes a static sized list
+    """Encodes a statically sized array of values
 
-    :param ty: ETH Grammar type information
+    :param ty: type information for array
     :param arr: the array to encode, an array of either concrete or symbolic variables
     :param ctx: the VarCOntext to use to make 'value' concolic
     :param name: symbolic variable name to use to make 'value' concolic
     """
-    raise NotImplementedError
+    # fixed sized arrays encoded as tuple of elements with constant type
+    el_type = ty.item_type.to_type_str()
+    tup_descriptor = f"({','.join([el_type]*len(arr))})"
+    tup_type = parse(tup_descriptor)
+    return tuple_enc(tup_type, arr, ctx, name)
 
 
 def array_dynamic(
-    sub: int, arr: Union[List, Value], ctx, VarContext, name: str
+    ty: ABIType, arr: List, ctx: VarContext, name: str
 ) -> List[Value]:
-    """Encoded a dynamic array of variables
+    """Encoded a dynamically sized array of values
 
-    :param sub: meta information about the variables
+    :param ty: type information for array
     :param arr: the array to encode, an array of either concrete or symbolic variables
     :param ctx: the VarCOntext to use to make 'value' concolic
     :param name: symbolic variable name to use to make 'value' concolic
     """
-    raise NotImplementedError
+    el_count = len(arr)
+    # encode number of elements as a constant
+    # TODO: support variable length arrays up for debate
+    k_enc = [Cst(256, el_count)]
+    # dynamic size array encoded as concatenation of: enc(len(X)) + enc(X)
+    return k_enc + array_fixed(ty, arr, ctx, name)
 
 
 # List of elementary types and their encoder functions
@@ -361,17 +388,19 @@ def encode_value(
     :param ctx: The VarContext to use to make 'value' concolic
     :param name: symbolic variable name to use to make 'value' concolic
     """
-    if isinstance(ty, TupleType):
+
+    if ty.is_array:
+        if len(ty.arrlist[-1]) == 0:
+            # array is dynamically List
+            return array_dynamic(ty, value, ctx, arg_name)
+        else:
+            # is a static sized array
+            return array_fixed(ty, value, ctx, arg_name)
+
+    elif isinstance(ty, TupleType):
         # type is a tuple
         return tuple_enc(ty, value, ctx, arg_name)
 
-    if ty.is_array:
-        if ty.is_dynamic:
-            # array with type that is dynamic or dynamic size
-            return array_dynamic(ty, value, ctx, arg_name)
-        else:
-            # is a static array and has static type
-            return array_static(ty, value, ctx, arg_name)
     else:
         # elementary type
         if not ty.base in encoder_functions:
@@ -441,5 +470,19 @@ def function_call(
 
     # encode the arguments too
     res += encode_arguments(args_types, ctx, tx_name, *args)
+
+    def pprint_encoding() -> str:
+        """Formats `res` into a hexadecimal view of the encoding"""
+
+        cum_bit_sizes = list(accumulate([v.size for v in res[1:]]))
+        res_sizes = list(zip(cum_bit_sizes, res[1:]))
+
+        return "0x" + "".join(
+            [
+                f"{v.as_uint(ctx):02x}".zfill(64)
+                for size, v in res_sizes
+                if size % 256 == 0
+            ]
+        )
 
     return res

@@ -8,25 +8,33 @@ COVERAGE_TARGET_MARKER = "test::coverage"
 
 # List of tests as tuples:
 # (contract, coverage mode, tx sequence length)
-# names: contract<i>-<method>-<seq_len>
 to_test = [
-    ("ExploreMe.sol", "inst", 40),                  # 0
-    ("Primality.sol", "inst", 40),                  # 1
-    ("MultiMagic.sol", "path-relaxed", 10),         # 2
-    ("MultiMagic256.sol", "inst-sg", 40),           # 3
-    ("CoverageInt.sol", "inst", 40),                # 4
-    ("CoverageBool.sol", "path-relaxed", 5),        # 5
-    ("CoverageBytesM.sol", "path-relaxed", 1),      # 6
-    ("CoverageStaticTuple.sol", "path-relaxed", 5), # 7
-    ("CoverageNestedTuple.sol", "path-relaxed", 5), # 8
-    ("Time.sol", "inst", 10),                       # 9
-    ("SmartianExample.sol", "inst-tx", 40),         # 10
-    ("Payable.sol", "inst", 10),                    # 11
-    ("IntCast.sol", "inst", 10),                    # 12
-    ("CreateContracts.sol", "inst-tx", 10),         # 13
-    ("CreateContracts2.sol", "inst-tx", 30),        # 14
-    ("MessageCall.sol", "inst-tx", 1),              # 15
-    ("Reentrency.sol", "inst-tx", 20),              # 16
+    ("ExploreMe.sol", "inst", 40),
+    ("Primality.sol", "inst", 40),
+    ("MultiMagic.sol", "path-relaxed", 10),
+    ("MultiMagic256.sol", "inst-sg", 40),
+    ("CoverageInt.sol", "inst", 40),
+    ("CoverageBool.sol", "path-relaxed", 5),
+    ("CoverageBytesM.sol", "path-relaxed", 1),
+    ("CoverageStaticTuple.sol", "inst-tx", 5),
+    ("CoverageNestedTuple.sol", "inst-tx", 5),
+    ("CoverageNestedArrays1.sol", "inst-tx", 1),
+    ("CoverageNestedArrays2.sol", "inst-tx", 1),
+    ("CoverageNestedArrays3.sol", "inst-tx", 1),
+    ("CoverageFixedArray.sol", "inst-tx", 10),
+    ("CoverageDynamicArray.sol", "inst-tx", 10),
+    ("CoverageArrayOfTuple.sol", "inst-tx", 1),
+    ("CoverageDynamicTuple1.sol", "inst-tx", 1),
+    ("CoverageDynamicTuple3.sol", "inst-tx", 1),
+    ("CoverageDynamicTuple2.sol", "inst-tx", 1),
+    ("Time.sol", "inst", 10),
+    ("SmartianExample.sol", "inst-tx", 40),
+    ("Payable.sol", "inst", 10),
+    ("IntCast.sol", "inst", 10),
+    ("CreateContracts.sol", "inst-tx", 10),
+    ("CreateContracts2.sol", "inst-tx", 30),
+    ("MessageCall.sol", "inst-tx", 1),
+    ("Reentrency.sol", "inst-tx", 20),
 ]
 
 to_test = [

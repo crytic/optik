@@ -13,7 +13,7 @@ contract CoverageStaticTuple {
         }else{
             a = 6; // test::coverage
             if (tup.x % 0x1000 == 0) {
-                return 1;
+                return 1; // test::coverage
             }
         }
         
