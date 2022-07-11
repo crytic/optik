@@ -37,6 +37,6 @@ contract A {
     }
 
     function g(uint val) public returns (uint) {
-        return (val % key);
+        return (val & key);
     }
 }
