@@ -209,15 +209,26 @@ def bool_enc(
         raise ABIException("'value' must be bool or value")
 
 
-def compute_head_lengths(ty: ABIType) -> int:
-    """Determine byte length of heads of types contained in `ty`
+def compute_head_lengths(ty: ABIType, _iter_tuple: bool = True) -> int:
+    """Determine total byte length of the 'heads' contained in ty.
 
     :param ty: the type to compute head lengths over
+    :param _iter_tuple: iternal parameter, DO NOT USE. It is used to
+        handle nested dynamic tuples. If we request the head lengths of (a,b,c) we
+        want head_len(a) + head_len(b) + head_len(c). However if we request
+        head lengths of (a,(b,c)) with (b,c) dynamic, then we don't want to iterate
+        through the head lengths of (b,c), but return head_len(a) + 32 because
+        (b,c) will be encoded in the tail as a dynamic type.
     """
-
-    if isinstance(ty, TupleType):
+    # eth_abi stores arrays of tuples are TupleType -___-, so explicitely
+    # rule out arrays here to keep only tuples
+    if (
+        isinstance(ty, TupleType)
+        and (not ty.is_array)
+        and (_iter_tuple or not ty.is_dynamic)
+    ):
         # if non-dynamic tuple, encoded in place
-        return sum([compute_head_lengths(t) for t in ty.components])
+        return sum([compute_head_lengths(t, False) for t in ty.components])
 
     elif ty.is_dynamic:
         # all dynamic types are referenced by an offset, which is encoded as a uint
@@ -227,9 +238,9 @@ def compute_head_lengths(ty: ABIType) -> int:
         # static array, so has static type and static size
         dimensions = ty.arrlist
         # compute total size of matrix
-        size = reduce(lambda a, b: a * b, [dim[0] for dim in dimensions])
-
-        return size * compute_head_lengths(ty.item_type)
+        size = dimensions[-1][0]
+        res = size * compute_head_lengths(ty.item_type, False)
+        return res
 
     else:
         # is an elementary type
@@ -315,7 +326,7 @@ def tuple_enc(
 
 
 def array_fixed(
-    ty: ABIType, arr: Union[List, Value], ctx: VarContext, name: str
+    ty: ABIType, arr: List, ctx: VarContext, name: str
 ) -> List[Value]:
     """Encodes a statically sized array of values
 
@@ -332,7 +343,7 @@ def array_fixed(
 
 
 def array_dynamic(
-    ty: ABIType, arr: Union[List, Value], ctx: VarContext, name: str
+    ty: ABIType, arr: List, ctx: VarContext, name: str
 ) -> List[Value]:
     """Encoded a dynamically sized array of values
 
@@ -377,17 +388,19 @@ def encode_value(
     :param ctx: The VarContext to use to make 'value' concolic
     :param name: symbolic variable name to use to make 'value' concolic
     """
-    if isinstance(ty, TupleType):
-        # type is a tuple
-        return tuple_enc(ty, value, ctx, arg_name)
 
     if ty.is_array:
         if len(ty.arrlist[-1]) == 0:
-            # array is dynamically sized
+            # array is dynamically List
             return array_dynamic(ty, value, ctx, arg_name)
         else:
             # is a static sized array
             return array_fixed(ty, value, ctx, arg_name)
+
+    elif isinstance(ty, TupleType):
+        # type is a tuple
+        return tuple_enc(ty, value, ctx, arg_name)
+
     else:
         # elementary type
         if not ty.base in encoder_functions:
