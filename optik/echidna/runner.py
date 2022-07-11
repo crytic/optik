@@ -132,7 +132,6 @@ def generate_new_inputs(
             success_cnt += 1
             unique_bifurcations.remove(bif)
             model = s.get_model()
-            print(f"DEBUG new model {model}")
             # Serialize the new input discovered
             store_new_tx_sequence(bif.input_uid, model)
             _add_new_senders(model, args)
