@@ -49,6 +49,9 @@ def translate_argument_type(arg: Dict) -> str:
         byteLen = arg["contents"]
         return f"bytes{byteLen}"
 
+    elif t == "AbiString":
+        return "string"
+
     elif t.startswith("AbiBool"):
         return "bool"
 
@@ -88,6 +91,9 @@ def translate_argument_value(arg: Dict) -> Union[bytes, int, Value]:
 
     elif t == "AbiBytes":
         return echidna_parse_bytes(arg["contents"][1])
+
+    elif t == "AbiString":
+        return echidna_parse_bytes(arg["contents"])
 
     elif t == "AbiBool":
         return arg["contents"]
@@ -245,6 +251,14 @@ def update_argument(arg: Dict, arg_name: str, new_model: VarContext) -> None:
             if new_model.contains(byte_name):
                 val[i] = new_model.get(byte_name) & 0xFF
         arg["contents"][1] = echidna_encode_bytes(val)
+
+    elif argType == "AbiString":
+        val = echidna_parse_bytes(arg["contents"])
+        for i in range(len(val)):
+            byte_name = f"{arg_name}_{i}"
+            if new_model.contains(byte_name):
+                val[i] = new_model.get(byte_name) & 0xFF
+        arg["contents"] = echidna_encode_bytes(val)
 
     elif argType == "AbiTuple":
         tuple_els = arg["contents"]

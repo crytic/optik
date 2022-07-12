@@ -5,6 +5,7 @@ import re
 from typing import Union, List, Tuple, Dict
 import rlp
 import sha3
+import ast
 
 
 def twos_complement_convert(arg: int, bits: int) -> int:
@@ -135,6 +136,14 @@ def echidna_parse_bytes(unicode_str: str) -> List[int]:
             return match.group()
 
     unicode_str = unicode_str[1:-1]  # remove double quoted string
+
+    # sometimes encoded as a hex string
+    if re.match(rb"0x([A-Fa-f0-9]{2})*$", unicode_str):
+        value = unicode_str.decode()
+        value = ast.literal_eval(value)
+        byte_len = (len(unicode_str) - 2) // 2
+
+        return list(value.to_bytes(byte_len, byteorder='big'))
 
     # convert haskell specific escape sequences like \a, \&, ...
     regex = re.compile(rb"\\(.)", re.DOTALL)
