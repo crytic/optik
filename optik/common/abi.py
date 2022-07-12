@@ -144,7 +144,8 @@ def bytesM(
 ) -> List[Value]:
     """Encodes a bytes type, right-padded to 32 bytes (256 bits)
     Encodes both dynamic and statically sized bytes
-    :param byteCount: number of bytes "M", 0 < M <= 32
+
+    :param byte_count: number of bytes "M", 0 < M <= 32
     :param value: either a list of bytes, or a list of Value objects representing bytes
     :param ctx: the VarContext to use to make 'value' concolic
     :param name: symbolic variable name to use to make 'value' concolic
@@ -197,6 +198,7 @@ def bytesM(
         ]
 
     return dynamic_size + values
+
 
 def bool_enc(
     _, value: Union[bool, Value], ctx: VarContext, name: str
@@ -416,7 +418,8 @@ def encode_value(
             raise ABIException(f"Unsupported type: {ty.base}")
 
         encoder = encoder_functions[ty.base]
-        return encoder(ty.sub, value, ctx, arg_name)
+        v = encoder(ty.sub, value, ctx, arg_name)
+        return v
 
 
 def encode_arguments(
