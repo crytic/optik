@@ -17,16 +17,17 @@ to_test = [
     ("CoverageInt.sol", "inst", 40),                # 4
     ("CoverageBool.sol", "path-relaxed", 5),        # 5
     ("CoverageBytesM.sol", "path-relaxed", 1),      # 6
-    ("CoverageStaticTuple.sol", "path-relaxed", 5), # 7
-    ("CoverageNestedTuple.sol", "path-relaxed", 5), # 8
-    ("Time.sol", "inst", 10),                       # 9
-    ("SmartianExample.sol", "inst-tx", 40),         # 10
-    ("Payable.sol", "inst", 10),                    # 11
-    ("IntCast.sol", "inst", 10),                    # 12
-    ("CreateContracts.sol", "inst-tx", 10),         # 13
-    ("CreateContracts2.sol", "inst-tx", 30),        # 14
-    ("MessageCall.sol", "inst-tx", 1),              # 15
-    ("Reentrency.sol", "inst-tx", 20),              # 16
+    ("CoverageBytes.sol", "path-relaxed", 2),       # 7
+    ("CoverageStaticTuple.sol", "path-relaxed", 5), # 8
+    ("CoverageNestedTuple.sol", "path-relaxed", 5), # 9
+    ("Time.sol", "inst", 10),                       # 10
+    ("SmartianExample.sol", "inst-tx", 40),         # 11
+    ("Payable.sol", "inst", 10),                    # 12
+    ("IntCast.sol", "inst", 10),                    # 13
+    ("CreateContracts.sol", "inst-tx", 10),         # 14
+    ("CreateContracts2.sol", "inst-tx", 30),        # 15
+    ("MessageCall.sol", "inst-tx", 1),              # 16
+    ("Reentrency.sol", "inst-tx", 20),              # 17
 ]
 
 to_test = [
