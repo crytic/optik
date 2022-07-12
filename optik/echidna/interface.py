@@ -49,6 +49,9 @@ def translate_argument_type(arg: Dict) -> str:
         byteLen = arg["contents"]
         return f"bytes{byteLen}"
 
+    elif t.startswith("AbiBytesDynamic"):
+        return f"bytes"
+
     elif t.startswith("AbiBool"):
         return "bool"
 
