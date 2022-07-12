@@ -223,6 +223,18 @@ def update_argument(arg: Dict, arg_name: str, new_model: VarContext) -> None:
         i.e arg_0, arg_1, ... arg_N"""
         return any([x for x in ["Tuple", "Array", "Bytes"] if x in arg_type])
 
+    def _update_bytes_like_argument(
+        arg_name: str,
+        length: int,
+        val: List,
+        new_model: VarContext,
+    ) -> None:
+        """Update bytes-like object (bytes, string, dynamic bytes, ...)"""
+        for i in range(length):
+            byte_name = f"{arg_name}_{i}"
+            if new_model.contains(byte_name):
+                val[i] = new_model.get(byte_name) & 0xFF
+
     argType = arg["tag"]
 
     # Update the argument only if the model contains a new value
@@ -252,27 +264,12 @@ def update_argument(arg: Dict, arg_name: str, new_model: VarContext) -> None:
     elif argType == "AbiBytes":
         length = arg["contents"][0]
         val = echidna_parse_bytes(arg["contents"][1])
-        for i in range(length):
-            byte_name = f"{arg_name}_{i}"
-            if new_model.contains(byte_name):
-                val[i] = new_model.get(byte_name) & 0xFF
+        _update_bytes_like_argument(arg_name, length, val, new_model)
         arg["contents"][1] = echidna_encode_bytes(val)
 
-    elif argType == "AbiString":
+    elif argType in ["AbiBytesDynamic", "AbiString"]:
         val = echidna_parse_bytes(arg["contents"])
-        for i in range(len(val)):
-            byte_name = f"{arg_name}_{i}"
-            if new_model.contains(byte_name):
-                val[i] = new_model.get(byte_name) & 0xFF
-        arg["contents"] = echidna_encode_bytes(val)
-
-    elif argType == "AbiBytesDynamic":
-        val = echidna_parse_bytes(arg["contents"])
-        length = len(val)
-        for i in range(length):
-            byte_name = f"{arg_name}_{i}"
-            if new_model.contains(byte_name):
-                val[i] = new_model.get(byte_name) & 0xFF
+        _update_bytes_like_argument(arg_name, len(val), val, new_model)
         arg["contents"] = echidna_encode_bytes(val)
 
     elif argType == "AbiTuple":
