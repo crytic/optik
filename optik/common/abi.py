@@ -141,7 +141,8 @@ def bytesM(
     ctx: VarContext,
     name: str,
 ) -> List[Value]:
-    """Encodes a bytes<M>, right-padded to 32 bytes (256 bits)
+    """Encodes a bytes type, right-padded to 32 bytes (256 bits)
+    Encodes both dynamic and statically sized bytes
 
     :param byteCount: number of bytes "M", 0 < M <= 32
     :param value: either a list of bytes, or a list of Value objects representing bytes
@@ -150,7 +151,14 @@ def bytesM(
 
     :return: list of abstract Values to append to transaction data
     """
-    _check_bytes(byte_count)
+    if byte_count is None:
+        # dynamic bytes
+        byte_count = len(value)
+        dynamic_size = [Cst(256, byte_count)]
+    else:
+        # bytesM object
+        _check_bytes(byte_count)
+        dynamic_size = []
 
     if list_has_types(value, int):
         for v in value:
@@ -182,12 +190,11 @@ def bytesM(
     else:
         raise ABIException("'value' must be List[int] or List[Value]")
 
-    # pad with 0 bytes to 32 bytes if needed
-    if byte_count < 32:
-        values += [Cst(BYTESIZE, 0) for _ in range(BYTEM_PAD - byte_count)]
+    # pad with 0s to a multiple of 32 bytes if needed
+    if byte_count % 32 != 0:
+        values += [Cst(BYTESIZE, 0) for _ in range(BYTEM_PAD - (byte_count % BYTEM_PAD))]
 
-    return values
-
+    return dynamic_size + values
 
 def bool_enc(
     _, value: Union[bool, Value], ctx: VarContext, name: str
@@ -378,7 +385,8 @@ def encode_value(
             raise ABIException(f"Unsupported type: {ty.base}")
 
         encoder = encoder_functions[ty.base]
-        return encoder(ty.sub, value, ctx, arg_name)
+        v = encoder(ty.sub, value, ctx, arg_name)
+        return v
 
 
 def encode_arguments(

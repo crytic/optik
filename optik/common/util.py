@@ -127,7 +127,7 @@ def echidna_parse_bytes(unicode_str: str) -> List[int]:
         """Converts haskell escape sequences into python bytes"""
         sym = match.group(1).decode()
         if sym in ESCAPE_SEQUENCES:
-            return ESCAPE_SEQUENCES(sym).to_bytes()
+            return ESCAPE_SEQUENCES[sym].to_bytes(1, byteorder="big")
         elif sym == "&":
             return b""  # In haskell \& is an empty string...
         else:
