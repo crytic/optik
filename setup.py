@@ -18,7 +18,7 @@ setup(
     python_requires=">=3.7",
     install_requires=[
         "crytic-compile",
-        "pymaat>=0.6.1",
+        "pymaat>=0.6.2",
         "eth_abi",
         "pysha3",
         "rlp"

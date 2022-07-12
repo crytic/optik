@@ -19,106 +19,107 @@ import tempfile
 NEW_INPUT_PREFIX: Final[str] = "optik_solved_input"
 
 
-def parse_array(arr: List[Dict[str, str]]) -> Tuple[str, List[Any]]:
-    """Takes a formatted array and converts it to a list of its elements
+def translate_argument_type(arg: Dict) -> str:
+    """Translates a serialized argument's type into a string"""
+    t = arg["tag"]
+    if t == "AbiUInt":
+        bits = arg["contents"][0]
+        return f"uint{bits}"
 
-    :param arr: array of dictionaries containing types and contents
+    elif t == "AbiUIntType":
+        bits = arg["contents"]
+        return f"uint{bits}"
 
-    :return: tuple containing the list of Pythonic elements, and the abi type of elements in the list
-    """
+    elif t == "AbiInt":
+        bits = arg["contents"][0]
+        return f"int{bits}"
 
-    # translate each of the arguments
-    el_arr = [translate_argument(el) for el in arr]
+    elif t == "AbiIntType":
+        bits = arg["contents"]
+        return f"int{bits}"
 
-    # `translate_argument` returns type as well, so use that as the type
-    arr_type = el_arr[0][0]
+    elif t.startswith("AbiAddress"):
+        return "address"
 
-    # retrieve all the values
-    el_arr = [el[1] for el in el_arr]
+    elif t == "AbiBytes":
+        byteLen = arg["contents"][0]
+        return f"bytes{byteLen}"
 
-    return arr_type, el_arr
+    elif t == "AbiBytesType":
+        byteLen = arg["contents"]
+        return f"bytes{byteLen}"
+
+    elif t.startswith("AbiBool"):
+        return "bool"
+
+    elif t == "AbiArrayDynamic":
+        el_type = translate_argument_type(arg["contents"][0])
+        return f"{el_type}[]"
+
+    elif t == "AbiArrayDynamicType":
+        el_type = translate_argument_type(arg["contents"])
+        return f"{el_type}[]"
+
+    elif t.startswith("AbiArray"):
+        num_elems = arg["contents"][0]
+        el_type = translate_argument_type(arg["contents"][1])
+        return f"{el_type}[{num_elems}]"
+
+    elif t.startswith("AbiTuple"):
+        contents = arg["contents"]
+        types = [translate_argument_type(el) for el in contents]
+        return f"({','.join(types)})"
+
+    else:
+        raise EchidnaException(f"Unsupported argument type: {t}")
 
 
-def parse_tuple(tup: List[Dict[str, str]]) -> Tuple[List[str], List[Any]]:
-    """Takes a dynamically typed tuple and parses its values and types
+def translate_argument_value(arg: Dict) -> Union[bytes, int, Value]:
+    """Translate a serialized argument into a python value"""
+    t = arg["tag"]
+    if t == "AbiUInt":
+        return int(arg["contents"][1])
 
-    :param tup: the tuple to parse (contains ABI type representations)
+    elif t == "AbiInt":
+        return int(arg["contents"][1])
 
-    :returns tuple of ( list of types, list of values )
-    """
+    elif t == "AbiAddress":
+        return int(arg["contents"], 16)
 
-    # translate each argument (elements are (type, value))
-    el_tup = [translate_argument(el) for el in tup]
+    elif t == "AbiBytes":
+        return echidna_parse_bytes(arg["contents"][1])
 
-    # grab types for each element
-    type_tup = [el[0] for el in el_tup]
+    elif t == "AbiBool":
+        return arg["contents"]
 
-    # extract values for each element
-    el_tup = [el[1] for el in el_tup]
+    elif t == "AbiBytesDynamic":
+        return echidna_parse_bytes(arg["contents"])
 
-    return type_tup, el_tup
+    elif t == "AbiArray":
+        array = arg["contents"][2]
+        return [translate_argument_value(el) for el in array]
+
+    elif t == "AbiArrayDynamic":
+        array = arg["contents"][1]
+        return [translate_argument_value(el) for el in array]
+
+    elif t == "AbiTuple":
+        contents = arg["contents"]
+        return [translate_argument_value(el) for el in contents]
+
+    else:
+        raise EchidnaException(f"Unsupported argument type: {argType}")
 
 
 def translate_argument(arg: Dict) -> Tuple[str, Union[bytes, int, Value]]:
     """Translate a parsed Echidna transaction argument into a '(type, value)' tuple.
-    :param arg: Transaction argument parsed as a json dict"""
-    argType = arg["tag"]
-    if argType == "AbiUInt":
-        bits = arg["contents"][0]
-        val = int(arg["contents"][1])
-        return (
-            f"uint{bits}",
-            val,
-        )
-    elif argType == "AbiInt":
-        bits = arg["contents"][0]
-        val = int(arg["contents"][1])
-        return (f"int{bits}", val)
+    :param arg: Transaction argument parsed as a json dict
+    """
 
-    elif argType == "AbiAddress":
-        val = int(arg["contents"], 16)
-        return (
-            f"address",
-            val,
-        )
-
-    elif argType == "AbiBytes":
-        byteLen = arg["contents"][0]
-        val = echidna_parse_bytes(arg["contents"][1])
-        return (
-            f"bytes{byteLen}",
-            val,
-        )
-
-    elif argType == "AbiBytesDynamic":
-        val = echidna_parse_bytes(arg["contents"])
-        return (f"bytes", val)
-
-    elif argType == "AbiBool":
-        val = arg["contents"]
-        return (
-            f"bool",
-            val,
-        )
-
-    elif argType == "AbiArray":
-        num_elems = arg["contents"][0]
-        array = arg["contents"][2]
-
-        arr_type, arr = parse_array(array)
-
-        return (f"{arr_type}[{num_elems}]", arr)
-
-    elif argType == "AbiTuple":
-        contents = arg["contents"]
-
-        types, values = parse_tuple(contents)
-        type_descriptor = f"({','.join(types)})"
-
-        return (type_descriptor, values)
-
-    else:
-        raise EchidnaException(f"Unsupported argument type: {argType}")
+    return (
+        translate_argument_type(arg),
+        translate_argument_value(arg),
+    )
 
 
 def load_tx(tx: Dict, tx_name: str = "") -> AbstractTx:
@@ -141,6 +142,7 @@ def load_tx(tx: Dict, tx_name: str = "") -> AbstractTx:
             t, val = translate_argument(arg)
             arg_types.append(t)
             arg_values.append(val)
+
     func_signature = f"({','.join(arg_types)})"
     ctx = VarContext()
     call_data = function_call(
@@ -206,24 +208,38 @@ def update_argument(arg: Dict, arg_name: str, new_model: VarContext) -> None:
     argument
     :param new_model: symbolic model to use to update the argument value
     """
-    # Update the argument only if the model contains a new value
-    # for this argument
-    if all([arg_name not in var for var in new_model.contained_vars()]):
-        return
+
+    def is_array_like_type(arg_type: str) -> bool:
+        """Return True if encoding the type results in multiple variables,
+        i.e arg_0, arg_1, ... arg_N"""
+        return any([x for x in ["Tuple", "Array", "Bytes"] if x in arg_type])
 
     argType = arg["tag"]
 
+    # Update the argument only if the model contains a new value
+    # for this argument
+    if is_array_like_type(argType) and all(
+        [arg_name not in var for var in new_model.contained_vars()]
+    ):
+        return
+    elif not is_array_like_type(argType) and not new_model.contains(arg_name):
+        return
+
     if argType == "AbiUInt":
         arg["contents"][1] = str(new_model.get(arg_name))
+
     elif argType == "AbiInt":
         argVal = int(new_model.get(arg_name))
         bits = arg["contents"][0]
         arg["contents"][1] = str(twos_complement_convert(argVal, bits))
+
     elif argType == "AbiBool":
         argVal = new_model.get(arg_name)
         arg["contents"] = int_to_bool(argVal)
+
     elif argType == "AbiAddress":
         arg["contents"] = str(hex(new_model.get(arg_name)))
+
     elif argType == "AbiBytes":
         length = arg["contents"][0]
         val = echidna_parse_bytes(arg["contents"][1])
@@ -232,6 +248,7 @@ def update_argument(arg: Dict, arg_name: str, new_model: VarContext) -> None:
             if new_model.contains(byte_name):
                 val[i] = new_model.get(byte_name) & 0xFF
         arg["contents"][1] = echidna_encode_bytes(val)
+
     elif argType == "AbiBytesDynamic":
         val = echidna_parse_bytes(arg["contents"])
         length = len(val)
@@ -240,12 +257,25 @@ def update_argument(arg: Dict, arg_name: str, new_model: VarContext) -> None:
             if new_model.contains(byte_name):
                 val[i] = new_model.get(byte_name) & 0xFF
         arg["contents"] = echidna_encode_bytes(val)
+
     elif argType == "AbiTuple":
         tuple_els = arg["contents"]
-
         for i, el in enumerate(tuple_els):
             sub_arg_name = f"{arg_name}_{i}"
             update_argument(el, sub_arg_name, new_model)
+
+    elif argType == "AbiArray":
+        arr_els = arg["contents"][2]
+        for i, el in enumerate(arr_els):
+            sub_arg_name = f"{arg_name}_{i}"
+            update_argument(el, sub_arg_name, new_model)
+
+    elif argType == "AbiArrayDynamic":
+        arr_els = arg["contents"][1]
+        for i, el in enumerate(arr_els):
+            sub_arg_name = f"{arg_name}_{i}"
+            update_argument(el, sub_arg_name, new_model)
+
     else:
         raise EchidnaException(f"Unsupported argument type: {argType}")
 

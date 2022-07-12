@@ -33,7 +33,7 @@ A couple additionnal options are available:
 
 - `--cov-mode`: type of coverage to increase when solving new inputs. This option has a significant impact on results and performance. The available modes are described in the next paragraph
 
-- `--max-iters`: maxium number of fuzzing iterations to perform (one iteration is one Echidna campaign + one symbolic executor run on the corpus)
+- `--max-iters`: maximum number of fuzzing iterations to perform (one iteration is one Echidna campaign + one symbolic executor run on the corpus)
 
 - `--solver-timeout`: maximum time in milliseconds to spend solving each possible new input
 
