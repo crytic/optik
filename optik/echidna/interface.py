@@ -91,11 +91,8 @@ def translate_argument(arg: Dict) -> Tuple[str, Union[bytes, int, Value]]:
         )
 
     elif argType == "AbiBytesDynamic":
-        val = echidna_parse_bytes(arg['contents'])
-        return (
-            f"bytes",
-            val
-        )
+        val = echidna_parse_bytes(arg["contents"])
+        return (f"bytes", val)
 
     elif argType == "AbiBool":
         val = arg["contents"]

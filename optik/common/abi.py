@@ -192,9 +192,13 @@ def bytesM(
 
     # pad with 0s to a multiple of 32 bytes if needed
     if byte_count % 32 != 0:
-        values += [Cst(BYTESIZE, 0) for _ in range(BYTEM_PAD - (byte_count % BYTEM_PAD))]
+        values += [
+            Cst(BYTESIZE, 0)
+            for _ in range(BYTEM_PAD - (byte_count % BYTEM_PAD))
+        ]
 
     return dynamic_size + values
+
 
 def bool_enc(
     _, value: Union[bool, Value], ctx: VarContext, name: str
