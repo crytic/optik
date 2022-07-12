@@ -105,7 +105,7 @@ def translate_argument_value(arg: Dict) -> Union[bytes, int, Value]:
         return [translate_argument_value(el) for el in contents]
 
     else:
-        raise EchidnaException(f"Unsupported argument type: {argType}")
+        raise EchidnaException(f"Unsupported argument type: {t}")
 
 
 def translate_argument(arg: Dict) -> Tuple[str, Union[bytes, int, Value]]:
