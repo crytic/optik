@@ -143,7 +143,7 @@ def echidna_parse_bytes(unicode_str: str) -> List[int]:
         value = ast.literal_eval(value)
         byte_len = (len(unicode_str) - 2) // 2
 
-        return list(value.to_bytes(byte_len, byteorder='big'))
+        return list(value.to_bytes(byte_len, byteorder="big"))
 
     # convert haskell specific escape sequences like \a, \&, ...
     regex = re.compile(rb"\\(.)", re.DOTALL)
