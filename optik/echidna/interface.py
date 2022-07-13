@@ -221,7 +221,9 @@ def update_argument(arg: Dict, arg_name: str, new_model: VarContext) -> None:
     def is_array_like_type(arg_type: str) -> bool:
         """Return True if encoding the type results in multiple variables,
         i.e arg_0, arg_1, ... arg_N"""
-        return any([x for x in ["Tuple", "Array", "Bytes"] if x in arg_type])
+        return any(
+            [x for x in ["Tuple", "Array", "Bytes", "String"] if x in arg_type]
+        )
 
     def _update_bytes_like_argument(
         arg_name: str,
