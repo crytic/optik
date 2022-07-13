@@ -145,11 +145,10 @@ def bytesM(
     """Encodes a bytes type, right-padded to 32 bytes (256 bits)
     Encodes both dynamic and statically sized bytes
 
-    :param byteCount: number of bytes "M", 0 < M <= 32
+    :param byte_count: number of bytes "M", 0 < M <= 32
     :param value: either a list of bytes, or a list of Value objects representing bytes
     :param ctx: the VarContext to use to make 'value' concolic
     :param name: symbolic variable name to use to make 'value' concolic
-
     :return: list of abstract Values to append to transaction data
     """
     if byte_count is None:
@@ -378,6 +377,7 @@ encoder_functions = {
     "address": address_enc,
     "bool": bool_enc,
     "bytes": bytesM,
+    "string": bytesM,
 }
 
 
@@ -402,7 +402,7 @@ def encode_value(
 
     if ty.is_array:
         if len(ty.arrlist[-1]) == 0:
-            # array is dynamically List
+            # array is dynamically sized
             return array_dynamic(ty, value, ctx, arg_name)
         else:
             # is a static sized array

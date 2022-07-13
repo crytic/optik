@@ -17,6 +17,7 @@ to_test = [
     ("CoverageBool.sol", "path-relaxed", 5),
     ("CoverageBytesM.sol", "path-relaxed", 1),
     ("CoverageBytes.sol", "path-relaxed", 2),
+    ("CoverageString.sol", "path-relaxed", 2),
     ("CoverageStaticTuple.sol", "inst-tx", 5),
     ("CoverageNestedTuple.sol", "inst-tx", 5),
     ("CoverageNestedArrays1.sol", "inst-tx", 1),
