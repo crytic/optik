@@ -12,7 +12,7 @@ on:
 
 jobs:
 
-  build_project:
+  build_and_publish:
 
     runs-on: ubuntu-latest
     strategy:
@@ -36,11 +36,8 @@ jobs:
     - name: Build package
       run: |
         python -m build
-
-  upload_to_pypi:
-    runs-on: ubuntu-latest
-    steps:
-    - name: Upload packate to PyPI
+    # Upload package to PyPI (currently testPyPI)
+    - name: Upload package to PyPI
       uses: pypa/gh-action-pypi-publish@v1.5.0
       with:
         user: __token__
