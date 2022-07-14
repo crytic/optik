@@ -1,4 +1,4 @@
-name: Deploy Python package
+name: "Deploy Python package"
 
 on:
   # Run on official releases (bump minor or major version number)
@@ -18,12 +18,9 @@ jobs:
 
     steps:
       # Configure Python
-      - uses: actions/checkout@v3
-        with:
-          fetch-depth: 0
-          submodules: true
-      - name: Set up python
-        uses: actions/setup-python@v4
+      - uses: actions/checkout@v2
+      - name: "Set up python ${{ matrix.python-version }}"
+        uses: actions/setup-python@v2
         with:
           python-version: ${{ matrix.python-version }}
 
@@ -40,13 +37,13 @@ jobs:
 
 
   upload_to_pypi:
-    name: upload package to PyPI
+    - name: Upload package to PyPI
     runs-on: ubuntu-latest
     needs: [build_wheels_linux, build_wheels_macos]
 
     steps:
       
-      -name: "Upload"
+      -name: Upload
       uses: pypa/gh-action-pypi-publish@v1.4.2
       with:
         user: __token__
