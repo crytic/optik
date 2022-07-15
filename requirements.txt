@@ -1,0 +1,6 @@
+pymaat>=0.6.2
+eth_abi
+pysha3
+rlp
+crytic-compile
+solc-select
