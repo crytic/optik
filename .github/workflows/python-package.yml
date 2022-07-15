@@ -5,9 +5,8 @@ on:
   release:
     types:
       - published
-  push:
-    branches:
-      python-packaging
+
+  workflow_dispatch:
 
 
 jobs:
