@@ -12,7 +12,7 @@ on:
 
 jobs:
 
-  build_and_publish:
+  build_package:
 
     runs-on: ubuntu-latest
     strategy:
@@ -36,11 +36,31 @@ jobs:
     - name: Build package
       run: |
         python -m build
+
+    # Cache result
+    - name: Cache package for upload
+      uses: actions/upload-artifact@v2
+      with:
+        name: optik-dist
+        path: dist/
+    
+  pypi_publish:
+
+    runs-on: ubuntu-latest
+    needs: ['build_package']
+
+    # Grab package to upload
+    - name: Retrieve package
+      uses: actions/download-artifact@v2
+      with:
+        name: optik-dist
+        path: optik-dist/
     # Upload package to PyPI (currently testPyPI)
     - name: Upload package to PyPI
       uses: pypa/gh-action-pypi-publish@v1.5.0
       with:
         user: __token__
         password: ${{ secrets.PYPI_API_TOKEN }}
+        packages_dir: optik-dist/
         # upload to testpypi for now
         repository_url: https://test.pypi.org/simple/
