@@ -64,4 +64,4 @@ jobs:
         password: ${{ secrets.PYPI_API_TOKEN }}
         packages_dir: optik-dist/
         # upload to testpypi for now
-        repository_url: https://test.pypi.org/simple/
+        repository_url: https://test.pypi.org/legacy/
