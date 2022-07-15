@@ -43,5 +43,5 @@ jobs:
         pip3 install slither-analyzer
     - name: Run tests
       run: |
-        pip install -e .[tests]
+        pip install -e .[tests] -r requirements.txt
         python3 -m pytest tests/echidna
