@@ -45,10 +45,11 @@ jobs:
         path: dist/
     
   pypi_publish:
-
+    name: Upload package to PyPI
     runs-on: ubuntu-latest
     needs: ['build_package']
 
+    steps:
     # Grab package to upload
     - name: Retrieve package
       uses: actions/download-artifact@v2
