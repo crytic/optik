@@ -1,4 +1,4 @@
-pymatt>=0.6.2
+pymaat>=0.6.2
 eth_abi
 pysha3
 rlp
