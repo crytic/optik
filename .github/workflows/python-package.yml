@@ -1,4 +1,4 @@
-name: "Deploy Python package"
+name: "CD"
 
 on:
   # Run on official releases (bump minor or major version number)
@@ -61,7 +61,5 @@ jobs:
       uses: pypa/gh-action-pypi-publish@v1.5.0
       with:
         user: __token__
-        password: ${{ secrets.TEST_PYPI_API_TOKEN }}
+        password: ${{ secrets.PYPI_API_TOKEN }}
         packages_dir: optik-dist/
-        # upload to testpypi for now
-        repository_url: https://test.pypi.org/legacy/
