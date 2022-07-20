@@ -1,6 +1,11 @@
 [build-system]
+requires = ["setuptools"]
 build-backend = "setuptools.build_meta"
-requires = [
+
+[project]
+name = "optik"
+dynamic = ["version", "readme"]
+dependencies = [
     "setuptools>=45",
     "wheel",
     "pymaat>=0.6.2",
@@ -10,7 +15,15 @@ requires = [
     "crytic-compile",
     "solc-select"
 ]
+requires-python = ">=3.7"
+
+[tool.setuptools.dynamic]
+version = {file = "Version.txt"}
+readme = {file = ["README.md"]}
 
 [tool.black]
 target-version = ['py37']
 line-length = 80
+
+[project.scripts]
+"hybrid-echidna" = "optik.echidna.__main__:main"
