@@ -13,7 +13,7 @@ We plan on publishing a `PyPI` package for `pip` installation when Optik becomes
 For now you can install it by running:
 
 ```
-git clone https://github.com/trailofbits/optik && cd optik
+git clone https://github.com/crytic/optik && cd optik
 python3 -m pip install .
 ```
 
