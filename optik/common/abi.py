@@ -1,16 +1,12 @@
-from ctypes.wintypes import BYTE
-from maat import Cst, Concat, Extract, Value
+from maat import Cst, Concat, Extract, Sext, Value, Var, VarContext
 from .exceptions import ABIException
 import sha3
-from functools import reduce
 from itertools import accumulate
 from eth_abi.grammar import ABIType, BasicType, TupleType, parse, normalize
 from eth_abi.exceptions import ABITypeError, ParseError
 from typing import Tuple, List, Union, Any
 from .logger import logger
 from ..common.util import list_has_types
-from dataclasses import dataclass
-from maat import Sext, Var, VarContext
 
 # =========
 # Constants
