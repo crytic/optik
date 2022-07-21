@@ -1,24 +1,15 @@
 # Optik
-**WORK IN PROGRESS - do not use yet for real audits**
 
-**Optik** is a set of tools based on symbolic execution that provide
-assistance during smart-contract audits.
+**Optik** is a set of symbolic execution tools that assist smart contract fuzzers, letting them run in a _hybrid_ mode. Optik couples [Echidna](https://github.com/crytic/echidna), our smart contract fuzzer, with a symbolic executor that replays the fuzzing corpus and extends it with new inputs that increase coverage. Attained coverage is computed incrementally for the entire `hybrid-echidna` run, across multiple fuzzing campaign iterations.
 
-- [Installation](#installation)
-- [Hybrid Echidna](#hybrid-echidna)
+#### Current limitations
 
-## Installation
+Optik is a work in progress and should not be used for real audits yet. Current limitations include:
 
-We plan on publishing a `PyPI` package for `pip` installation when Optik becomes more stable.
-For now you can install it by running:
-
-```
-git clone https://github.com/crytic/optik && cd optik
-python3 -m pip install .
-```
-
-## Hybrid Echidna
-Optik allows to run the [Echidna](https://github.com/crytic/echidna) smart-contract fuzzer in _hybrid_ mode. It basically couples Echidna with a symbolic executor that replays the Echidna corpus and extends it with new inputs that increase coverage. Attained coverage is computed incrementally for the whole `hybrid-echidna` run, accross multiple fuzzing campaign iterations.
+- Can only run on a single solidity file
+- `CREATE2`, `CALLCODE`, and `DELEGATECALL` are not yet supported
+- Gas is not taken into account
+- Some echidna options are not yet supported (see `hybrid-echidna -h`)
 
 #### Usage
 
@@ -56,9 +47,12 @@ Hybrid echidna can be told to maximize different types of coverage with the `--c
 - `path-relaxed`: similar to `path` except that we don't try to reach paths that are sub-paths of bigger paths that we already covered. A given path `P1` is considered a _sub-path_ of path `P2` if all branches of `P1` appear in `P2` in the same order (but not necessarily contiguously). For example, **[3,1,2]** would be a sub-path of [4,**`3,1,2`**], but also of [**`3`**,4,**`1`**,3,**`2`**,4]. <br><br> 
    <i>While `path-relaxed` stays significantly more computational-heavy than instruction-based coverage modes, it is likely to generate less cases than `path`, while still providing good semantic coverage of the target</i>
 
-#### Current limitations
+## Installation
 
-- Can only run on a single solidity file
-- `CREATE2`, `CALLCODE`, and `DELEGATECALL` are not yet supported
-- Gas is not taken into account
-- Some echidna options are not yet supported (see `hybrid-echidna -h`)
+We plan on publishing a `PyPI` package for `pip` installation when Optik becomes more stable.
+For now you can install it by running:
+
+```
+git clone https://github.com/trailofbits/optik && cd optik
+python3 -m pip install .
+```
