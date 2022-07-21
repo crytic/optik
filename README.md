@@ -12,9 +12,18 @@ assistance during smart-contract audits.
 We plan on publishing a `PyPI` package for `pip` installation when Optik becomes more stable.
 For now you can install it by running:
 
-```
+```console
 git clone https://github.com/trailofbits/optik && cd optik
 python3 -m pip install .
+```
+
+or you can run it from Docker:
+
+```console
+git clone https://github.com/trailofbits/optik && cd optik
+docker build -t trailofbits/optik .
+docker run -it --rm --mount type=bind,source="$(pwd)",target=/workdir trailofbits/optik
+# This runs the Docker container, mounting the local directory into /workdir
 ```
 
 ## Hybrid Echidna
