@@ -11,7 +11,7 @@ Optik is a work in progress and should not be used for real audits yet. Current 
 - Gas is not taken into account
 - Some echidna options are not yet supported (see `hybrid-echidna -h`)
 
-#### Usage
+### Usage
 
 Hybrid echidna can be used seamlessly in place of regular Echidna by replacing `echidna-test` with `hybrid-echidna` in your Echidna command line. 
 For example: 
@@ -20,7 +20,7 @@ For example:
 hybrid-echidna MyContract.sol  --test-mode assertion --corpus-dir /tmp/test
 ```
 
-A couple additionnal options are available:
+Additionnal options are available in hybrid mode:
 
 - `--cov-mode`: type of coverage to increase when solving new inputs. This option has a significant impact on results and performance. The available modes are described in the next paragraph
 
@@ -39,7 +39,7 @@ Hybrid echidna can be told to maximize different types of coverage with the `--c
 
 - `inst`: reach code/instructions that have never been executed yet
 
-- `inst-sg`: reach new code/instructions while taking the contract's storage into consideration. If the same code can be reached with significant differences in the contents of the contract's storage, generate inputs for each case
+- `inst-sg`: reach new code/instructions while taking the contract's storage into consideration. If the same code can be reached with significant differences in the contents of the contract's storage, generate inputs for each case.
 
 - `path`: reach new execution paths. An execution path is the ordered list of all branches taken when running an input and that directly depend on the input. There is often a quasi-infinite number of possible paths for a contract, so using this coverage mode will generate much more inputs that instruction-base coverage modes. While solving many paths can become a performance bottleneck, it also allows to find deeper bugs in statefull contracts. <br><br>
   <i>We recommend using `path` with a reduced sequence length for fuzzing inputs. For example start with `--seq-len 10` and either increase the number of transactions if `hybrid-echidna` terminates quickly enough, or decrease it if it gets stuck on solving too many inputs</i>
