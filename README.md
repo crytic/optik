@@ -11,6 +11,14 @@ Optik is a work in progress and should not be used for real audits yet. Current 
 - Gas is not taken into account
 - Some echidna options are not yet supported (see `hybrid-echidna -h`)
 
+## Hybrid Echidna
+Optik allows to run the [Echidna](https://github.com/crytic/echidna) smart-contract 
+fuzzer in _hybrid_ mode. It basically couples Echidna with a symbolic executor that 
+replays the Echidna corpus and extends it with new inputs that increase coverage. 
+Attained coverage is computed incrementally for the whole `hybrid-echidna` run, accross 
+multiple fuzzing campaign iterations.
+
+
 ### Usage
 
 Hybrid echidna can be used seamlessly in place of regular Echidna by replacing `echidna-test` with `hybrid-echidna` in your Echidna command line. 
@@ -52,7 +60,16 @@ Hybrid echidna can be told to maximize different types of coverage with the `--c
 We plan on publishing a `PyPI` package for `pip` installation when Optik becomes more stable.
 For now you can install it by running:
 
-```
+```console
 git clone https://github.com/crytic/optik && cd optik
 python3 -m pip install .
+```
+
+or you can run it from Docker:
+
+```console
+git clone https://github.com/crytic/optik && cd optik
+docker build -t crytic/optik .
+docker run -it --rm --mount type=bind,source="$(pwd)",target=/workdir crytic/optik
+# This runs the Docker container, mounting the local directory into /workdir
 ```
