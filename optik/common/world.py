@@ -319,18 +319,19 @@ class EVMWorld:
                     TX_RES.STOP,
                     TX_RES.RETURN,
                 ]
-                returned: bool = info.exit_status.as_uint() == TX_RES.RETURN
-                caller_contract = None
+
                 # Set transaction result in potential caller contract
+                is_msg_call_return = False
                 if len(self.call_stack) >= 2:
-                    caller_contract = contract(
+                    caller = contract(
                         self.contracts[
                             self.call_stack[-2]
                         ].current_runtime.engine
                     )
-                    caller_contract.result_from_last_call = contract(
+                    caller.result_from_last_call = contract(
                         rt.engine
                     ).transaction.result
+                    is_msg_call_return = True
                 # Handle revert. WARNING: Once we revert the state, 'info' is
                 # no more valid, because it is restored as well
                 # Note: doing exit_status.as_uint() is safe here because
@@ -348,7 +349,13 @@ class EVMWorld:
                 # Delete the runtime
                 self.current_contract.pop_runtime()
 
-                if caller_contract:
+                # Handle call result in potential caller contract
+                if is_msg_call_return:
+                    caller_contract = contract(
+                        self.contracts[
+                            self.call_stack[-2]
+                        ].current_runtime.engine
+                    )
                     # Handle return of CALL/DELEGATECALL/CALLCODE
                     if caller_contract.outgoing_transaction.type in [
                         TX.CALL,
@@ -418,9 +425,8 @@ class EVMWorld:
 
         # Create a new runtime for the new contract because its init
         # code must run next
-        # TODO(boyan): is it OK to use out_tx here?!
         create_tx = AbstractTx(
-            out_tx,
+            out_tx.deepcopy(),
             self.current_tx.block_num_inc,
             self.current_tx.block_timestamp_inc,
             VarContext(),
@@ -478,9 +484,8 @@ class EVMWorld:
                 "but no contract deployed at this address"
             )
 
-        # TODO(boyan): is it OK to use out_tx here?!
         tx = AbstractTx(
-            out_tx,
+            out_tx.deepcopy(),
             self.current_tx.block_num_inc,
             self.current_tx.block_timestamp_inc,
             VarContext(),
