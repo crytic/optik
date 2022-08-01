@@ -6,7 +6,7 @@
 
 Optik is a work in progress and should not be used for real audits yet. Current limitations include:
 
-- Can only run on a single solidity file
+- Symbolic `KECCAK` hashes are not supported
 - `CREATE2`, `CALLCODE`, and `DELEGATECALL` are not yet supported
 - Gas is not taken into account
 - Some echidna options are not yet supported (see `hybrid-echidna -h`)
