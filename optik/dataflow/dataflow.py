@@ -69,9 +69,14 @@ class DataflowGraph:
 
 def ignore_func(func: Function) -> bool:
     """Returns True if the function must not be included in a
-    dataflow graph. For instance, we ignore constructors."""
-    # TODO(boyan): filter out non-public visibility
-    return func.name.startswith("constructor")
+    dataflow graph. This includes:
+        - constructors
+        - private or internal functions
+    """
+    return func.name.startswith("constructor") or func.visibility not in [
+        "public",
+        "external",
+    ]
 
 
 def get_base_dataflow_graph(
