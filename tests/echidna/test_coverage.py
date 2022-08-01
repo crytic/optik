@@ -1,8 +1,10 @@
 from .common import new_test_dir, CONTRACTS_DIR
 import pytest
 import os
-from typing import Optional
+from typing import Optional, Tuple
 from optik.echidna import run_hybrid_echidna
+from multiprocessing import Process
+from time import sleep
 
 COVERAGE_TARGET_MARKER = "test::coverage"
 
@@ -56,18 +58,42 @@ def test_coverage(contract: str, cov_mode: str, seq_len: int):
     contract_name = contract.stem
     # Run hybrid echidna
     cmdline_args = f"{contract}  --contract {contract_name} --test-mode assertion --corpus-dir {test_dir} --seq-len {seq_len} --seed 46541521 --max-iters 10 --test-limit 10000 --cov-mode {cov_mode} --debug ".split()
-    run_hybrid_echidna(cmdline_args)
-    # Check coverage
-    covered_file = get_coverage_file(test_dir)
-    assert (
-        not covered_file is None
-    ), f"Couldn't find coverage file in test dir {test_dir}"
+    # Run hybrid echidna in a separate
+    test_proc = Process(target=run_hybrid_echidna, args=(cmdline_args,))
+    test_proc.start()
+    # Detect early success in parent process
+    while test_proc.is_alive():
+        covered_file = get_coverage_file(test_dir)
+        if check_coverage_success(covered_file)[0]:
+            test_proc.terminate()
+            break
+        sleep(5)
+    # Final coverage check
+    assert check_coverage_success(get_coverage_file(test_dir))
+
+
+def check_coverage_success(covered_file: Optional[str]) -> Tuple[bool, str]:
+    """Check if a coverage test contract was succesfully covered.
+    Returns a tuple (success, error_msg)
+    """
+
+    if covered_file is None:
+        return (
+            False,
+            "No coverage file available",
+        )
+
     with open(covered_file, "r") as f:
         for i, line in enumerate(f.readlines()):
             if COVERAGE_TARGET_MARKER in line and not line[0] == "*":
-                assert (
-                    False
-                ), f"Failed to cover line {i+1}:\n|{''.join(line.split('|')[1:])}"
+                return (
+                    False,
+                    f"Failed to cover line {i+1}:\n|{''.join(line.split('|')[1:])}",
+                )
+        return (
+            True,
+            "",
+        )
 
 
 def get_coverage_file(
@@ -77,7 +103,10 @@ def get_coverage_file(
     in the 'test_dir' directory. Returns None if no such file exists"""
     # Get the first file after reverse sorting the filename list, so
     # that we get the latest coverage file (name with the bigger timestamp)
-    for filename in sorted(os.listdir(test_dir), reverse=True):
-        if filename.startswith("covered.") and filename.endswith(".txt"):
-            return os.path.join(test_dir, filename)
+    try:
+        for filename in sorted(os.listdir(test_dir), reverse=True):
+            if filename.startswith("covered.") and filename.endswith(".txt"):
+                return os.path.join(test_dir, filename)
+    except FileNotFoundError as e:
+        pass
     return None
