@@ -49,6 +49,11 @@ class EVMRuntime:
         if tx:
             # Load the var context of the transaction in the engine
             self.engine.vars.update_from(tx.ctx)
+            # DEBUG
+            self.engine.settings.log_insts = True
+            self.engine.settings.symptr_refine_range = False
+            self.engine.settings.symptr_limit_range = True
+            self.engine.settings.symptr_max_range = 200
             # Set transaction data in contract
             contract(self.engine).transaction = tx.tx
         self.init_state = self.engine.take_snapshot()
@@ -502,17 +507,18 @@ class EVMWorld:
         # if the terminating runtime was called with
         caller_contract.stack.push(Cst(256, 1 if succeeded else 0))
         # Write the return data in memory
-        if (
-            caller_contract.outgoing_transaction.ret_len.as_uint()
-            < caller_contract.result_from_last_call.return_data_size
-        ):
-            raise WorldException(
-                "Message call returned more bytes than the buffer-size allocated by the caller contract"
+        if succeeded:
+            if (
+                caller_contract.outgoing_transaction.ret_len.as_uint()
+                < caller_contract.result_from_last_call.return_data_size
+            ):
+                raise WorldException(
+                    "Message call returned more bytes than the buffer-size allocated by the caller contract"
+                )
+            caller_contract.memory.write_buffer(
+                caller_contract.outgoing_transaction.ret_offset,
+                caller_contract.result_from_last_call.return_data,
             )
-        caller_contract.memory.write_buffer(
-            caller_contract.outgoing_transaction.ret_offset,
-            caller_contract.result_from_last_call.return_data,
-        )
 
     def _update_block_info(self, m: MaatEngine, tx: AbstractTx) -> None:
         """Increase the block number and block timestamp when emulating

@@ -28,3 +28,4 @@ line-length = 80
 
 [project.scripts]
 "hybrid-echidna" = "optik.echidna.__main__:main"
+"feed-echidna" = "optik.corpus.__main__:main"
