@@ -1,7 +1,7 @@
 import argparse
 import sys
 
-from optik.dataflow.dataflow import get_base_dataflow_graph
+from optik.corpus.generator import CorpusGenerator
 from slither.slither import Slither
 from typing import List
 
@@ -11,8 +11,11 @@ def run_feed_echidna(args: List[str]) -> None:
 
     args = parse_arguments(args)
     slither = Slither(args.FILE)
-    df = get_base_dataflow_graph(args.contract, slither)
-    print(df)
+    gen = CorpusGenerator(args.contract, slither)
+    gen.init_tx_sequences()
+    gen.inc_depth()
+    gen.inc_depth()
+    print(gen)
 
 
 def parse_arguments(args: List[str]) -> argparse.Namespace:
