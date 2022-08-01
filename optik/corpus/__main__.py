@@ -1,7 +1,6 @@
 import argparse
 import sys
-
-from optik.corpus.generator import CorpusGenerator
+from optik.corpus.generator import EchidnaCorpusGenerator
 from slither.slither import Slither
 from typing import List
 
@@ -11,8 +10,8 @@ def run_feed_echidna(args: List[str]) -> None:
 
     args = parse_arguments(args)
     slither = Slither(args.FILE)
-    gen = CorpusGenerator(args.contract, slither)
-    gen.init_tx_sequences()
+    gen = EchidnaCorpusGenerator(args.contract, slither)
+    gen.generate_seed_corpus()
     gen.inc_depth()
     gen.inc_depth()
     print(gen)

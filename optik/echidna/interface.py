@@ -131,6 +131,28 @@ def translate_argument(arg: Dict) -> Tuple[str, Union[bytes, int, Value]]:
     )
 
 
+def extract_func_from_call(call: Dict) -> Tuple[str, str, List]:
+    """Extract function name, argument spec, and values
+
+    :param call: Call from Echidna transaction
+    """
+    if call["tag"] != "SolCall":
+        raise EchidnaException(f"Unsupported transaction type: '{call['tag']}'")
+
+    arg_types = []
+    arg_values = []
+    func_name: str = call["contents"][0]
+    if len(call["contents"]) > 1:
+        for arg in call["contents"][1]:
+            t, val = translate_argument(arg)
+            arg_types.append(t)
+            arg_values.append(val)
+
+    args_spec = f"({','.join(arg_types)})"
+
+    return func_name, args_spec, arg_values
+
+
 def load_tx(tx: Dict, tx_name: str = "") -> AbstractTx:
     """Translates a parsed echidna transaction into a Maat transaction
 
@@ -138,25 +160,9 @@ def load_tx(tx: Dict, tx_name: str = "") -> AbstractTx:
     :param tx_name: Optional name identifying this transaction, used to
         name symbolic variables created to fill the transaction data
     """
-    # Translate function call and argument types and values
-    call = tx["_call"]
-    if call["tag"] != "SolCall":
-        raise EchidnaException(f"Unsupported transaction type: '{call['tag']}'")
-
-    arg_types = []
-    arg_values = []
-    func_name = call["contents"][0]
-    if len(call["contents"]) > 1:
-        for arg in call["contents"][1]:
-            t, val = translate_argument(arg)
-            arg_types.append(t)
-            arg_values.append(val)
-
-    func_signature = f"({','.join(arg_types)})"
+    func_name, args_spec, arg_values = extract_func_from_call(tx["_call"])
     ctx = VarContext()
-    call_data = function_call(
-        func_name, func_signature, ctx, tx_name, *arg_values
-    )
+    call_data = function_call(func_name, args_spec, ctx, tx_name, *arg_values)
 
     # Translate block number/timestamp increments
     block_num_inc = Var(256, f"{tx_name}_block_num_inc")

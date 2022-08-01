@@ -73,7 +73,7 @@ def ignore_func(func: Function) -> bool:
         - constructors
         - private or internal functions
     """
-    return func.name.startswith("constructor") or func.visibility not in [
+    return func.is_constructor or func.visibility not in [
         "public",
         "external",
     ]
