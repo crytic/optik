@@ -77,9 +77,6 @@ class CorpusGenerator:
 class EchidnaCorpusGenerator(CorpusGenerator):
     """Corpus generator for Echidna"""
 
-    def __init__(self):
-        super().__init__(self)
-
     def init_func_template_mapping(self, corpus_dir: str) -> None:
         """Initialize the mapping between functions and their JSON
         serialized Echidna transaction data. This needs to be called
@@ -119,7 +116,7 @@ class EchidnaCorpusGenerator(CorpusGenerator):
                 )
 
         new_file = get_available_filename(
-            f"{os.path.dirname(corpus_dir)}/{SEED_CORPUS_PREFIX}", ".txt"
+            f"{corpus_dir}/{SEED_CORPUS_PREFIX}", ".txt"
         )
         # Write seed input in corpus
         with open(new_file, "w") as f:
