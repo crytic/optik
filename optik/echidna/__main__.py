@@ -292,7 +292,7 @@ def parse_arguments(args: List[str]) -> argparse.Namespace:
             "inst-sg",
             "inst-inc",
         ],
-        default="inst-tx",
+        default="inst-inc",
         # metavar="MODE",
     )
 
