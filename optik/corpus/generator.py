@@ -12,31 +12,33 @@ from ..dataflow.dataflow import (
     DataflowNode,
     get_base_dataflow_graph,
 )
-import itertools
+
 from ..common.exceptions import CorpusException
 from ..common.logger import logger
 
 # Prefix for files containing seed corpus
 SEED_CORPUS_PREFIX: Final[str] = "optik_corpus"
 
-
-def all_combinations(choices: Set[Any]) -> List[List[Any]]:
-    res = [
-        list(x)
-        for r in range(1, len(choices) + 1)
-        for x in itertools.combinations(choices, r)
-    ]
-    return res
+# TODO: remove?
+# import itertools
+# def all_combinations(choices: Set[Any]) -> List[List[Any]]:
+#     res = [
+#         list(x)
+#         for r in range(1, len(choices) + 1)
+#         for x in itertools.combinations(choices, r)
+#     ]
+#     return res
 
 
 class CorpusGenerator:
-    """TODO"""
+    """Abstract class for fuzzing corpus generation based on dataflow analysis
+    with slither"""
 
     def __init__(self, contract_name: str, slither: SlitherCore):
         self.dataflow_graph: DataflowGraph = get_base_dataflow_graph(
             contract_name, slither
         )
-        self.func_template_mapping: Dict = {}  # TODO(boyan): type hint
+        self.func_template_mapping: Dict[str, DataflowNode] = {}
         self.current_tx_sequences: List[List[DataflowNode]] = []
         # Initialize basic set of 1-tx sequences
         self._init()
@@ -46,19 +48,24 @@ class CorpusGenerator:
         self.current_tx_sequences = [[n] for n in self.dataflow_graph.nodes]
 
     @property
-    def current_max_seq_len(self):
-        return max([0] + [len(seq) for seq in self.current_tx_sequences])
+    def current_seq_len(self):
+        return (
+            0
+            if not self.current_tx_sequences
+            else len(self.current_tx_sequences[0])
+        )
 
     def step(self) -> None:
-        """Add one dataflow step to the current transaction sequences. This
-        might increase the sequences lengthes by several transactions at a time,
-        if the sequence head can be impacted by multiple other functions"""
+        """Update the current transaction sequences by prepending one call
+        to all sequences. If multiple calls impact a sequence, create as many
+        new sequences as there are such calls"""
         new_tx_sequences = []
         for tx_seq in self.current_tx_sequences:
+            # Get all txs that can impact this sequence
+            impacts_seq = set().union(*[n.parents for n in tx_seq])
             func = tx_seq[0]
-            new_tx_sequences += [
-                pref + tx_seq for pref in all_combinations(func.parents)
-            ]
+            # Prepend impacting tx(s) to sequence
+            new_tx_sequences += [[prev] + tx_seq for prev in impacts_seq]
         self.current_tx_sequences = new_tx_sequences
 
     def dump_tx_sequences(self, corpus_dir: str) -> None:

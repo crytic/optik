@@ -17,6 +17,7 @@ from maat import (
 )
 from typing import List, Optional, Tuple
 import os
+from ..corpus.generator import SEED_CORPUS_PREFIX
 
 
 # TODO(boyan): pass contract bytecode instead of extracting to file
@@ -111,7 +112,14 @@ def generate_new_inputs(
     success_cnt = 0
     for i, bif in enumerate(cov.bifurcations):
         # Don't solve identical bifurcations if one was solved already
-        if bif not in unique_bifurcations:
+        # and if it's not a custom corpus seed. For custom corpus seeds we
+        # still want to solve all bifurcations because all of them should
+        # be "meaningfull"
+        input_file = os.path.basename(bif.input_uid)
+        if (
+            not input_file.startswith(SEED_CORPUS_PREFIX)
+            and bif not in unique_bifurcations
+        ):
             continue
 
         logger.info(f"Solving {i+1} of {count} ({round((i/count)*100, 2)}%)")
@@ -130,7 +138,8 @@ def generate_new_inputs(
 
         if s.check():
             success_cnt += 1
-            unique_bifurcations.remove(bif)
+            if bif in unique_bifurcations:
+                unique_bifurcations.remove(bif)
             model = s.get_model()
             # Serialize the new input discovered
             store_new_tx_sequence(bif.input_uid, model)

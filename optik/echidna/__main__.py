@@ -17,6 +17,7 @@ from slither.slither import Slither
 from ..common.logger import logger, handler
 import logging
 from typing import List, Set
+from ..corpus.generator import EchidnaCorpusGenerator
 
 
 def run_hybrid_echidna(args: List[str]) -> None:
@@ -64,13 +65,12 @@ def run_hybrid_echidna(args: List[str]) -> None:
     seen_files = set()
 
     iter_cnt = 0
-    while (
-        args.max_iters is None or iter_cnt < args.max_iters
-    ) and args.seq_len <= max_seq_len:
+    while args.max_iters is None or iter_cnt < args.max_iters:
         iter_cnt += 1
 
         # If incremental seeding, start with low seq_len and
         # manually increment it at each step
+        new_seeds_cnt = 0
         if do_incremental_seeding:
             if iter_cnt == 1:
                 # FIXME: No corpus generation at first iteration because the corpus
@@ -79,14 +79,15 @@ def run_hybrid_echidna(args: List[str]) -> None:
                 # This would not be necessary if we had a python API
                 # to generate JSON echidna inputs
                 args.seq_len = 1
-            else:
+            elif args.seq_len < max_seq_len:
                 # TODO(boyan): we increment linearly here but we could also
                 # update the seq_len with a quadratic/exponential law
-                # Maybe do MIN(seq_len**2, current_max_seq_len) ??
-                args.seq_len = max(args.seq_len + 1, gen.current_max_seq_len)
-                if gen.current_tx_sequences:
+                args.seq_len += 1
+                gen.step()
+                new_seeds_cnt = len(gen.current_tx_sequences)
+                if new_seeds_cnt:
                     logger.info(
-                        f"Seeding corpus with {len(gen.current_tx_sequences)} new sequences from dataflow analysis"
+                        f"Seeding corpus with {new_seeds_cnt} new sequences from dataflow analysis"
                     )
                     gen.dump_tx_sequences(coverage_dir)
 
@@ -140,13 +141,14 @@ def run_hybrid_echidna(args: List[str]) -> None:
         else:
             logger.info(f"Couldn't generate more inputs")
 
-        # Seed the corpus with more inputs in incremental mode
-        if do_incremental_seeding:
-            gen.step()
-        elif new_inputs_cnt == 0:
-            # No incremental seeding and no more inputs found, we can stop here
+        # If corpus generator didn't have more interesting seeds
+        # and no new input, we finish here
+        if (
+            new_inputs_cnt == 0
+            and new_seeds_cnt == 0
+            and args.seq_len >= max_seq_len
+        ):
             break
-        # TODO if no new seeds and no new inputs exit
 
     logger.info(f"Corpus and coverage info written in {args.corpus_dir}")
     return

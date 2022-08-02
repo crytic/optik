@@ -49,11 +49,6 @@ class EVMRuntime:
         if tx:
             # Load the var context of the transaction in the engine
             self.engine.vars.update_from(tx.ctx)
-            # DEBUG
-            self.engine.settings.log_insts = True
-            self.engine.settings.symptr_refine_range = False
-            self.engine.settings.symptr_limit_range = True
-            self.engine.settings.symptr_max_range = 200
             # Set transaction data in contract
             contract(self.engine).transaction = tx.tx
         self.init_state = self.engine.take_snapshot()
