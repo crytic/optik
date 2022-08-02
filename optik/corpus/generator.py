@@ -13,9 +13,10 @@ from optik.dataflow.dataflow import (
     get_base_dataflow_graph,
 )
 import itertools
+from optik.common.exceptions import CorpusException
 
 # Prefix for files containing seed corpus
-SEED_CORPUS_PREFIX: Final[str] = "optik_seed_corpus"
+SEED_CORPUS_PREFIX: Final[str] = "optik_corpus"
 
 
 def all_combinations(choices: Set[Any]) -> List[List[Any]]:
@@ -37,13 +38,17 @@ class CorpusGenerator:
         )
         self.func_template_mapping: Dict = {}  # TODO(boyan): type hint
         self.current_tx_sequences: List[List[DataflowNode]] = []
+        # Initialize basic set of 1-tx sequences
+        self._init()
 
-    def init_tx_sequences(self) -> None:
+    def _init(self) -> None:
         """Create initial set of sequences of 1 transaction each"""
         self.current_tx_sequences = [[n] for n in self.dataflow_graph.nodes]
 
-    def inc_depth(self) -> None:
-        """Add one transaction to the current transaction sequences"""
+    def step(self) -> None:
+        """Add one dataflow step to the current transaction sequences. This
+        might increase the sequences lengthes by several transactions at a time,
+        if the sequence head can be impacted by multiple other functions"""
         new_tx_sequences = []
         for tx_seq in self.current_tx_sequences:
             func = tx_seq[0]
@@ -51,6 +56,10 @@ class CorpusGenerator:
                 pref + tx_seq for pref in all_combinations(func.parents)
             ]
         self.current_tx_sequences = new_tx_sequences
+
+    def dump_tx_sequences(self, corpus_dir: str) -> None:
+        """Dump the current dataflow tx sequences in new corpus input files"""
+        raise NotImplementedError()
 
     def __str__(self):
         res = f"Dataflow graph:\n {self.dataflow_graph}"
@@ -69,7 +78,8 @@ class CorpusGenerator:
 class EchidnaCorpusGenerator(CorpusGenerator):
     def init_func_template_mapping(self, corpus_dir: str) -> None:
         """Initialize the mapping between functions and their JSON
-        serialized Echidna transaction data
+        serialized Echidna transaction data. This needs to be called
+        before we can dump tx sequences into new inputs
 
         :param corpus_dir: Corpus directory
         """
@@ -86,36 +96,32 @@ class EchidnaCorpusGenerator(CorpusGenerator):
                         continue
                     self.func_template_mapping[func_prototype] = tx
 
-    def write_tx_seqs_to_corupus(
-        self, sequence: List[List[DataflowNode]], corpus_dir: str
-    ):
+    def _dump_tx_sequence(
+        self, seq: List[DataflowNode], corpus_dir: str
+    ) -> None:
         """Write list of transaction sequences to corpus in Echidna's format
 
-        :param sequence: List of sequential data flow nodes
-        :param corpus_dir: Corpus directory
+        :param sequence: List of sequential data flow nodes (functions)
+        :param corpus_dir: Corpus directory where to write new inputs
         """
-        for seq in sequence:
-            seed = []
-            # Retrieve Echidna tx for each function
-            for node in seq:
-                print(node.func.full_name)
-                seed.append(
-                    self.func_template_mapping[node.func.full_name]
-                )  # (TODO) KeyError
+        seed = []
+        # Retrieve Echidna tx for each function
+        for node in seq:
+            try:
+                seed.append(self.func_template_mapping[node.func.full_name])
+            except KeyError:
+                raise CorpusException(
+                    f"No template for function {node.func.full_name}"
+                )
 
-            new_file = get_available_filename(
-                f"{os.path.dirname(corpus_dir)}/{SEED_CORPUS_PREFIX}", ".txt"
-            )
-            # Write seed corpus
-            with open(new_file, "w") as f:
-                json.dump(seed, f)
-
-    def generate_seed_corpus(self) -> None:
-        """Load Echidna transactions, find dataflow relations,
-        write new sequences to corpus
-        """
-        self.init_func_template_mapping("corpus/coverage/")
-        self.init_tx_sequences()
-        self.write_tx_seqs_to_corupus(
-            self.current_tx_sequences, "corpus/coverage/"
+        new_file = get_available_filename(
+            f"{os.path.dirname(corpus_dir)}/{SEED_CORPUS_PREFIX}", ".txt"
         )
+        # Write seed input in corpus
+        with open(new_file, "w") as f:
+            json.dump(seed, f)
+
+    def dump_tx_sequences(self, corpus_dir: str) -> None:
+        """Dump the current dataflow tx sequences in new corpus input files"""
+        for seq in self.current_tx_sequences:
+            self._dump_tx_sequence(seq, corpus_dir)

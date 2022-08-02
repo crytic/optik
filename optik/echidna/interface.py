@@ -132,12 +132,13 @@ def translate_argument(arg: Dict) -> Tuple[str, Union[bytes, int, Value]]:
 
 
 def extract_func_from_call(call: Dict) -> Tuple[str, str, List]:
-    """Extract function name, argument spec, and values
+    """Extract function name, argument spec, and values, from a JSON
+    serialized Echidna transaction
 
     :param call: Call from Echidna transaction
     """
     if call["tag"] != "SolCall":
-        raise EchidnaException(f"Unsupported transaction type: '{call['tag']}'")
+        raise EchidnaException(f"Unsupported transaction tag: '{call['tag']}'")
 
     arg_types = []
     arg_values = []
