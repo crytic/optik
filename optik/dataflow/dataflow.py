@@ -2,7 +2,7 @@ from slither.slither import Slither, SlitherCore
 from slither.core.declarations.function import Function
 from slither.printers.guidance.echidna import _extract_function_relations
 from typing import List, Optional
-from optik.common.exceptions import DataflowException
+from ..common.exceptions import DataflowException
 
 
 class DataflowNode:

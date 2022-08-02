@@ -1,8 +1,10 @@
 import argparse
 import sys
-from optik.corpus.generator import EchidnaCorpusGenerator
+from .generator import EchidnaCorpusGenerator
 from slither.slither import Slither
 from typing import List
+from ..common.logger import logger
+from ..common.exceptions import CorpusException
 
 
 def run_feed_echidna(args: List[str]) -> None:
@@ -11,10 +13,20 @@ def run_feed_echidna(args: List[str]) -> None:
     args = parse_arguments(args)
     slither = Slither(args.FILE)
     gen = EchidnaCorpusGenerator(args.contract, slither)
+    logger.info(f"Getting transaction templates from {args.corpus_dir}...")
     gen.init_func_template_mapping(args.corpus_dir)
-    for _ in range(args.depth - 1):
-        gen.step()
-        gen.dump_tx_sequences(args.corpus_dir)
+    new_inputs_cnt = 0
+    try:
+        for _ in range(args.depth - 1):
+            gen.step()
+            new_inputs_cnt += len(gen.current_tx_sequences)
+            gen.dump_tx_sequences(args.corpus_dir)
+    except CorpusException as e:
+        logger.error(f"Error generating new seeds: {str(e)}")
+
+    logger.info(
+        f"Generated {new_inputs_cnt} transaction sequences in {args.corpus_dir}"
+    )
 
 
 def parse_arguments(args: List[str]) -> argparse.Namespace:

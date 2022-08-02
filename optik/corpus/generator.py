@@ -2,18 +2,19 @@ import os
 import json
 from typing import Any, List, Set, Dict, Final
 from slither.slither import SlitherCore
-from optik.common.abi import func_signature
-from optik.echidna.interface import (
+from ..common.abi import func_signature
+from ..echidna.interface import (
     extract_func_from_call,
     get_available_filename,
 )
-from optik.dataflow.dataflow import (
+from ..dataflow.dataflow import (
     DataflowGraph,
     DataflowNode,
     get_base_dataflow_graph,
 )
 import itertools
-from optik.common.exceptions import CorpusException
+from ..common.exceptions import CorpusException
+from ..common.logger import logger
 
 # Prefix for files containing seed corpus
 SEED_CORPUS_PREFIX: Final[str] = "optik_corpus"
@@ -123,6 +124,7 @@ class EchidnaCorpusGenerator(CorpusGenerator):
             f"{corpus_dir}/{SEED_CORPUS_PREFIX}", ".txt"
         )
         # Write seed input in corpus
+        logger.debug(f"Adding new corpus seed in {new_file}")
         with open(new_file, "w") as f:
             json.dump(seed, f)
 

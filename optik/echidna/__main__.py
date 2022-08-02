@@ -15,7 +15,6 @@ from ..coverage import (
 )
 from slither.slither import Slither
 from ..common.logger import logger, handler
-from ..corpus import EchidnaCorpusGenerator
 import logging
 from typing import List, Set
 
@@ -147,6 +146,7 @@ def run_hybrid_echidna(args: List[str]) -> None:
         elif new_inputs_cnt == 0:
             # No incremental seeding and no more inputs found, we can stop here
             break
+        # TODO if no new seeds and no new inputs exit
 
     logger.info(f"Corpus and coverage info written in {args.corpus_dir}")
     return
