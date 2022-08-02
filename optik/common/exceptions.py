@@ -34,3 +34,9 @@ class CorpusException(GenericException):
     """Exception for errors during corpus generation"""
 
     pass
+
+
+class DataflowException(GenericException):
+    """Exception for errors during dataflow analysis"""
+
+    pass

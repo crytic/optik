@@ -28,7 +28,6 @@ def all_combinations(choices: Set[Any]) -> List[List[Any]]:
     return res
 
 
-# TODO make this abstract
 class CorpusGenerator:
     """TODO"""
 
@@ -62,7 +61,7 @@ class CorpusGenerator:
         raise NotImplementedError()
 
     def __str__(self):
-        res = f"Dataflow graph:\n {self.dataflow_graph}"
+        res = f"Dataflow graph:\n {self.dataflow_graph}\n"
 
         res += "Current tx sequences:\n"
         for i, tx_seq in enumerate(self.current_tx_sequences):
@@ -76,6 +75,11 @@ class CorpusGenerator:
 
 
 class EchidnaCorpusGenerator(CorpusGenerator):
+    """Corpus generator for Echidna"""
+
+    def __init__(self):
+        super().__init__(self)
+
     def init_func_template_mapping(self, corpus_dir: str) -> None:
         """Initialize the mapping between functions and their JSON
         serialized Echidna transaction data. This needs to be called

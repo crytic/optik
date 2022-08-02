@@ -11,10 +11,10 @@ def run_feed_echidna(args: List[str]) -> None:
     args = parse_arguments(args)
     slither = Slither(args.FILE)
     gen = EchidnaCorpusGenerator(args.contract, slither)
-    gen.generate_seed_corpus()
-    gen.inc_depth()
-    gen.inc_depth()
-    print(gen)
+    gen.init_func_template_mapping(args.corpus_dir)
+    for _ in range(args.depth - 1):
+        gen.step()
+        gen.dump_tx_sequences(args.corpus_dir)
 
 
 def parse_arguments(args: List[str]) -> argparse.Namespace:
@@ -25,6 +25,12 @@ def parse_arguments(args: List[str]) -> argparse.Namespace:
         formatter_class=argparse.ArgumentDefaultsHelpFormatter,
     )
 
+    def auto_pos_int(x):
+        res = int(x, 0)
+        if res <= 0:
+            raise argparse.ArgumentTypeError("Depth must be strictly positive")
+        return res
+
     parser.add_argument("FILE", type=str, help="Solidity file to analyze")
 
     parser.add_argument(
@@ -32,6 +38,22 @@ def parse_arguments(args: List[str]) -> argparse.Namespace:
         type=str,
         help="Contract to analyze",
         metavar="CONTRACT",
+        required=True,
+    )
+
+    parser.add_argument(
+        "--corpus-dir",
+        type=str,
+        help="Corpus directory with transaction samples for this contract",
+        metavar="PATH",
+        required=True,
+    )
+
+    parser.add_argument(
+        "--depth",
+        type=auto_pos_int,
+        help="Dataflow depth for tx sequence generation. The bigger depth the longer inputs",
+        metavar="INTEGER",
         required=True,
     )
 

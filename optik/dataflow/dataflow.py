@@ -2,6 +2,7 @@ from slither.slither import Slither, SlitherCore
 from slither.core.declarations.function import Function
 from slither.printers.guidance.echidna import _extract_function_relations
 from typing import List, Optional
+from optik.common.exceptions import DataflowException
 
 
 class DataflowNode:
@@ -93,7 +94,12 @@ def get_base_dataflow_graph(
     rels = rels[contract_name]  # TODO KeyError
 
     contracts = slither.get_contract_from_name(contract_name)
-    assert len(contracts) == 1
+    if len(contracts) > 1:
+        raise DataflowException(
+            f"More than one contract named '{contract_name}'"
+        )
+    elif not contracts:
+        raise DataflowException(f"No contract named '{contract_name}'")
     contract = contracts[0]
 
     # Add functions to the dataflow graph
