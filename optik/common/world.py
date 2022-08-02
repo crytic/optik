@@ -534,13 +534,13 @@ class EVMWorld:
         # TODO(boyan): Should we add constraints to force time increments to
         # be within certain bounds?
 
-    def attach_monitor(self, monitor: WorldMonitor, *args) -> None:
+    def attach_monitor(self, monitor: WorldMonitor, *args, **kwargs) -> None:
         """Attach a WorldMonitor"""
         if monitor in self.monitors:
             raise WorldException("Monitor already attached")
         self.monitors.append(monitor)
         monitor.world = self
-        monitor.on_attach(*args)
+        monitor.on_attach(*args, **kwargs)
 
     def detach_monitor(self, monitor: WorldMonitor) -> None:
         """Detach a WorldMonitor"""

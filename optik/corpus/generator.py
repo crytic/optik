@@ -44,6 +44,10 @@ class CorpusGenerator:
         """Create initial set of sequences of 1 transaction each"""
         self.current_tx_sequences = [[n] for n in self.dataflow_graph.nodes]
 
+    @property
+    def current_max_seq_len(self):
+        return max([0] + [len(seq) for seq in self.current_tx_sequences])
+
     def step(self) -> None:
         """Add one dataflow step to the current transaction sequences. This
         might increase the sequences lengthes by several transactions at a time,

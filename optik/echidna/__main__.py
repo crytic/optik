@@ -7,12 +7,15 @@ from .runner import replay_inputs, generate_new_inputs, run_echidna_campaign
 from .interface import extract_contract_bytecode
 from ..coverage import (
     InstCoverage,
+    InstIncCoverage,
     InstTxCoverage,
     InstSgCoverage,
     PathCoverage,
     RelaxedPathCoverage,
 )
+from slither.slither import Slither
 from ..common.logger import logger, handler
+from ..corpus import EchidnaCorpusGenerator
 import logging
 from typing import List, Set
 
@@ -21,6 +24,7 @@ def run_hybrid_echidna(args: List[str]) -> None:
     """Main hybrid echidna script"""
 
     args = parse_arguments(args)
+    max_seq_len = args.seq_len
     try:
         deployer = int(args.deployer, 16)
     except:
@@ -46,14 +50,46 @@ def run_hybrid_echidna(args: List[str]) -> None:
         cov = RelaxedPathCoverage()
     elif args.cov_mode == "inst-sg":
         cov = InstSgCoverage()
+    elif args.cov_mode == "inst-inc":
+        cov = InstIncCoverage()
     else:
         raise GenericException(f"Unsupported coverage mode: {args.cov_mode}")
+
+    # Incremental seeding with feed-echidna
+    do_incremental_seeding = not args.no_incremental
+    if do_incremental_seeding:
+        slither = Slither(args.FILES[0])
+        gen = EchidnaCorpusGenerator(args.contract, slither)
+
     # Set of corpus files we have already processed
     seen_files = set()
 
     iter_cnt = 0
-    while args.max_iters is None or iter_cnt < args.max_iters:
+    while (
+        args.max_iters is None or iter_cnt < args.max_iters
+    ) and args.seq_len <= max_seq_len:
         iter_cnt += 1
+
+        # If incremental seeding, start with low seq_len and
+        # manually increment it at each step
+        if do_incremental_seeding:
+            if iter_cnt == 1:
+                # FIXME: No corpus generation at first iteration because the corpus
+                # generator needs real corpus files to use as templates for
+                # generating arbitrary tx sequences in new corpus files...
+                # This would not be necessary if we had a python API
+                # to generate JSON echidna inputs
+                args.seq_len = 1
+            else:
+                # TODO(boyan): we increment linearly here but we could also
+                # update the seq_len with a quadratic/exponential law
+                # Maybe do MIN(seq_len**2, current_max_seq_len) ??
+                args.seq_len = max(args.seq_len + 1, gen.current_max_seq_len)
+                if gen.current_tx_sequences:
+                    logger.info(
+                        f"Seeding corpus with {len(gen.current_tx_sequences)} new sequences from dataflow analysis"
+                    )
+                    gen.dump_tx_sequences(coverage_dir)
 
         # Run echidna fuzzing campaign
         logger.info(f"Running echidna campaign #{iter_cnt} ...")
@@ -79,6 +115,11 @@ def run_hybrid_echidna(args: List[str]) -> None:
                 logger.fatal("Failed to extract contract bytecode")
                 return
 
+            # Initialize corpus generator
+            if do_incremental_seeding:
+                # TODO(boyan): catch errors
+                gen.init_func_template_mapping(coverage_dir)
+
         # Replay new corpus inputs symbolically
         new_inputs = pull_new_corpus_files(coverage_dir, seen_files)
         if new_inputs:
@@ -95,15 +136,20 @@ def run_hybrid_echidna(args: List[str]) -> None:
         new_inputs_cnt, timeout_cnt = generate_new_inputs(cov, args)
         if timeout_cnt > 0:
             logger.warning(f"Timed out on {timeout_cnt} cases")
-
         if new_inputs_cnt > 0:
             logger.info(f"Generated {new_inputs_cnt} new inputs")
         else:
             logger.info(f"Couldn't generate more inputs")
-            logger.info(
-                f"Corpus and coverage info written in {args.corpus_dir}"
-            )
-            return
+
+        # Seed the corpus with more inputs in incremental mode
+        if do_incremental_seeding:
+            gen.step()
+        elif new_inputs_cnt == 0:
+            # No incremental seeding and no more inputs found, we can stop here
+            break
+
+    logger.info(f"Corpus and coverage info written in {args.corpus_dir}")
+    return
 
 
 def pull_new_corpus_files(cov_dir: str, seen_files: Set[str]) -> List[str]:
@@ -143,6 +189,7 @@ def parse_arguments(args: List[str]) -> argparse.Namespace:
         type=str,
         help="Contract to analyze",
         metavar="CONTRACT",
+        required=True,
     )
 
     parser.add_argument(
@@ -166,13 +213,13 @@ def parse_arguments(args: List[str]) -> argparse.Namespace:
             "exploration",
         ],
         default="assertion",
-        metavar="MODE",
+        # metavar="MODE",
     )
 
     parser.add_argument(
         "--seq-len",
         type=int,
-        help="Number of transactions to generate during testing",
+        help="Maximal length for sequences of transactions to generate during testing. If '--no-incremental' is used, all sequences will have exactly this length",
         default=100,
         metavar="INTEGER",
     )
@@ -237,9 +284,16 @@ def parse_arguments(args: List[str]) -> argparse.Namespace:
         "--cov-mode",
         type=str,
         help="Coverage mode to use",
-        choices=["inst", "inst-tx", "path", "path-relaxed", "inst-sg"],
+        choices=[
+            "inst",
+            "inst-tx",
+            "path",
+            "path-relaxed",
+            "inst-sg",
+            "inst-inc",
+        ],
         default="inst-tx",
-        metavar="MODE",
+        # metavar="MODE",
     )
 
     parser.add_argument(
@@ -248,6 +302,12 @@ def parse_arguments(args: List[str]) -> argparse.Namespace:
         help="Maximum solving time (in ms) to spend per potential new input",
         default=None,
         metavar="MILLISECONDS",
+    )
+
+    parser.add_argument(
+        "--no-incremental",
+        action="store_true",
+        help="Disable incremental corpus seeding with 'feed-echidna' and only generate transaction sequences of length '--seq-len'",
     )
 
     parser.add_argument("--debug", action="store_true", help="Print debug logs")

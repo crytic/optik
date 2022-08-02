@@ -106,3 +106,41 @@ class InstSgCoverage(InstCoverage):
                 ]
             ),
         )
+
+
+@dataclass(eq=True, frozen=True)
+class InstIncCoverageState(InstCoverageState):
+    tx_num: int
+    total_tx_cnt: int
+
+
+class InstIncCoverage(InstCoverage):
+    """Track instruction coverage for a smart contract code, with
+    transaction number AND total number of transactions sensitivity.
+    This means that reaching instruction
+    123 during transaction 0 is considered different than reaching
+    instruction 123 during transaction 1, or 2, ... and that reaching
+    instruction 123 in a sequence of 3 transactions is different than reaching
+    instruction 123 in a sequence of 4 transactions.
+    This mode is used for the incremental mode of hybrid-echidna + feed-echidna
+    """
+
+    HOOK_ID = "__inst_inc_coverage"
+
+    def __init__(self):
+        super().__init__()
+        self.total_tx_cnt = None
+
+    def get_state(self, inst_addr: int, **kwargs) -> InstIncCoverageState:
+        return InstIncCoverageState(
+            self.world.current_contract.address,
+            self.world.current_contract.initialized,
+            inst_addr,
+            self.world.current_tx_num,
+            self.total_tx_cnt,
+        )
+
+    # WorldMonitor interface
+    def on_attach(self, address: int, total_tx_cnt: int, **kwargs) -> None:
+        super().on_attach(address)
+        self.total_tx_cnt = total_tx_cnt

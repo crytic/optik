@@ -59,7 +59,7 @@ def replay_inputs(
             contract_deployer,
             run_init_bytecode=False,
         )
-        world.attach_monitor(cov, contract_addr)
+        world.attach_monitor(cov, contract_addr, total_tx_cnt=len(tx_seq))
 
         # Prepare to run transaction
         world.push_transactions(tx_seq)
@@ -169,6 +169,7 @@ def run_echidna_campaign(
                 "cov_mode",
                 "sender",
                 "solver_timeout",
+                "no_incremental",
             ]
             and not val is None
         ):

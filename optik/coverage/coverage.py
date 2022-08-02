@@ -160,7 +160,7 @@ class Coverage(WorldMonitor):
         cov.record_branch(m)
 
     #### WorldMonitor interface
-    def on_attach(self, address: int) -> None:
+    def on_attach(self, address: int, **kwargs) -> None:
         """WorldMonitor interface callback to start tracking a contract"""
         for contract in self.world.contracts.values():
             for rt in contract.runtime_stack:
