@@ -14,7 +14,8 @@ dependencies = [
     "rlp",
     "crytic-compile",
     "slither-analyzer",
-    "solc-select"
+    "solc-select",
+    "curses"
 ]
 requires-python = ">=3.7"
 
