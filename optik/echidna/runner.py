@@ -29,9 +29,16 @@ def replay_inputs(
     cov: Coverage,
 ) -> None:
 
+    display.reset_current_task()
+    display.current_task_line_1 = "Replaying cases symbolically..."
+
     # Run every input from the corpus
-    for corpus_file in corpus_files:
+    for i, corpus_file in enumerate(corpus_files):
         logger.debug(f"Replaying input: {os.path.basename(corpus_file)}")
+        display.current_task_line_2 = (
+            i + 1,
+            len(corpus_files),
+        )
 
         tx_seq = load_tx_sequence(corpus_file)
         # TODO(boyan): implement snapshoting in EVMWorld so we don't
@@ -175,6 +182,8 @@ def run_echidna_campaign(
     :param args: arguments to pass to echidna
     :return: the exit value returned by invoking `echidna-test`
     """
+    display.start_echidna_task_timer()
+
     # Build back echidna command line
     cmdline = ["echidna-test"]
     cmdline += args.FILES
@@ -213,4 +222,6 @@ def run_echidna_campaign(
         stderr=subprocess.PIPE,
         universal_newlines=True,
     )
+
+    display.stop_echidna_task_timer()
     return echidna_process

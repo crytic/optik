@@ -1,18 +1,18 @@
 import curses
 import threading
 from time import sleep
+from datetime import datetime
 
 
-def generate_progress_bar(bar_len: int, current: int, max: int) -> str:
+def generate_progress_bar(bar_len: int, current: int, _max: int) -> str:
     fill_char = "\u2588"
     res = "|"
-    fill_ratio = current / max
-    fill_perc = int(100.0 * fill_ratio)
-    filled_bar = fill_char * int(bar_len * fill_ratio)
+    fill_ratio = current / _max
+    filled_bar = fill_char * int((bar_len - 2) * fill_ratio)
     res += filled_bar
-    res += " " * (bar_len - len(res))
+    res += " " * (bar_len - 1 - len(res))
     res += "|"
-    res += f" {fill_perc}%"
+    res += f" {current:3}/{_max}"
     return res
 
 
@@ -25,8 +25,9 @@ class HybridEchidnaDisplay:
         self.mode = "-"
         self.iteration: int = 0
         self.corpus_size: int = 0
-        self.current_task_msg = "Starting up ..."
-        self.progress_bar_len = 40
+        self.current_task_line_1 = ""
+        self.current_task_line_2: Union[Tuple[int, int], str] = "Starting up..."
+        self.current_task_line_3 = ""
         self.current_task_progress = (
             33,
             100,
@@ -49,6 +50,30 @@ class HybridEchidnaDisplay:
         self.global_win_y_lines = 3
         self.fuzz_win_x_ratio = 0.3
         self.fuzz_win_y_lines = 4
+        # OTHER
+        self._show_echidna_timer = False
+
+    def reset_current_task(self):
+        self.current_task_line_1 = ""
+        self.current_task_line_2 = ""
+        self.current_task_line_3 = ""
+
+    def start_echidna_task_timer(self):
+        self.reset_current_task()
+        self._start_time = datetime.now()
+        self._show_echidna_timer = True
+
+    def stop_echidna_task_timer(self):
+        self._show_echidna_timer = False
+        self.reset_current_task()
+
+    def _get_elapsed_time_s(self):
+        return int((datetime.now() - self._start_time).total_seconds())
+
+    def update_echidna_task_timer(self):
+        self.current_task_line_2 = (
+            f"Running echidna campaign... {self._get_elapsed_time_s()} s"
+        )
 
     def update_avg_path_constraints(self, nb_constraints: int) -> None:
         self.sym_path_constr_average = (
@@ -70,6 +95,8 @@ class HybridEchidnaDisplay:
 
     def update(self):
         if self.active:
+            if self._show_echidna_timer:
+                self.update_echidna_task_timer()
             try:
                 self.scr.erase()
                 # Print border
@@ -98,18 +125,27 @@ class HybridEchidnaDisplay:
                 )
                 current_win.addstr(
                     1,
-                    (current_win.getmaxyx()[1] - len(self.current_task_msg))
+                    (current_win.getmaxyx()[1] - len(self.current_task_line_1))
                     // 2,
-                    self.current_task_msg,
+                    self.current_task_line_1,
                 )
-                progress_bar = generate_progress_bar(
-                    self.progress_bar_len,
-                    *self.current_task_progress,
-                )
+                if isinstance(self.current_task_line_2, tuple):
+                    line2 = generate_progress_bar(
+                        40,  # TODO adapt len to window size
+                        *self.current_task_line_2,
+                    )
+                else:
+                    line2 = self.current_task_line_2
                 current_win.addstr(
                     2,
-                    (current_win.getmaxyx()[1] - len(progress_bar)) // 2,
-                    progress_bar,
+                    (current_win.getmaxyx()[1] - len(line2)) // 2,
+                    line2,
+                )
+                current_win.addstr(
+                    3,
+                    (current_win.getmaxyx()[1] - len(self.current_task_line_3))
+                    // 2,
+                    self.current_task_line_3,
                 )
                 # Fuzzer window
                 fuzz_win = self.scr.derwin(

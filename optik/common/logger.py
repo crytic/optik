@@ -45,3 +45,4 @@ def disable_logging() -> None:
     """Disable the logger"""
     global logger
     logger.handlers = []
+    logger.setLevel(logging.CRITICAL)
