@@ -18,7 +18,10 @@ from slither.slither import Slither
 from ..common.logger import logger, handler
 import logging
 from typing import List, Set
-from ..corpus.generator import EchidnaCorpusGenerator
+from ..corpus.generator import (
+    EchidnaCorpusGenerator,
+    infer_previous_incremental_threshold,
+)
 
 
 def run_hybrid_echidna(args: List[str]) -> None:
@@ -59,6 +62,14 @@ def run_hybrid_echidna(args: List[str]) -> None:
         raise GenericException(f"Unsupported coverage mode: {args.cov_mode}")
 
     # Incremental seeding with feed-echidna
+    prev_threshold: Optional[int] = infer_previous_incremental_threshold(
+        coverage_dir
+    )
+    if prev_threshold:
+        logger.info(
+            f"Incremental seeding was already used on this corpus with threshold {prev_threshold}"
+        )
+
     do_incremental_seeding = not args.no_incremental
     if do_incremental_seeding:
         slither = Slither(args.FILES[0])
@@ -82,11 +93,20 @@ def run_hybrid_echidna(args: List[str]) -> None:
                 # generating arbitrary tx sequences in new corpus files...
                 # This would not be necessary if we had a python API
                 # to generate JSON echidna inputs
-                args.seq_len = 1
+
+                # If we detected previous incremental seeding, start the seq_len
+                # where we stopped last time (or at the current threshold if it's
+                # smaller than the previous one). If no previous seeding, start
+                # at 1
+                args.seq_len = (
+                    1
+                    if not prev_threshold
+                    else min(prev_threshold, args.incremental_threshold)
+                )
             # Update corpus seeding
             elif args.seq_len < max_seq_len:
                 # Incremental seeding strategy
-                if args.seq_len <= args.incremental_threshold:
+                if args.seq_len < args.incremental_threshold:
                     args.seq_len += 1
                     gen.step()
                     new_seeds_cnt = len(gen.current_tx_sequences)
@@ -231,7 +251,7 @@ def parse_arguments(args: List[str]) -> argparse.Namespace:
         "--seq-len",
         type=int,
         help="Maximal length for sequences of transactions to generate during testing. If '--no-incremental' is used, all sequences will have exactly this length",
-        default=100,
+        default=10,
         metavar="INTEGER",
     )
 
