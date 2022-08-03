@@ -17,6 +17,8 @@ from maat import (
 )
 from typing import List, Optional, Tuple
 import os
+from .display import display
+from datetime import datetime
 
 
 # TODO(boyan): pass contract bytecode instead of extracting to file
@@ -136,7 +138,9 @@ def generate_new_inputs(
         )
         s.add(bif.alt_target_constraint)
 
+        start_time = datetime.now()
         if s.check():
+            end_time = datetime.now()
             success_cnt += 1
             if bif in unique_bifurcations:
                 unique_bifurcations.remove(bif)
@@ -144,8 +148,19 @@ def generate_new_inputs(
             # Serialize the new input discovered
             store_new_tx_sequence(bif.input_uid, model)
             _add_new_senders(model, args)
+            # Terminal display
+            display.sym_total_inputs_solved += 1
+            display.update_solving_time(
+                int((end_time - start_time).total_seconds() * 1000)
+            )
         elif s.did_time_out:
             timeout_cnt += 1
+            # Terminal display
+            display.sym_total_solver_timeouts += 1
+
+        # Terminal display
+        display.update_avg_path_constraints(len(bif.path_constraints) + 1)
+
     return (
         success_cnt,
         timeout_cnt,

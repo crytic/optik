@@ -38,14 +38,31 @@ class HybridEchidnaDisplay:
         self.sym_win_title = "Symbolic execution"
         self.sym_total_inputs_solved = 0
         self.sym_total_solver_timeouts = 0
-        self.sym_curr_solver_timeout = "???"
-        self.sym_time_solving_average = 0
-        self.sym_path_contr_average = "???"
+        self.sym_solver_timeout: Optional[int] = None
+        self.sym_time_solving_average = 0  # in ms
+        self.sym_time_solving_total = 0  # in ms
+        self.sym_path_constr_average = 0
+        self._sym_path_constr_cnt = 0
+        self._sym_solving_cnt = 0
         # WINDOW SIZES
         self.global_win_x_ratio = 0.3
         self.global_win_y_lines = 3
         self.fuzz_win_x_ratio = 0.3
         self.fuzz_win_y_lines = 4
+
+    def update_avg_path_constraints(self, nb_constraints: int) -> None:
+        self.sym_path_constr_average = (
+            self.sym_path_constr_average * self._sym_path_constr_cnt
+            + nb_constraints
+        ) // (self._sym_path_constr_cnt + 1)
+        self._sym_path_constr_cnt += 1
+
+    def update_solving_time(self, ms: int) -> None:
+        self.sym_time_solving_total += ms
+        self.sym_time_solving_average = (
+            self.sym_time_solving_average * self._sym_solving_cnt + ms
+        ) // (self._sym_solving_cnt + 1)
+        self._sym_solving_cnt += 1
 
     def start(self, scr):
         self.active = True
@@ -136,22 +153,33 @@ class HybridEchidnaDisplay:
                 sym_win.addstr(
                     2,
                     1,
-                    f"Avg. solving time: {self.sym_time_solving_average//1000}s",
+                    f"Total solving time: {self.sym_time_solving_total//1000} s",
                 )
                 sym_win.addstr(
                     3,
                     1,
-                    f"Avg. constraints/case: {self.sym_path_contr_average}",
+                    f"Avg. solving time: {self.sym_time_solving_average } ms",
                 )
+
                 sym_win.addstr(
                     1,
                     sym_win_cols // 2,
-                    f"Solver timeout at: {self.sym_curr_solver_timeout}ms ",
+                    "Solver timeout: "
+                    + (
+                        f"{self.sym_solver_timeout} ms"
+                        if self.sym_solver_timeout
+                        else "none"
+                    ),
                 )
                 sym_win.addstr(
                     2,
                     sym_win_cols // 2,
                     f"Timeouts cnt: {self.sym_total_solver_timeouts}",
+                )
+                sym_win.addstr(
+                    3,
+                    sym_win_cols // 2,
+                    f"Avg. constraints/case: {self.sym_path_constr_average}",
                 )
 
                 self.scr.refresh()

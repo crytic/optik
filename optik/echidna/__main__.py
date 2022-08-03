@@ -26,6 +26,7 @@ from ..corpus.generator import (
     infer_previous_incremental_threshold,
 )
 from .display import display, start_display, stop_display
+from datetime import datetime
 
 
 def run_hybrid_echidna(args: List[str]) -> None:
@@ -38,6 +39,8 @@ def run_hybrid_echidna(args: List[str]) -> None:
     except:
         logger.error(f"Invalid deployer address: {args.deployer}")
         return
+
+    display.sym_solver_timeout = args.solver_timeout
 
     # Debug logs
     if args.debug:
@@ -157,7 +160,11 @@ def run_hybrid_echidna(args: List[str]) -> None:
 
         # Run echidna fuzzing campaign
         logger.info(f"Running echidna campaign #{iter_cnt} ...")
+        start_time = datetime.now()
         p = run_echidna_campaign(args)
+        display.fuzz_total_time += int(
+            (datetime.now() - start_time).total_seconds() * 1000
+        )
         # Note: return code is not a reliable error indicator for Echidna
         # so we check stderr to detect potential errors running Echidna
         if p.stderr:
@@ -184,7 +191,7 @@ def run_hybrid_echidna(args: List[str]) -> None:
                 # TODO(boyan): catch errors
                 gen.init_func_template_mapping(coverage_dir)
 
-        # Replay new corpus inputs symbolically
+        # Get new inputs
         new_inputs = pull_new_corpus_files(coverage_dir, seen_files)
         if new_inputs:
             logger.info(
@@ -194,6 +201,17 @@ def run_hybrid_echidna(args: List[str]) -> None:
             logger.info(f"Echidna couldn't find new inputs")
             return
         cov.bifurcations = []
+        # Terminal display
+        new_echidna_inputs_cnt = len(
+            [
+                f
+                for f in new_inputs
+                if not os.path.basename(f).startswith("optik")
+            ]
+        )
+        display.fuzz_total_cases_cnt += new_echidna_inputs_cnt
+        display.fuzz_last_cases_cnt = new_echidna_inputs_cnt
+        # Replay new corpus inputs symbolically
         replay_inputs(new_inputs, contract_file, deployer, cov)
 
         # Find inputs to reach new code
