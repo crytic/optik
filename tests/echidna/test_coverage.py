@@ -11,8 +11,8 @@ COVERAGE_TARGET_MARKER = "test::coverage"
 to_test = [
     ("ExploreMe.sol", "inst", 40),
     ("Primality.sol", "inst", 40),
-    ("MultiMagic.sol", "path-relaxed", 10),
-    ("MultiMagic256.sol", "inst-sg", 40),
+    ("MultiMagic.sol", "inst-tx-seq", 10),
+    ("MultiMagic256.sol", "inst-tx-seq", 10),
     ("CoverageInt.sol", "inst", 40),
     ("CoverageBool.sol", "path-relaxed", 5),
     ("CoverageBytesM.sol", "path-relaxed", 1),
