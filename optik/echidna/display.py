@@ -176,7 +176,7 @@ def _display():
         display.start(stdscr)
         while display.active:
             display.update()
-            sleep(1)
+            sleep(0.1)
     except (Exception, KeyboardInterrupt) as e:
         exc = e
 

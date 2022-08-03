@@ -18,12 +18,14 @@ from ..coverage import (
 from slither.slither import Slither
 from ..common.logger import logger, handler, disable_logging
 from ..common.exceptions import InitializationError
+from ..common.util import count_files_in_dir
 import logging
 from typing import List, Set
 from ..corpus.generator import (
     EchidnaCorpusGenerator,
     infer_previous_incremental_threshold,
 )
+from .display import display, start_display, stop_display
 
 
 def run_hybrid_echidna(args: List[str]) -> None:
@@ -98,6 +100,7 @@ def run_hybrid_echidna(args: List[str]) -> None:
     new_inputs_cnt = 0
     while args.max_iters is None or iter_cnt < args.max_iters:
         iter_cnt += 1
+        display.iteration = iter_cnt  # terminal display
 
         # If incremental seeding, start with low seq_len and
         # manually increment it at each step
@@ -135,6 +138,15 @@ def run_hybrid_echidna(args: List[str]) -> None:
                 else:
                     new_seeds_cnt = 0
                     args.seq_len = min(max_seq_len, args.seq_len * 2)
+
+        # terminal display
+        if args.seq_len <= args.incremental_threshold:
+            display.mode = (
+                f"incremental ({args.seq_len}/{args.incremental_threshold})"
+            )
+        else:
+            display.mode = "normal"  # termial display
+        display.corpus_size = count_files_in_dir(coverage_dir)
 
         # Run echidna fuzzing campaign
         logger.info(f"Running echidna campaign #{iter_cnt} ...")
@@ -200,8 +212,6 @@ def run_hybrid_echidna(args: List[str]) -> None:
 
 
 def run_hybrid_echidna_with_display(args: List[str]):
-    from .display import start_display, stop_display
-
     exc = None
     err_msg = None
     start_display()

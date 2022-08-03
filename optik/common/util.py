@@ -6,6 +6,7 @@ from typing import Union, List, Tuple, Dict
 import rlp
 import sha3
 import ast
+import os
 
 
 def twos_complement_convert(arg: int, bits: int) -> int:
@@ -236,3 +237,7 @@ def compute_new_contract_addr(sender: int, nonce: int) -> int:
     k.update(rlp.encode([sender.to_bytes(20, "big"), nonce]))
     digest = k.digest()[12:]
     return int.from_bytes(digest, "big")
+
+
+def count_files_in_dir(d: str) -> int:
+    return len(list(os.listdir()))
