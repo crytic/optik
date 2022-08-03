@@ -1,7 +1,8 @@
 from .coverage import Coverage, CoverageState
 from dataclasses import dataclass
 from maat import contract, MaatEngine, EVENT, WHEN
-from typing import FrozenSet
+from typing import FrozenSet, Optional, List, Tuple
+from ..common.world import AbstractTx
 
 
 @dataclass(eq=True, frozen=True)
@@ -141,6 +142,52 @@ class InstIncCoverage(InstCoverage):
         )
 
     # WorldMonitor interface
-    def on_attach(self, address: int, total_tx_cnt: int, **kwargs) -> None:
+    def on_attach(
+        self, address: int, tx_seq: List[AbstractTx], **kwargs
+    ) -> None:
         super().on_attach(address)
-        self.total_tx_cnt = total_tx_cnt
+        self.total_tx_cnt = len(tx_seq)
+
+
+@dataclass(eq=True, frozen=True)
+class InstTxSeqCoverageState(InstCoverageState):
+    tx_num: int
+    tx_seq: Optional[Tuple]
+
+
+class InstTxSeqCoverage(InstCoverage):
+    """Track instruction coverage for a smart contract code, with
+    transaction number AND tx sequence.
+    This mode is used for the incremental mode of hybrid-echidna + feed-echidna
+    """
+
+    HOOK_ID = "__inst_tx_seq_coverage"
+
+    def __init__(self, threshold: int):
+        """
+        :param threshold: the sequence length after which tx sequence information
+        is ignored:
+        """
+        super().__init__()
+        self.tx_seq: Optional[Tuple] = None
+        self.threshold = threshold
+
+    def get_state(self, inst_addr: int, **kwargs) -> InstTxSeqCoverageState:
+        return InstTxSeqCoverageState(
+            self.world.current_contract.address,
+            self.world.current_contract.initialized,
+            inst_addr,
+            self.world.current_tx_num,
+            self.tx_seq,
+        )
+
+    # WorldMonitor interface
+    def on_attach(
+        self, address: int, tx_seq: List[AbstractTx], **kwargs
+    ) -> None:
+        super().on_attach(address)
+        # Extract the function selectors to build a "minimal" tx_seq
+        self.tx_seq = tuple(
+            [tx.tx.data[0].as_uint() for tx in tx_seq if tx.tx.data]
+        )
+        print(f"\n\n\nDEBUG tx seq is {self.tx_seq}")

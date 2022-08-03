@@ -9,6 +9,7 @@ from ..coverage import (
     InstCoverage,
     InstIncCoverage,
     InstTxCoverage,
+    InstTxSeqCoverage,
     InstSgCoverage,
     PathCoverage,
     RelaxedPathCoverage,
@@ -52,6 +53,8 @@ def run_hybrid_echidna(args: List[str]) -> None:
         cov = InstSgCoverage()
     elif args.cov_mode == "inst-inc":
         cov = InstIncCoverage()
+    elif args.cov_mode == "inst-tx-seq":
+        cov = InstTxSeqCoverage(args.incremental_threshold)
     else:
         raise GenericException(f"Unsupported coverage mode: {args.cov_mode}")
 
@@ -65,6 +68,7 @@ def run_hybrid_echidna(args: List[str]) -> None:
     seen_files = set()
 
     iter_cnt = 0
+    new_inputs_cnt = 0
     while args.max_iters is None or iter_cnt < args.max_iters:
         iter_cnt += 1
 
@@ -79,17 +83,22 @@ def run_hybrid_echidna(args: List[str]) -> None:
                 # This would not be necessary if we had a python API
                 # to generate JSON echidna inputs
                 args.seq_len = 1
+            # Update corpus seeding
             elif args.seq_len < max_seq_len:
-                # TODO(boyan): we increment linearly here but we could also
-                # update the seq_len with a quadratic/exponential law
-                args.seq_len += 1
-                gen.step()
-                new_seeds_cnt = len(gen.current_tx_sequences)
-                if new_seeds_cnt:
-                    logger.info(
-                        f"Seeding corpus with {new_seeds_cnt} new sequences from dataflow analysis"
-                    )
-                    gen.dump_tx_sequences(coverage_dir)
+                # Incremental seeding strategy
+                if args.seq_len <= args.incremental_threshold:
+                    args.seq_len += 1
+                    gen.step()
+                    new_seeds_cnt = len(gen.current_tx_sequences)
+                    if new_seeds_cnt:
+                        logger.info(
+                            f"Seeding corpus with {new_seeds_cnt} new sequences from dataflow analysis"
+                        )
+                        gen.dump_tx_sequences(coverage_dir)
+                # Quadratic seq_len increase
+                else:
+                    new_seeds_cnt = 0
+                    args.seq_len = min(max_seq_len, args.seq_len * 2)
 
         # Run echidna fuzzing campaign
         logger.info(f"Running echidna campaign #{iter_cnt} ...")
@@ -293,8 +302,9 @@ def parse_arguments(args: List[str]) -> argparse.Namespace:
             "path-relaxed",
             "inst-sg",
             "inst-inc",
+            "inst-tx-seq",
         ],
-        default="inst-inc",
+        default="inst-tx-seq",
         # metavar="MODE",
     )
 
@@ -310,6 +320,14 @@ def parse_arguments(args: List[str]) -> argparse.Namespace:
         "--no-incremental",
         action="store_true",
         help="Disable incremental corpus seeding with 'feed-echidna' and only generate transaction sequences of length '--seq-len'",
+    )
+
+    parser.add_argument(
+        "--incremental-threshold",
+        type=int,
+        help="The maximal input sequence length up to which to use the incremental corpus seeding strategy",
+        default=5,
+        metavar="INTEGER",
     )
 
     parser.add_argument("--debug", action="store_true", help="Print debug logs")

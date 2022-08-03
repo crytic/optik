@@ -17,7 +17,6 @@ from maat import (
 )
 from typing import List, Optional, Tuple
 import os
-from ..corpus.generator import SEED_CORPUS_PREFIX
 
 
 # TODO(boyan): pass contract bytecode instead of extracting to file
@@ -35,6 +34,9 @@ def replay_inputs(
         tx_seq = load_tx_sequence(corpus_file)
         # TODO(boyan): implement snapshoting in EVMWorld so we don't
         # recreate the whole environment for every input
+        # WARNING: if we end up keeping the same EVMWorld, it will mess with
+        # some of the Coverage classes that rely on on_attach(). We'll probably
+        # have to detach() and re-attach() them
         world = EVMWorld()
         contract_addr = tx_seq[0].tx.recipient
         # Push initial transaction that initialises the target contract
@@ -60,7 +62,7 @@ def replay_inputs(
             contract_deployer,
             run_init_bytecode=False,
         )
-        world.attach_monitor(cov, contract_addr, total_tx_cnt=len(tx_seq))
+        world.attach_monitor(cov, contract_addr, tx_seq=tx_seq)
 
         # Prepare to run transaction
         world.push_transactions(tx_seq)
@@ -73,7 +75,7 @@ def replay_inputs(
 
 
 def generate_new_inputs(
-    cov: Coverage, args: argparse.Namespace
+    cov: Coverage, args: argparse.Namespace, solve_duplicates: bool = False
 ) -> Tuple[int, int]:
     """Generate new inputs to increase code coverage, base on
     existing coverage
@@ -82,6 +84,7 @@ def generate_new_inputs(
     :param args: echidna arguments. If the new inputs contain particular
     'sender' values for transactions, those are included in the echidna
     list of possible senders
+    :param solve_duplicates: forces to generate inputs even for similar bifurcations
     :return: tuple: (number of new inputs found, number of solver timeouts)
     """
 
@@ -116,10 +119,7 @@ def generate_new_inputs(
         # still want to solve all bifurcations because all of them should
         # be "meaningfull"
         input_file = os.path.basename(bif.input_uid)
-        if (
-            not input_file.startswith(SEED_CORPUS_PREFIX)
-            and bif not in unique_bifurcations
-        ):
+        if bif not in unique_bifurcations and not solve_duplicates:
             continue
 
         logger.info(f"Solving {i+1} of {count} ({round((i/count)*100, 2)}%)")
@@ -179,6 +179,7 @@ def run_echidna_campaign(
                 "sender",
                 "solver_timeout",
                 "no_incremental",
+                "incremental_threshold",
             ]
             and not val is None
         ):
