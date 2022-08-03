@@ -79,9 +79,7 @@ def run_hybrid_echidna(args: List[str]) -> None:
         raise GenericException(f"Unsupported coverage mode: {args.cov_mode}")
 
     # Incremental seeding with feed-echidna
-    prev_threshold: Optional[int] = infer_previous_incremental_threshold(
-        coverage_dir
-    )
+    prev_threshold: int = infer_previous_incremental_threshold(coverage_dir)
     if prev_threshold:
         logger.info(
             f"Incremental seeding was already used on this corpus with threshold {prev_threshold}"
@@ -117,13 +115,19 @@ def run_hybrid_echidna(args: List[str]) -> None:
                 # where we stopped last time (or at the current threshold if it's
                 # smaller than the previous one). If no previous seeding, start
                 # at 1
-                args.seq_len = (
-                    1
-                    if not prev_threshold
-                    else min(prev_threshold, args.incremental_threshold)
-                )
+                if not prev_threshold:
+                    args.seq_len = 1
+                else:
+                    args.seq_len = min(
+                        prev_threshold, args.incremental_threshold
+                    )
+                    gen.step(args.seq_len - 1)
+                    gen.init_func_template_mapping(coverage_dir)
+
             # Update corpus seeding
-            elif args.seq_len < max_seq_len:
+            if (iter_cnt > 1 and args.seq_len < max_seq_len) or (
+                iter_cnt == 1 and prev_threshold
+            ):
                 # Incremental seeding strategy
                 if args.seq_len < args.incremental_threshold:
                     args.seq_len += 1
@@ -140,7 +144,10 @@ def run_hybrid_echidna(args: List[str]) -> None:
                     args.seq_len = min(max_seq_len, args.seq_len * 2)
 
         # terminal display
-        if args.seq_len <= args.incremental_threshold:
+        if (
+            do_incremental_seeding
+            and args.seq_len <= args.incremental_threshold
+        ):
             display.mode = (
                 f"incremental ({args.seq_len}/{args.incremental_threshold})"
             )

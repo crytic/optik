@@ -240,4 +240,6 @@ def compute_new_contract_addr(sender: int, nonce: int) -> int:
 
 
 def count_files_in_dir(d: str) -> int:
-    return len(list(os.listdir()))
+    if not os.path.exists(d) or not os.path.isdir(d):
+        return 0
+    return len(os.listdir(d))
