@@ -7,20 +7,28 @@ from .runner import replay_inputs, generate_new_inputs, run_echidna_campaign
 from .interface import extract_contract_bytecode
 from ..coverage import (
     InstCoverage,
+    InstIncCoverage,
     InstTxCoverage,
+    InstTxSeqCoverage,
     InstSgCoverage,
     PathCoverage,
     RelaxedPathCoverage,
 )
+from slither.slither import Slither
 from ..common.logger import logger, handler
 import logging
 from typing import List, Set
+from ..corpus.generator import (
+    EchidnaCorpusGenerator,
+    infer_previous_incremental_threshold,
+)
 
 
 def run_hybrid_echidna(args: List[str]) -> None:
     """Main hybrid echidna script"""
 
     args = parse_arguments(args)
+    max_seq_len = args.seq_len
     try:
         deployer = int(args.deployer, 16)
     except:
@@ -46,14 +54,71 @@ def run_hybrid_echidna(args: List[str]) -> None:
         cov = RelaxedPathCoverage()
     elif args.cov_mode == "inst-sg":
         cov = InstSgCoverage()
+    elif args.cov_mode == "inst-inc":
+        cov = InstIncCoverage()
+    elif args.cov_mode == "inst-tx-seq":
+        cov = InstTxSeqCoverage(args.incremental_threshold)
     else:
         raise GenericException(f"Unsupported coverage mode: {args.cov_mode}")
+
+    # Incremental seeding with feed-echidna
+    prev_threshold: Optional[int] = infer_previous_incremental_threshold(
+        coverage_dir
+    )
+    if prev_threshold:
+        logger.info(
+            f"Incremental seeding was already used on this corpus with threshold {prev_threshold}"
+        )
+
+    do_incremental_seeding = not args.no_incremental
+    if do_incremental_seeding:
+        slither = Slither(args.FILES[0])
+        gen = EchidnaCorpusGenerator(args.contract, slither)
+
     # Set of corpus files we have already processed
     seen_files = set()
 
     iter_cnt = 0
+    new_inputs_cnt = 0
     while args.max_iters is None or iter_cnt < args.max_iters:
         iter_cnt += 1
+
+        # If incremental seeding, start with low seq_len and
+        # manually increment it at each step
+        new_seeds_cnt = 0
+        if do_incremental_seeding:
+            if iter_cnt == 1:
+                # FIXME: No corpus generation at first iteration because the corpus
+                # generator needs real corpus files to use as templates for
+                # generating arbitrary tx sequences in new corpus files...
+                # This would not be necessary if we had a python API
+                # to generate JSON echidna inputs
+
+                # If we detected previous incremental seeding, start the seq_len
+                # where we stopped last time (or at the current threshold if it's
+                # smaller than the previous one). If no previous seeding, start
+                # at 1
+                args.seq_len = (
+                    1
+                    if not prev_threshold
+                    else min(prev_threshold, args.incremental_threshold)
+                )
+            # Update corpus seeding
+            elif args.seq_len < max_seq_len:
+                # Incremental seeding strategy
+                if args.seq_len < args.incremental_threshold:
+                    args.seq_len += 1
+                    gen.step()
+                    new_seeds_cnt = len(gen.current_tx_sequences)
+                    if new_seeds_cnt:
+                        logger.info(
+                            f"Seeding corpus with {new_seeds_cnt} new sequences from dataflow analysis"
+                        )
+                        gen.dump_tx_sequences(coverage_dir)
+                # Quadratic seq_len increase
+                else:
+                    new_seeds_cnt = 0
+                    args.seq_len = min(max_seq_len, args.seq_len * 2)
 
         # Run echidna fuzzing campaign
         logger.info(f"Running echidna campaign #{iter_cnt} ...")
@@ -79,6 +144,11 @@ def run_hybrid_echidna(args: List[str]) -> None:
                 logger.fatal("Failed to extract contract bytecode")
                 return
 
+            # Initialize corpus generator
+            if do_incremental_seeding:
+                # TODO(boyan): catch errors
+                gen.init_func_template_mapping(coverage_dir)
+
         # Replay new corpus inputs symbolically
         new_inputs = pull_new_corpus_files(coverage_dir, seen_files)
         if new_inputs:
@@ -95,15 +165,22 @@ def run_hybrid_echidna(args: List[str]) -> None:
         new_inputs_cnt, timeout_cnt = generate_new_inputs(cov, args)
         if timeout_cnt > 0:
             logger.warning(f"Timed out on {timeout_cnt} cases")
-
         if new_inputs_cnt > 0:
             logger.info(f"Generated {new_inputs_cnt} new inputs")
         else:
             logger.info(f"Couldn't generate more inputs")
-            logger.info(
-                f"Corpus and coverage info written in {args.corpus_dir}"
-            )
-            return
+
+        # If corpus generator didn't have more interesting seeds
+        # and no new input, we finish here
+        if (
+            new_inputs_cnt == 0
+            and new_seeds_cnt == 0
+            and args.seq_len >= max_seq_len
+        ):
+            break
+
+    logger.info(f"Corpus and coverage info written in {args.corpus_dir}")
+    return
 
 
 def pull_new_corpus_files(cov_dir: str, seen_files: Set[str]) -> List[str]:
@@ -143,6 +220,7 @@ def parse_arguments(args: List[str]) -> argparse.Namespace:
         type=str,
         help="Contract to analyze",
         metavar="CONTRACT",
+        required=True,
     )
 
     parser.add_argument(
@@ -166,14 +244,14 @@ def parse_arguments(args: List[str]) -> argparse.Namespace:
             "exploration",
         ],
         default="assertion",
-        metavar="MODE",
+        # metavar="MODE",
     )
 
     parser.add_argument(
         "--seq-len",
         type=int,
-        help="Number of transactions to generate during testing",
-        default=100,
+        help="Maximal length for sequences of transactions to generate during testing. If '--no-incremental' is used, all sequences will have exactly this length",
+        default=10,
         metavar="INTEGER",
     )
 
@@ -237,9 +315,17 @@ def parse_arguments(args: List[str]) -> argparse.Namespace:
         "--cov-mode",
         type=str,
         help="Coverage mode to use",
-        choices=["inst", "inst-tx", "path", "path-relaxed", "inst-sg"],
-        default="inst-tx",
-        metavar="MODE",
+        choices=[
+            "inst",
+            "inst-tx",
+            "path",
+            "path-relaxed",
+            "inst-sg",
+            "inst-inc",
+            "inst-tx-seq",
+        ],
+        default="inst-tx-seq",
+        # metavar="MODE",
     )
 
     parser.add_argument(
@@ -248,6 +334,20 @@ def parse_arguments(args: List[str]) -> argparse.Namespace:
         help="Maximum solving time (in ms) to spend per potential new input",
         default=None,
         metavar="MILLISECONDS",
+    )
+
+    parser.add_argument(
+        "--no-incremental",
+        action="store_true",
+        help="Disable incremental corpus seeding with 'feed-echidna' and only generate transaction sequences of length '--seq-len'",
+    )
+
+    parser.add_argument(
+        "--incremental-threshold",
+        type=int,
+        help="The maximal input sequence length up to which to use the incremental corpus seeding strategy",
+        default=5,
+        metavar="INTEGER",
     )
 
     parser.add_argument("--debug", action="store_true", help="Print debug logs")

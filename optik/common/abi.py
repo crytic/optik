@@ -377,6 +377,20 @@ encoder_functions = {
 }
 
 
+def func_signature(func_name: str, args_spec: str) -> str:
+    """Assemble function signature from function name
+    and arg specification
+
+    :param func_name: Function name
+    :param args_spec: Solidity types of function arguments
+    """
+    return (
+        f"{func_name}{args_spec}"
+        if args_spec[0] == "("
+        else f"{func_name}({args_spec})"
+    )
+
+
 def selector(func_signature: str) -> Value:
     """Return the first 4 bytes of the keccak256 hash of 'func_signature'"""
     k = sha3.keccak_256()
@@ -471,9 +485,7 @@ def function_call(
         )
 
     # Compute function selector
-    func_prototype = (
-        f"{func}{args_spec}" if args_spec[0] == "(" else f"{func}({args_spec})"
-    )
+    func_prototype = func_signature(func, args_spec)
     res = [selector(func_prototype)]
 
     # encode the arguments too

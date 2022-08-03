@@ -28,3 +28,15 @@ class WorldException(GenericException):
     deployed on the blockchain"""
 
     pass
+
+
+class CorpusException(GenericException):
+    """Exception for errors during corpus generation"""
+
+    pass
+
+
+class DataflowException(GenericException):
+    """Exception for errors during dataflow analysis"""
+
+    pass

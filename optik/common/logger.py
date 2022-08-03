@@ -38,3 +38,4 @@ handler.setFormatter(ColoredFormatter())
 logger.addHandler(handler)
 handler.setLevel(logging.INFO)
 logger.setLevel(logging.DEBUG)
+logger.propagate = False  # Otherwise slither duplicates Optik's logs

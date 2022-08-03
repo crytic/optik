@@ -502,17 +502,18 @@ class EVMWorld:
         # if the terminating runtime was called with
         caller_contract.stack.push(Cst(256, 1 if succeeded else 0))
         # Write the return data in memory
-        if (
-            caller_contract.outgoing_transaction.ret_len.as_uint()
-            < caller_contract.result_from_last_call.return_data_size
-        ):
-            raise WorldException(
-                "Message call returned more bytes than the buffer-size allocated by the caller contract"
+        if succeeded:
+            if (
+                caller_contract.outgoing_transaction.ret_len.as_uint()
+                < caller_contract.result_from_last_call.return_data_size
+            ):
+                raise WorldException(
+                    "Message call returned more bytes than the buffer-size allocated by the caller contract"
+                )
+            caller_contract.memory.write_buffer(
+                caller_contract.outgoing_transaction.ret_offset,
+                caller_contract.result_from_last_call.return_data,
             )
-        caller_contract.memory.write_buffer(
-            caller_contract.outgoing_transaction.ret_offset,
-            caller_contract.result_from_last_call.return_data,
-        )
 
     def _update_block_info(self, m: MaatEngine, tx: AbstractTx) -> None:
         """Increase the block number and block timestamp when emulating
@@ -528,13 +529,13 @@ class EVMWorld:
         # TODO(boyan): Should we add constraints to force time increments to
         # be within certain bounds?
 
-    def attach_monitor(self, monitor: WorldMonitor, *args) -> None:
+    def attach_monitor(self, monitor: WorldMonitor, *args, **kwargs) -> None:
         """Attach a WorldMonitor"""
         if monitor in self.monitors:
             raise WorldException("Monitor already attached")
         self.monitors.append(monitor)
         monitor.world = self
-        monitor.on_attach(*args)
+        monitor.on_attach(*args, **kwargs)
 
     def detach_monitor(self, monitor: WorldMonitor) -> None:
         """Detach a WorldMonitor"""
