@@ -5,6 +5,7 @@ import tempfile
 
 from .runner import replay_inputs, generate_new_inputs, run_echidna_campaign
 from .interface import extract_contract_bytecode
+from .display import display
 from ..coverage import (
     InstCoverage,
     InstIncCoverage,
@@ -15,7 +16,8 @@ from ..coverage import (
     RelaxedPathCoverage,
 )
 from slither.slither import Slither
-from ..common.logger import logger, handler
+from ..common.logger import logger, handler, disable_logging
+from ..common.exceptions import InitializationError
 import logging
 from typing import List, Set
 from ..corpus.generator import (
@@ -35,12 +37,25 @@ def run_hybrid_echidna(args: List[str]) -> None:
         logger.error(f"Invalid deployer address: {args.deployer}")
         return
 
+    # Debug logs
     if args.debug:
         handler.setLevel(logging.DEBUG)
 
+    # Logging stream
+    if args.logs:
+        if args.logs == "stdout":
+            if not args.no_display:
+                raise InitializationError(
+                    "Cannot write logs to stdout while terminal display is enabled. Consider disabling it with '--no-display'"
+                )
+        else:
+            raise InitializationError("--logs to file not supported yet")
+    else:
+        disable_logging()
+
+    # Corpus and coverage directories
     if args.corpus_dir is None:
         args.corpus_dir = tempfile.TemporaryDirectory(dir=".").name
-
     coverage_dir = os.path.join(args.corpus_dir, "coverage")
 
     # Coverage tracker for the whole fuzzing session
@@ -78,6 +93,7 @@ def run_hybrid_echidna(args: List[str]) -> None:
     # Set of corpus files we have already processed
     seen_files = set()
 
+    # Main fuzzing+symexec loop
     iter_cnt = 0
     new_inputs_cnt = 0
     while args.max_iters is None or iter_cnt < args.max_iters:
@@ -181,6 +197,26 @@ def run_hybrid_echidna(args: List[str]) -> None:
 
     logger.info(f"Corpus and coverage info written in {args.corpus_dir}")
     return
+
+
+def run_hybrid_echidna_with_display(args: List[str]):
+    from .display import start_display, stop_display
+
+    exc = None
+    err_msg = None
+    start_display()
+    try:
+        run_hybrid_echidna(args)
+    except InitializationError as e:
+        err_msg = str(e)
+    except (KeyboardInterrupt, Exception) as e:
+        exc = e
+    stop_display()  # Waits for display threads to exit gracefully
+    if err_msg:
+        logger.error(err_msg)
+    # Propagate exception now that threads have terminated correctly
+    if exc:
+        raise exc
 
 
 def pull_new_corpus_files(cov_dir: str, seen_files: Set[str]) -> List[str]:
@@ -350,13 +386,34 @@ def parse_arguments(args: List[str]) -> argparse.Namespace:
         metavar="INTEGER",
     )
 
-    parser.add_argument("--debug", action="store_true", help="Print debug logs")
+    parser.add_argument(
+        "--debug", action="store_true", help="Enable debug logs"
+    )
+
+    parser.add_argument(
+        "--logs",
+        type=str,
+        help="File where to write the logs. Use 'stdout' to print logs to standard output",
+        default=None,
+        metavar="PATH",
+    )
+
+    parser.add_argument(
+        "--no-display",
+        action="store_true",
+        help="Disable the beautiful terminal display",
+    )
 
     return parser.parse_args(args)
 
 
 def main() -> None:
-    run_hybrid_echidna(sys.argv[1:])
+    func = (
+        run_hybrid_echidna
+        if "--no-display" in sys.argv
+        else run_hybrid_echidna_with_display
+    )
+    func(sys.argv[1:])
 
 
 if __name__ == "__main__":

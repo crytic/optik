@@ -180,6 +180,8 @@ def run_echidna_campaign(
                 "solver_timeout",
                 "no_incremental",
                 "incremental_threshold",
+                "logs",
+                "no_display",
             ]
             and not val is None
         ):

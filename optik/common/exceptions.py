@@ -40,3 +40,9 @@ class DataflowException(GenericException):
     """Exception for errors during dataflow analysis"""
 
     pass
+
+
+class InitializationError(Exception):
+    """Error in while optik initializes"""
+
+    pass
