@@ -77,6 +77,26 @@ class HybridEchidnaDisplay:
             f"Running echidna campaign... {self._get_elapsed_time_s()} s"
         )
 
+    def format_test_cases(self, line_len):
+        new_cases = []
+        for test in self.res_cases:
+            new_case = []
+            curr_line = ""
+            for call in test:
+                if len(call) + len(curr_line) > line_len and curr_line:
+                    new_case.append(curr_line)
+                    curr_line = ""
+                if len(call) > line_len:
+                    new_case.append(call[: line_len - 4] + "...")
+                elif curr_line:
+                    curr_line += "; " + call
+                else:
+                    curr_line += call
+            if curr_line:
+                new_case.append(curr_line)
+            new_cases.append(new_case)
+        self.res_cases = new_cases
+
     def update_avg_path_constraints(self, nb_constraints: int) -> None:
         self.sym_path_constr_average = (
             self.sym_path_constr_average * self._sym_path_constr_cnt
@@ -273,6 +293,7 @@ class HybridEchidnaDisplay:
                     curses.A_BOLD | GREEN,
                 )
                 if self.res_cases:
+                    self.format_test_cases(res_cols - 4)
                     y_case_cnt = 1
                     unshown_cnt = 0
                     for j, case in enumerate(self.res_cases):
