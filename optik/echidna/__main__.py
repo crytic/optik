@@ -4,7 +4,7 @@ import os
 import tempfile
 
 from .runner import replay_inputs, generate_new_inputs, run_echidna_campaign
-from .interface import extract_contract_bytecode
+from .interface import extract_contract_bytecode, extract_cases_from_json_output
 from .display import display
 from ..coverage import (
     InstCoverage,
@@ -173,6 +173,9 @@ def run_hybrid_echidna(args: List[str]) -> None:
             return
 
         logger.debug(f"Echidna stdout: \n{p.stdout}")
+
+        # Display cases in terminal
+        display.res_cases = extract_cases_from_json_output(p.stdout)
 
         # Extract contract bytecodes in separate files for Maat. This is done
         # only once after the first fuzzing campaign

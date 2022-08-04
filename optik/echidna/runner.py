@@ -151,8 +151,11 @@ def generate_new_inputs(
         s.add(bif.alt_target_constraint)
 
         start_time = datetime.now()
-        if s.check():
-            end_time = datetime.now()
+        solved = s.check()
+        display.update_solving_time(
+            int((datetime.now() - start_time).total_seconds() * 1000)
+        )
+        if solved:
             success_cnt += 1
             if bif in unique_bifurcations:
                 unique_bifurcations.remove(bif)
@@ -162,9 +165,6 @@ def generate_new_inputs(
             _add_new_senders(model, args)
             # Terminal display
             display.sym_total_inputs_solved += 1
-            display.update_solving_time(
-                int((end_time - start_time).total_seconds() * 1000)
-            )
         elif s.did_time_out:
             timeout_cnt += 1
             # Terminal display
@@ -215,6 +215,7 @@ def run_echidna_campaign(
             and not val is None
         ):
             cmdline += [f"--{arg.replace('_', '-')}", str(val)]
+    cmdline += ["--format", "json"]
     logger.debug(f"Echidna invocation cmdline: {' '.join(cmdline)}")
     # Run echidna
     echidna_process = subprocess.run(

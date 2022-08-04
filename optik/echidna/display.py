@@ -45,6 +45,8 @@ class HybridEchidnaDisplay:
         self.sym_path_constr_average = 0
         self._sym_path_constr_cnt = 0
         self._sym_solving_cnt = 0
+        self.res_win_title = "Results"
+        self.res_cases: List[List[str]] = []
         # WINDOW SIZES
         self.global_win_x_ratio = 0.3
         self.global_win_y_lines = 3
@@ -93,6 +95,15 @@ class HybridEchidnaDisplay:
         self.active = True
         self.scr = scr
 
+    @staticmethod
+    def add_info(w, y: int, x: int, what: str, info, info_col=None) -> None:
+        what += ":"
+        w.addstr(y, x, what, BLUE)
+        if info_col is None:
+            w.addstr(f" {info}")
+        else:
+            w.addstr(f" {info}", info_col)
+
     def update(self):
         if self.active:
             if self._show_echidna_timer:
@@ -106,7 +117,7 @@ class HybridEchidnaDisplay:
                     0,
                     curses.COLS // 2 - len(self.main_title) // 2,
                     self.main_title,
-                    curses.A_BOLD,
+                    curses.A_BOLD | GREEN,
                 )
                 # Global info window
                 global_win = self.scr.derwin(
@@ -115,9 +126,11 @@ class HybridEchidnaDisplay:
                     0,
                     1,
                 )
-                global_win.addstr(1, 1, f"Iteration: #{self.iteration}")
-                global_win.addstr(2, 1, f"Mode: {self.mode}")
-                global_win.addstr(3, 1, f"Corpus size: {self.corpus_size}")
+                self.add_info(
+                    global_win, 1, 1, "Iteration", f"#{self.iteration}"
+                )
+                self.add_info(global_win, 2, 1, "Mode", self.mode)
+                self.add_info(global_win, 3, 1, "Corpus size", self.corpus_size)
                 # Current info window
                 glob_lines, glob_cols = global_win.getmaxyx()
                 current_win = self.scr.derwin(
@@ -160,16 +173,28 @@ class HybridEchidnaDisplay:
                     0,
                     (fuzz_cols - len(self.fuzz_win_title)) // 2,
                     self.fuzz_win_title,
-                    curses.A_BOLD,
+                    curses.A_BOLD | GREEN,
                 )
-                fuzz_win.addstr(
-                    1, 1, f"Tests found (total): {self.fuzz_total_cases_cnt}"
+                self.add_info(
+                    fuzz_win,
+                    1,
+                    1,
+                    "Tests found (total)",
+                    self.fuzz_total_cases_cnt,
                 )
-                fuzz_win.addstr(
-                    2, 1, f"Tests found (last): {self.fuzz_last_cases_cnt}"
+                self.add_info(
+                    fuzz_win,
+                    2,
+                    1,
+                    "Tests found (last)",
+                    self.fuzz_last_cases_cnt,
                 )
-                fuzz_win.addstr(
-                    3, 1, f"Time fuzzing: {self.fuzz_total_time//1000}s"
+                self.add_info(
+                    fuzz_win,
+                    3,
+                    1,
+                    "Time fuzzing",
+                    f"{self.fuzz_total_time//1000}s",
                 )
                 # Symex info window
                 sym_win_cols = curses.COLS - 1 - fuzz_cols
@@ -181,42 +206,97 @@ class HybridEchidnaDisplay:
                     0,
                     (sym_win_cols - len(self.sym_win_title)) // 2,
                     self.sym_win_title,
-                    curses.A_BOLD,
+                    curses.A_BOLD | GREEN,
                 )
-                sym_win.addstr(
-                    1, 1, f"Generated cases: {self.sym_total_inputs_solved}"
+                self.add_info(
+                    sym_win,
+                    1,
+                    1,
+                    "Generated cases",
+                    self.sym_total_inputs_solved,
                 )
-                sym_win.addstr(
+                self.add_info(
+                    sym_win,
                     2,
                     1,
-                    f"Total solving time: {self.sym_time_solving_total//1000} s",
+                    "Total solving time",
+                    f"{self.sym_time_solving_total//1000}s",
                 )
-                sym_win.addstr(
+                self.add_info(
+                    sym_win,
                     3,
                     1,
-                    f"Avg. solving time: {self.sym_time_solving_average } ms",
+                    "Avg. solving time",
+                    f"{self.sym_time_solving_average}ms",
                 )
-
-                sym_win.addstr(
+                self.add_info(
+                    sym_win,
                     1,
                     sym_win_cols // 2,
-                    "Solver timeout: "
-                    + (
-                        f"{self.sym_solver_timeout} ms"
+                    "Solver timeout",
+                    (
+                        f"{self.sym_solver_timeout}ms"
                         if self.sym_solver_timeout
                         else "none"
                     ),
+                    YELLOW,
                 )
-                sym_win.addstr(
+                self.add_info(
+                    sym_win,
                     2,
                     sym_win_cols // 2,
-                    f"Timeouts cnt: {self.sym_total_solver_timeouts}",
+                    "Timeouts cnt",
+                    self.sym_total_solver_timeouts,
+                    RED if self.sym_total_solver_timeouts else None,
                 )
-                sym_win.addstr(
+                self.add_info(
+                    sym_win,
                     3,
                     sym_win_cols // 2,
-                    f"Avg. constraints/case: {self.sym_path_constr_average}",
+                    "Avg. constraints/case",
+                    self.sym_path_constr_average,
                 )
+                # Results windows
+                res_win_y_start = glob_lines + fuzz_lines - 3
+                res_win = self.scr.derwin(
+                    curses.LINES - 1 - res_win_y_start,
+                    curses.COLS - 2,
+                    res_win_y_start,
+                    1,
+                )
+                res_lines, res_cols = res_win.getmaxyx()
+                res_win.border(" ", " ", 0, " ", " ", " ", " ", " ")
+                res_win.addstr(
+                    0,
+                    (res_cols - len(self.res_win_title)) // 2,
+                    self.res_win_title,
+                    curses.A_BOLD | GREEN,
+                )
+                if self.res_cases:
+                    y_case_cnt = 1
+                    unshown_cnt = 0
+                    for j, case in enumerate(self.res_cases):
+                        if y_case_cnt + len(case) + 1 >= res_lines:
+                            unshown_cnt = len(self.res_cases) - j
+                            break
+                        case_win = res_win.derwin(
+                            len(case) + 1,
+                            res_cols,
+                            y_case_cnt,
+                            0,
+                        )
+                        case_win.border(" ", " ", " ", 0, " ", " ", " ", " ")
+                        for i, call in enumerate(case):
+                            case_win.addstr(i, 1, call, RED)
+                        y_case_cnt += len(case) + 1
+                    # TODO display how many assertions are not shown
+                else:
+                    no_cases_msg = "-"
+                    res_win.addstr(
+                        res_lines // 2,
+                        (res_cols - len(no_cases_msg)) // 2,
+                        no_cases_msg,
+                    )
 
                 self.scr.refresh()
             except curses.error as e:
@@ -230,13 +310,34 @@ class HybridEchidnaDisplay:
 display = HybridEchidnaDisplay()
 display_thread = None
 
+GREEN = None
+BLUE = None
+YELLOW = None
+RES = None
+
 
 def _display():
     global display
+    global GREEN
+    global BLUE
+    global RED
+    global YELLOW
     exc = None
     try:
         stdscr = curses.initscr()
         curses.noecho()
+        curses.start_color()
+        curses.use_default_colors()
+        curses.init_color(curses.COLOR_RED, 245 * 4, 130 * 4, 0 * 4)
+        curses.init_color(curses.COLOR_YELLOW, 250 * 4, 230 * 4, 10 * 4)
+        curses.init_pair(1, curses.COLOR_GREEN, -1)
+        curses.init_pair(2, curses.COLOR_BLUE, -1)
+        curses.init_pair(3, curses.COLOR_YELLOW, -1)
+        curses.init_pair(4, curses.COLOR_RED, -1)
+        GREEN = curses.color_pair(1)
+        BLUE = curses.color_pair(2)
+        YELLOW = curses.color_pair(3)
+        RED = curses.color_pair(4)
         display.start(stdscr)
         while display.active:
             display.update()
