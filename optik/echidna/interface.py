@@ -178,8 +178,15 @@ def load_tx(tx: Dict, tx_name: str = "") -> AbstractTx:
     ctx.set(sender.name, int(tx["_src"], 16), sender.size)
 
     # Translate message value
-    value = Var(256, f"{tx_name}_value")
-    ctx.set(value.name, int(tx["_value"], 16), value.size)
+    value_key = f"{tx_name}_value"
+    # Echidna will only send non-zero msg.value to payable funcs
+    # so we only make an abstract value in that case
+    # TODO: consider analyzing if funcs read msg.value
+    if int(tx[value_key], 16) != 0:
+        value = Var(256, value_key) 
+        ctx.set(value.name, int(tx["_value"], 16), value.size) 
+    else:
+        value = Cst(256, 0)
 
     # Build transaction
     # TODO: make EVMTransaction accept integers as arguments
