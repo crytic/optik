@@ -297,7 +297,7 @@ class HybridEchidnaDisplay:
                     y_case_cnt = 1
                     unshown_cnt = 0
                     for j, case in enumerate(self.res_cases):
-                        if y_case_cnt + len(case) + 1 >= res_lines:
+                        if y_case_cnt + len(case) + 2 >= res_lines:
                             unshown_cnt = len(self.res_cases) - j
                             break
                         case_win = res_win.derwin(
@@ -310,6 +310,14 @@ class HybridEchidnaDisplay:
                         for i, call in enumerate(case):
                             case_win.addstr(i, 1, call, RED)
                         y_case_cnt += len(case) + 1
+                    if unshown_cnt:
+                        unshown_msg = f"... {unshown_cnt} more case{'s' if unshown_cnt > 1 else ''} not shown"
+                        res_win.addstr(
+                            res_lines - 1,
+                            (res_cols - len(unshown_msg)) // 2,
+                            unshown_msg,
+                            curses.A_BOLD | RED,
+                        )
                     # TODO display how many assertions are not shown
                 else:
                     no_cases_msg = "-"
