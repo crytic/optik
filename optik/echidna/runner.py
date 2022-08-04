@@ -121,8 +121,13 @@ def generate_new_inputs(
     logger.info(
         f"Solving potential new paths... ({count} total, {len(unique_bifurcations)} unique)"
     )
+    # Terminal display
+    display.reset_current_task()
+    display.current_task_line_1 = f"Solving new cases... ({count} total, {len(unique_bifurcations)} unique)"
     success_cnt = 0
     for i, bif in enumerate(cov.bifurcations):
+        display.current_task_line_2 = (i + 1, count)  # Terminal display
+
         # Don't solve identical bifurcations if one was solved already
         # and if it's not a custom corpus seed. For custom corpus seeds we
         # still want to solve all bifurcations because all of them should
