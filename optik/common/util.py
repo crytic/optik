@@ -4,6 +4,8 @@ from typing import Union, List, Tuple
 
 import rlp
 import sha3
+import ast
+import os
 
 from .exceptions import GenericException
 
@@ -234,3 +236,11 @@ def compute_new_contract_addr(sender: int, nonce: int) -> int:
     k.update(rlp.encode([sender.to_bytes(20, "big"), nonce]))
     digest = k.digest()[12:]
     return int.from_bytes(digest, "big")
+
+
+def count_files_in_dir(d: str) -> int:
+    """Return the number of files in a directory, or 0 if
+    the directory doesn't exist"""
+    if not os.path.exists(d) or not os.path.isdir(d):
+        return 0
+    return len(os.listdir(d))

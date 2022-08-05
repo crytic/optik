@@ -10,11 +10,10 @@ from maat import (
     STOP,
     VarContext,
 )
-
-from .interface import load_tx_sequence, store_new_tx_sequence
-from ..common.logger import logger
-from ..common.world import EVMWorld, AbstractTx
-from ..coverage import Coverage
+from typing import List, Optional, Tuple
+import os
+from .display import display
+from datetime import datetime
 
 
 # TODO(boyan): pass contract bytecode instead of extracting to file
@@ -25,9 +24,16 @@ def replay_inputs(
     cov: Coverage,
 ) -> None:
 
+    display.reset_current_task()
+    display.current_task_line_1 = "Replaying cases symbolically..."
+
     # Run every input from the corpus
-    for corpus_file in corpus_files:
+    for i, corpus_file in enumerate(corpus_files):
         logger.debug(f"Replaying input: {os.path.basename(corpus_file)}")
+        display.current_task_line_2 = (
+            i + 1,
+            len(corpus_files),
+        )
 
         tx_seq = load_tx_sequence(corpus_file)
         # TODO(boyan): implement snapshoting in EVMWorld so we don't
@@ -109,8 +115,13 @@ def generate_new_inputs(
     logger.info(
         f"Solving potential new paths... ({count} total, {len(unique_bifurcations)} unique)"
     )
+    # Terminal display
+    display.reset_current_task()
+    display.current_task_line_1 = f"Solving new cases... ({count} total, {len(unique_bifurcations)} unique)"
     success_cnt = 0
     for i, bif in enumerate(cov.bifurcations):
+        display.current_task_line_2 = (i + 1, count)  # Terminal display
+
         # Don't solve identical bifurcations if one was solved already
         # and if it's not a custom corpus seed. For custom corpus seeds we
         # still want to solve all bifurcations because all of them should
@@ -132,7 +143,12 @@ def generate_new_inputs(
         )
         s.add(bif.alt_target_constraint)
 
-        if s.check():
+        start_time = datetime.now()
+        solved = s.check()
+        display.update_solving_time(
+            int((datetime.now() - start_time).total_seconds() * 1000)
+        )
+        if solved:
             success_cnt += 1
             if bif in unique_bifurcations:
                 unique_bifurcations.remove(bif)
@@ -140,8 +156,16 @@ def generate_new_inputs(
             # Serialize the new input discovered
             store_new_tx_sequence(bif.input_uid, model)
             _add_new_senders(model, args)
+            # Terminal display
+            display.sym_total_inputs_solved += 1
         elif s.did_time_out:
             timeout_cnt += 1
+            # Terminal display
+            display.sym_total_solver_timeouts += 1
+
+        # Terminal display
+        display.update_avg_path_constraints(len(bif.path_constraints) + 1)
+
     return (
         success_cnt,
         timeout_cnt,
@@ -156,6 +180,9 @@ def run_echidna_campaign(
     :param args: arguments to pass to echidna
     :return: the exit value returned by invoking `echidna-test`
     """
+    # Show for how long echidna runs in terminal display
+    display.start_echidna_task_timer()
+
     # Build back echidna command line
     cmdline = ["echidna-test"]
     cmdline += args.FILES
@@ -176,10 +203,13 @@ def run_echidna_campaign(
                 "solver_timeout",
                 "no_incremental",
                 "incremental_threshold",
+                "logs",
+                "no_display",
             ]
             and not val is None
         ):
             cmdline += [f"--{arg.replace('_', '-')}", str(val)]
+    cmdline += ["--format", "json"]
     logger.debug(f"Echidna invocation cmdline: {' '.join(cmdline)}")
     # Run echidna
     echidna_process = subprocess.run(
@@ -192,4 +222,6 @@ def run_echidna_campaign(
         stderr=subprocess.PIPE,
         universal_newlines=True,
     )
+
+    display.stop_echidna_task_timer()
     return echidna_process

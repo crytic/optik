@@ -8,7 +8,8 @@ from slither.slither import Slither
 
 from optik.common.exceptions import GenericException
 from .runner import replay_inputs, generate_new_inputs, run_echidna_campaign
-from .interface import extract_contract_bytecode
+from .interface import extract_contract_bytecode, extract_cases_from_json_output
+from .display import display
 from ..coverage import (
     InstCoverage,
     InstIncCoverage,
@@ -18,18 +19,60 @@ from ..coverage import (
     PathCoverage,
     RelaxedPathCoverage,
 )
-
-from ..common.logger import logger, handler
+from slither.slither import Slither
+from slither.exceptions import SlitherError
+from ..common.logger import (
+    logger,
+    disable_logging,
+    init_logging,
+    set_logging_level,
+)
+from ..common.exceptions import ArgumentParsingError, InitializationError
+from ..common.util import count_files_in_dir
+import logging
+from typing import List, Optional, Set
 from ..corpus.generator import (
     EchidnaCorpusGenerator,
     infer_previous_incremental_threshold,
 )
+from .display import (
+    display,
+    start_display,
+    stop_display,
+)
+from datetime import datetime
+import time
+from dataclasses import dataclass
+
+
+def handle_argparse_error(err: ArgumentParsingError) -> None:
+    print(f"error: {err.msg}")
+    print(err.help_str)
+
+
+@dataclass(frozen=False)
+class FuzzingResult:
+    cases_found_cnt: int
+    corpus_dir: Optional[str]
 
 
 def run_hybrid_echidna(args: List[str]) -> None:
-    """Main hybrid echidna script"""
+    """Main hybrid echidna script
 
-    args = parse_arguments(args)
+    :param args: list of command line arguments
+    """
+    global glob_fuzzing_result
+
+    # Parse arguments
+    try:
+        args = parse_arguments(args)
+    except ArgumentParsingError as e:
+        if display.active:
+            raise e
+        else:
+            handle_argparse_error(e)
+            return
+
     max_seq_len = args.seq_len
     try:
         deployer = int(args.deployer, 16)
@@ -37,13 +80,25 @@ def run_hybrid_echidna(args: List[str]) -> None:
         logger.error(f"Invalid deployer address: {args.deployer}")
         return
 
-    if args.debug:
-        handler.setLevel(logging.DEBUG)
+    display.sym_solver_timeout = args.solver_timeout
 
+    # Logging stream
+    if args.logs:
+        if args.logs == "stdout" and not args.no_display:
+            raise InitializationError(
+                "Cannot write logs to stdout while terminal display is enabled. Consider disabling it with '--no-display'"
+            )
+        init_logging(args.logs)
+    else:
+        disable_logging()
+    if args.debug:
+        set_logging_level(logging.DEBUG)
+
+    # Corpus and coverage directories
     if args.corpus_dir is None:
         args.corpus_dir = tempfile.TemporaryDirectory(dir=".").name
-
     coverage_dir = os.path.join(args.corpus_dir, "coverage")
+    glob_fuzzing_result = FuzzingResult(0, args.corpus_dir)
 
     # Coverage tracker for the whole fuzzing session
     if args.cov_mode == "inst":
@@ -64,9 +119,7 @@ def run_hybrid_echidna(args: List[str]) -> None:
         raise GenericException(f"Unsupported coverage mode: {args.cov_mode}")
 
     # Incremental seeding with feed-echidna
-    prev_threshold: Optional[int] = infer_previous_incremental_threshold(
-        coverage_dir
-    )
+    prev_threshold: int = infer_previous_incremental_threshold(coverage_dir)
     if prev_threshold:
         logger.info(
             f"Incremental seeding was already used on this corpus with threshold {prev_threshold}"
@@ -80,10 +133,13 @@ def run_hybrid_echidna(args: List[str]) -> None:
     # Set of corpus files we have already processed
     seen_files = set()
 
+    # Main fuzzing+symexec loop
     iter_cnt = 0
     new_inputs_cnt = 0
+    cases_found_cnt = 0
     while args.max_iters is None or iter_cnt < args.max_iters:
         iter_cnt += 1
+        display.iteration = iter_cnt  # terminal display
 
         # If incremental seeding, start with low seq_len and
         # manually increment it at each step
@@ -100,13 +156,19 @@ def run_hybrid_echidna(args: List[str]) -> None:
                 # where we stopped last time (or at the current threshold if it's
                 # smaller than the previous one). If no previous seeding, start
                 # at 1
-                args.seq_len = (
-                    1
-                    if not prev_threshold
-                    else min(prev_threshold, args.incremental_threshold)
-                )
+                if not prev_threshold:
+                    args.seq_len = 1
+                else:
+                    args.seq_len = min(
+                        prev_threshold, args.incremental_threshold
+                    )
+                    gen.step(args.seq_len - 1)
+                    gen.init_func_template_mapping(coverage_dir)
+
             # Update corpus seeding
-            elif args.seq_len < max_seq_len:
+            if (iter_cnt > 1 and args.seq_len < max_seq_len) or (
+                iter_cnt == 1 and prev_threshold
+            ):
                 # Incremental seeding strategy
                 if args.seq_len < args.incremental_threshold:
                     args.seq_len += 1
@@ -122,17 +184,37 @@ def run_hybrid_echidna(args: List[str]) -> None:
                     new_seeds_cnt = 0
                     args.seq_len = min(max_seq_len, args.seq_len * 2)
 
+        # terminal display
+        if (
+            do_incremental_seeding
+            and args.seq_len <= args.incremental_threshold
+        ):
+            display.mode = (
+                f"incremental ({args.seq_len}/{args.incremental_threshold})"
+            )
+        else:
+            display.mode = "normal"  # termial display
+        display.corpus_size = count_files_in_dir(coverage_dir)
+
         # Run echidna fuzzing campaign
         logger.info(f"Running echidna campaign #{iter_cnt} ...")
+        start_time = datetime.now()
         p = run_echidna_campaign(args)
+        display.fuzz_total_time += int(
+            (datetime.now() - start_time).total_seconds() * 1000
+        )
         # Note: return code is not a reliable error indicator for Echidna
         # so we check stderr to detect potential errors running Echidna
         if p.stderr:
             logger.fatal(f"Echidna failed with exit code {p.returncode}")
             logger.fatal(f"Echidna stderr: \n{p.stderr}")
-            return
+            raise GenericException("Echidna failed")
 
         logger.debug(f"Echidna stdout: \n{p.stdout}")
+
+        # Display cases in terminal
+        display.res_cases = extract_cases_from_json_output(p.stdout)
+        glob_fuzzing_result.cases_found_cnt = len(display.res_cases)
 
         # Extract contract bytecodes in separate files for Maat. This is done
         # only once after the first fuzzing campaign
@@ -151,7 +233,7 @@ def run_hybrid_echidna(args: List[str]) -> None:
                 # TODO(boyan): catch errors
                 gen.init_func_template_mapping(coverage_dir)
 
-        # Replay new corpus inputs symbolically
+        # Get new inputs
         new_inputs = pull_new_corpus_files(coverage_dir, seen_files)
         if new_inputs:
             logger.info(
@@ -159,7 +241,19 @@ def run_hybrid_echidna(args: List[str]) -> None:
             )
         else:
             logger.info(f"Echidna couldn't find new inputs")
-            return
+            break
+
+        # Terminal display
+        new_echidna_inputs_cnt = len(
+            [
+                f
+                for f in new_inputs
+                if not os.path.basename(f).startswith("optik")
+            ]
+        )
+        display.fuzz_total_cases_cnt += new_echidna_inputs_cnt
+        display.fuzz_last_cases_cnt = new_echidna_inputs_cnt
+        # Replay new corpus inputs symbolically
         cov.bifurcations = []
         replay_inputs(new_inputs, contract_file, deployer, cov)
 
@@ -182,7 +276,40 @@ def run_hybrid_echidna(args: List[str]) -> None:
             break
 
     logger.info(f"Corpus and coverage info written in {args.corpus_dir}")
-    return
+
+
+def run_hybrid_echidna_with_display(args: List[str]) -> None:
+    """Run hybrid-echidna with terminal display enabled"""
+    exc = None
+    err_msg = None
+    argparse_err = None
+    # Start terminal display
+    start_display()
+    try:
+        run_hybrid_echidna(args)
+        # Indicate that hybrid echidna finished and
+        # wait for user to manually close display
+        display.notify_finished()
+        while True:
+            time.sleep(0.2)
+    # Handle many errors to gracefully stop terminal display
+    except ArgumentParsingError as e:
+        argparse_err = e
+    except InitializationError as e:
+        err_msg = str(e)
+    except (Exception, SlitherError) as e:
+        exc = e
+    except KeyboardInterrupt:
+        pass
+    # Close terminal display and reset terminal settings
+    stop_display()  # Waits for display threads to exit gracefully
+    # Display thread terminated, now handle pending errors or exceptions
+    if err_msg:
+        logger.error(err_msg)
+    if argparse_err:
+        handle_argparse_error(argparse_err)
+    if exc:
+        raise exc
 
 
 def pull_new_corpus_files(cov_dir: str, seen_files: Set[str]) -> List[str]:
@@ -201,8 +328,15 @@ def pull_new_corpus_files(cov_dir: str, seen_files: Set[str]) -> List[str]:
 
 
 def parse_arguments(args: List[str]) -> argparse.Namespace:
+    class ArgParser(argparse.ArgumentParser):
+        """Custom argument parser that doesn't exit on invalid arguments but
+        raises a custom exception for Optik to handle"""
 
-    parser = argparse.ArgumentParser(
+        def error(self, message):
+            """Override default behaviour on invalid arguments"""
+            raise ArgumentParsingError(msg=message, help_str=self.format_help())
+
+    parser = ArgParser(
         description="Hybrid fuzzer with Echidna & Maat",
         prog=sys.argv[0],
         formatter_class=argparse.ArgumentDefaultsHelpFormatter,
@@ -351,13 +485,47 @@ def parse_arguments(args: List[str]) -> argparse.Namespace:
         metavar="INTEGER",
     )
 
-    parser.add_argument("--debug", action="store_true", help="Print debug logs")
+    parser.add_argument(
+        "--debug", action="store_true", help="Enable debug logs"
+    )
+
+    parser.add_argument(
+        "--logs",
+        type=str,
+        help="File where to write the logs. Use 'stdout' to print logs to standard output",
+        default=None,
+        metavar="PATH",
+    )
+
+    parser.add_argument(
+        "--no-display",
+        action="store_true",
+        help="Disable the beautiful terminal display",
+    )
 
     return parser.parse_args(args)
 
 
+# We use a global for the fuzzing result because we need to
+# print the output corpus directory to the user no matter
+# whether graphical display was enabled and whether we
+# exited normally of from an interrupt
+glob_fuzzing_result: Optional[FuzzingResult] = None
+
+
 def main() -> None:
-    run_hybrid_echidna(sys.argv[1:])
+    func = (
+        run_hybrid_echidna
+        if "--no-display" in sys.argv
+        else run_hybrid_echidna_with_display
+    )
+    func(sys.argv[1:])
+    # Print result and exit
+    if glob_fuzzing_result:
+        print(f"{glob_fuzzing_result.cases_found_cnt} cases found")
+        print(
+            f"Corpus and coverage info written in {glob_fuzzing_result.corpus_dir}"
+        )
 
 
 if __name__ == "__main__":

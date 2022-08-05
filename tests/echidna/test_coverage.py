@@ -57,7 +57,7 @@ def test_coverage(contract: str, cov_mode: str, seq_len: int):
     test_dir = new_test_dir()
     contract_name = contract.stem
     # Run hybrid echidna
-    cmdline_args = f"{contract}  --contract {contract_name} --test-mode assertion --corpus-dir {test_dir} --seq-len {seq_len} --seed 46541521 --max-iters 10 --test-limit 10000 --cov-mode {cov_mode} --debug ".split()
+    cmdline_args = f"{contract}  --contract {contract_name} --test-mode assertion --corpus-dir {test_dir} --seq-len {seq_len} --seed 46541521 --max-iters 10 --test-limit 10000 --cov-mode {cov_mode} --debug --logs stdout --no-display".split()
     # Run hybrid echidna in a separate process
     test_proc = Process(target=run_hybrid_echidna, args=(cmdline_args,))
     test_proc.start()

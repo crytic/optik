@@ -12,6 +12,11 @@ Optik is a work in progress and should not be used for real audits yet. Current 
 - Some echidna options are not yet supported (see `hybrid-echidna -h`)
 
 ## Hybrid Echidna
+
+<p align="center" >
+<img width="80%" src=".resources/hybrid_echidna.png"/> <br>
+</p>
+
 Optik allows to run the [Echidna](https://github.com/crytic/echidna) smart-contract 
 fuzzer in _hybrid_ mode. It basically couples Echidna with the [Maat](https://github.com/trailofbits/maat) symbolic executor that replays the Echidna corpus and extends it with new inputs that increase coverage. 
 
@@ -26,7 +31,7 @@ For example:
 hybrid-echidna MyContract.sol  --test-mode assertion --corpus-dir /tmp/test --contract MyContract
 ```
 
-Additionnal options are available in hybrid mode:
+Additionnal options are available in hybrid mode to control `hybrid-echidna`'s behaviour:
 
 - `--max-iters`: maximum number of fuzzing iterations to perform (one iteration is one Echidna campaign + one symbolic executor run on the corpus)
 
@@ -38,8 +43,13 @@ Additionnal options are available in hybrid mode:
 
 - `--cov-mode`: type of coverage to increase when solving new inputs. Most coverage modes are implemented for experimental purposes. Unless you are developing/hacking on Optik, we recommend to keep the default mode
 
+Debugging, logging and terminal display:
+
 - `--debug`: add debugging information to the log output
 
+- `--logs`: write logs to a given file (or `stdout`)
+
+- `--no-display`: disable the graphical terminal display
 
 ## Installation
 

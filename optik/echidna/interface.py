@@ -176,8 +176,14 @@ def load_tx(tx: Dict, tx_name: str = "") -> AbstractTx:
     ctx.set(sender.name, int(tx["_src"], 16), sender.size)
 
     # Translate message value
-    value = Var(256, f"{tx_name}_value")
-    ctx.set(value.name, int(tx["_value"], 16), value.size)
+    value_key = f"{tx_name}_value"
+    # Echidna will only send non-zero msg.value to payable funcs
+    # so we only make an abstract value in that case
+    if int(tx[value_key], 16) != 0:
+        value = Var(256, value_key)
+        ctx.set(value.name, int(tx["_value"], 16), value.size)
+    else:
+        value = Cst(256, 0)
 
     # Build transaction
     # TODO: make EVMTransaction accept integers as arguments
@@ -432,3 +438,35 @@ def extract_contract_bytecode(
             f"Available contracts: {all_contract_names}"
         )
         return None
+
+
+def extract_cases_from_json_output(output: str) -> List[List[str]]:
+    """Extract echidna test cases from it's JSON output (obtained by
+    passing '--format json'). Returns a list of test cases. Each test
+    case in the list consists in the list of function calls that
+    make up this case.
+    Example return value:
+    [
+        ["f()", "g(1,2)"],
+        ["h(12343, -1)"]
+    ]
+
+    :param output: echidna's JSON output as a single string
+    """
+    # Sometimes the JSON output starts with a line such as
+    # "Loaded total of 500 transactions from /tmp/c4/coverage"
+    if output.startswith("Loaded total of"):
+        output = output.split("\n", 1)[1]
+    data = json.loads(output)
+    if "tests" not in data:
+        return []
+    res = []
+    for test in data["tests"]:
+        if test["status"] == "solved":
+            case = []
+            for tx in test["transactions"]:
+                case.append(
+                    f"{tx['function']}({','.join([arg for arg in tx['arguments']])})"
+                )
+            res.append(case)
+    return res
