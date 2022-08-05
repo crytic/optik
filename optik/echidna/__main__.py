@@ -6,7 +6,7 @@ import tempfile
 import time
 from dataclasses import dataclass
 from datetime import datetime
-from typing import List, Optional, Set
+from typing import List, Optional, Set, NoReturn
 
 from slither.exceptions import SlitherError
 from slither.slither import Slither
@@ -39,6 +39,7 @@ from ..coverage import (
     InstSgCoverage,
     PathCoverage,
     RelaxedPathCoverage,
+    Coverage,
 )
 
 
@@ -53,7 +54,7 @@ class FuzzingResult:
     corpus_dir: Optional[str]
 
 
-def run_hybrid_echidna(args: List[str]) -> None:
+def run_hybrid_echidna(arguments: List[str]) -> None:
     """Main hybrid echidna script
 
     :param args: list of command line arguments
@@ -62,7 +63,7 @@ def run_hybrid_echidna(args: List[str]) -> None:
 
     # Parse arguments
     try:
-        args = parse_arguments(args)
+        args = parse_arguments(arguments)
     except ArgumentParsingError as e:
         if display.active:
             raise e
@@ -97,6 +98,7 @@ def run_hybrid_echidna(args: List[str]) -> None:
     glob_fuzzing_result = FuzzingResult(0, args.corpus_dir)
 
     # Coverage tracker for the whole fuzzing session
+    cov: Coverage
     if args.cov_mode == "inst":
         cov = InstCoverage()
     elif args.cov_mode == "inst-tx":
@@ -115,7 +117,10 @@ def run_hybrid_echidna(args: List[str]) -> None:
         raise GenericException(f"Unsupported coverage mode: {args.cov_mode}")
 
     # Incremental seeding with feed-echidna
-    prev_threshold: int = infer_previous_incremental_threshold(coverage_dir)
+    prev_threshold: Optional[int] = infer_previous_incremental_threshold(
+        coverage_dir
+    )
+    assert prev_threshold is not None
     if prev_threshold:
         logger.info(
             f"Incremental seeding was already used on this corpus with threshold {prev_threshold}"
@@ -127,7 +132,7 @@ def run_hybrid_echidna(args: List[str]) -> None:
         gen = EchidnaCorpusGenerator(args.contract, slither)
 
     # Set of corpus files we have already processed
-    seen_files = set()
+    seen_files: Set[str] = set()
 
     # Main fuzzing+symexec loop
     iter_cnt = 0
@@ -326,7 +331,7 @@ def parse_arguments(args: List[str]) -> argparse.Namespace:
         """Custom argument parser that doesn't exit on invalid arguments but
         raises a custom exception for Optik to handle"""
 
-        def error(self, message):
+        def error(self, message: str) -> NoReturn:
             """Override default behaviour on invalid arguments"""
             raise ArgumentParsingError(msg=message, help_str=self.format_help())
 
@@ -336,7 +341,7 @@ def parse_arguments(args: List[str]) -> argparse.Namespace:
         formatter_class=argparse.ArgumentDefaultsHelpFormatter,
     )
 
-    def auto_int(x):
+    def auto_int(x: str) -> int:
         return int(x, 0)
 
     # Echidna arguments

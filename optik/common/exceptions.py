@@ -52,6 +52,6 @@ class InitializationError(Exception):
 class ArgumentParsingError(GenericException):
     """Error parsing command line arguments with argparse"""
 
-    def __init__(self, msg, help_str):
+    def __init__(self, msg, help_str) -> None:
         self.msg = msg
         self.help_str = help_str

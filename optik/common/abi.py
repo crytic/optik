@@ -1,5 +1,5 @@
 from itertools import accumulate
-from typing import List, Union, Any
+from typing import List, Union, Any, Optional
 
 import sha3
 from eth_abi.exceptions import ABITypeError, ParseError
@@ -134,7 +134,7 @@ def address_enc(
 
 
 def bytesM(
-    byte_count: int,
+    byte_count: Optional[int],
     value: Union[List[int], List[Value]],
     ctx: VarContext,
     name: str,
@@ -148,6 +148,7 @@ def bytesM(
     :param name: symbolic variable name to use to make 'value' concolic
     :return: list of abstract Values to append to transaction data
     """
+    dynamic_size: List[Value]
     if byte_count is None:
         # dynamic bytes
         byte_count = len(value)
@@ -198,10 +199,11 @@ def bytesM(
 
 
 def bool_enc(
-    _, value: Union[bool, Value], ctx: VarContext, name: str
+    _unused: Any, value: Union[bool, Value], ctx: VarContext, name: str
 ) -> List[Value]:
     """Encodes a bool type as a uint8 value
 
+    :param _unused: unused parameter
     :param value: either a concrete True or False, or a Value object
     :param ctx: the VarContext to use to make 'value' concolic
     :param name: symbolic variable name to use to make 'value' concolic
@@ -271,7 +273,9 @@ def tuple_enc(
     base_head_length = compute_head_lengths(tup)
     cum_tail_length = 0
 
-    def head(x: ABIType, value, ctx: VarContext, base_name: str) -> List[Value]:
+    def head(
+        x: ABIType, value: Any, ctx: VarContext, base_name: str
+    ) -> List[Value]:
         """As defined in the ABI specification, encodes head(x)
 
         :param x: type to encode
@@ -285,7 +289,9 @@ def tuple_enc(
             return [Cst(256, offset)]
         return encode_value(x, value, ctx, base_name)
 
-    def tail(x: ABIType, value, ctx: VarContext, base_name: str) -> List[Value]:
+    def tail(
+        x: ABIType, value: Any, ctx: VarContext, base_name: str
+    ) -> List[Value]:
         """As defined in the ABI specification, encodes tail(x)
 
         :param x: type to encode
@@ -418,6 +424,7 @@ def encode_value(
         # type is a tuple
         return tuple_enc(ty, value, ctx, arg_name)
 
+    assert isinstance(ty, BasicType)
     # elementary type
     if not ty.base in encoder_functions:
         raise ABIException(f"Unsupported type: {ty.base}")
@@ -456,7 +463,7 @@ def function_call(
     # Parse function arguments
     try:
         args_spec = "".join(args_spec.split())  # strip all whitespaces
-        args_spec = normalize(args_spec)
+        args_spec = normalize(args_spec)  # type: ignore
         args_types = parse(args_spec)
     except ParseError as e:
         raise ABIException(f"Error parsing args specification: {str(e)}")

@@ -74,7 +74,7 @@ class PathCoverage(Coverage):
                         as a WorldMonitor
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         super().__init__()
         self.covered = PathTree()
         # Current path: list of symbolic branches that were taken
@@ -124,7 +124,7 @@ class RelaxedPathCoverage(PathCoverage):
 
     HOOK_ID = "__relaxed_path_coverage"
 
-    def __init__(self):
+    def __init__(self) -> None:
         super().__init__()
 
     def record_branch(self, m: MaatEngine) -> None:

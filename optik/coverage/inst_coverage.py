@@ -15,7 +15,7 @@ class InstCoverage(Coverage):
 
     HOOK_ID = "__inst_coverage"
 
-    def __init__(self):
+    def __init__(self) -> None:
         super().__init__()
 
     def track(self, m: MaatEngine) -> None:
@@ -35,6 +35,8 @@ class InstCoverage(Coverage):
         self.covered[state] = self.covered.get(state, 0) + 1
 
     def get_state(self, inst_addr: int, **kwargs) -> InstCoverageState:
+        assert self.world
+        # TODO (montyly) the class takes 1 parameter, but 3 are provided here?
         return InstCoverageState(
             self.world.current_contract.address,
             self.world.current_contract.initialized,
@@ -42,7 +44,7 @@ class InstCoverage(Coverage):
         )
 
     @staticmethod
-    def inst_callback(m: MaatEngine, cov: "Coverage"):
+    def inst_callback(m: MaatEngine, cov: "Coverage") -> None:
         cov.record_exec(m)
 
 
@@ -59,7 +61,7 @@ class InstTxCoverage(InstCoverage):
 
     HOOK_ID = "__inst_tx_coverage"
 
-    def __init__(self):
+    def __init__(self) -> None:
         super().__init__()
 
     def get_state(self, inst_addr: int, **kwargs) -> InstTxCoverageState:
@@ -88,7 +90,7 @@ class InstSgCoverage(InstCoverage):
 
     HOOK_ID = "__inst_sg_coverage"
 
-    def __init__(self):
+    def __init__(self) -> None:
         super().__init__()
 
     def get_state(
@@ -128,7 +130,7 @@ class InstIncCoverage(InstCoverage):
 
     HOOK_ID = "__inst_inc_coverage"
 
-    def __init__(self):
+    def __init__(self) -> None:
         super().__init__()
         self.total_tx_cnt = None
 

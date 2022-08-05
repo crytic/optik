@@ -7,10 +7,10 @@ from ..common.logger import logger
 from ..common.exceptions import CorpusException
 
 
-def run_feed_echidna(args: List[str]) -> None:
+def run_feed_echidna(arguments: List[str]) -> None:
     """Main corpus generation script"""
 
-    args = parse_arguments(args)
+    args = parse_arguments(arguments)
     slither = Slither(args.FILE)
     gen = EchidnaCorpusGenerator(args.contract, slither)
     logger.info(f"Getting transaction templates from {args.corpus_dir}...")
@@ -37,7 +37,7 @@ def parse_arguments(args: List[str]) -> argparse.Namespace:
         formatter_class=argparse.ArgumentDefaultsHelpFormatter,
     )
 
-    def auto_pos_int(x):
+    def auto_pos_int(x: str) -> int:
         res = int(x, 0)
         if res <= 0:
             raise argparse.ArgumentTypeError("Depth must be strictly positive")
