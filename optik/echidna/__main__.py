@@ -16,6 +16,7 @@ from ..coverage import (
     RelaxedPathCoverage,
 )
 from slither.slither import Slither
+from slither.exceptions import SlitherError
 from ..common.logger import (
     logger,
     disable_logging,
@@ -30,8 +31,14 @@ from ..corpus.generator import (
     EchidnaCorpusGenerator,
     infer_previous_incremental_threshold,
 )
-from .display import display, start_display, stop_display
+from .display import (
+    display,
+    start_display,
+    stop_display,
+    wait_for_display_thread,
+)
 from datetime import datetime
+import time
 
 
 def handle_argparse_error(err: ArgumentParsingError) -> None:
@@ -261,12 +268,17 @@ def run_hybrid_echidna_with_display(args: List[str]):
     start_display()
     try:
         run_hybrid_echidna(args)
+        display.notify_finished()
+        while True:
+            time.sleep(0.2)
     except ArgumentParsingError as e:
         argparse_err = e
     except InitializationError as e:
         err_msg = str(e)
-    except (KeyboardInterrupt, Exception) as e:
+    except (Exception, SlitherError) as e:
         exc = e
+    except KeyboardInterrupt:
+        pass
     stop_display()  # Waits for display threads to exit gracefully
     if err_msg:
         logger.error(err_msg)

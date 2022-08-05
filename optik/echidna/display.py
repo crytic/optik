@@ -115,6 +115,10 @@ class HybridEchidnaDisplay:
         self.active = True
         self.scr = scr
 
+    def notify_finished(self):
+        self.reset_current_task()
+        self.current_task_line_2 = "Done. Ctrl+C to close window"
+
     @staticmethod
     def add_info(w, y: int, x: int, what: str, info, info_col=None) -> None:
         if y >= w.getmaxyx()[0] or x >= w.getmaxyx()[1]:
