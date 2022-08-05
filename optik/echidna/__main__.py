@@ -117,10 +117,7 @@ def run_hybrid_echidna(arguments: List[str]) -> None:
         raise GenericException(f"Unsupported coverage mode: {args.cov_mode}")
 
     # Incremental seeding with feed-echidna
-    prev_threshold: Optional[int] = infer_previous_incremental_threshold(
-        coverage_dir
-    )
-    assert prev_threshold is not None
+    prev_threshold: int = infer_previous_incremental_threshold(coverage_dir)
     if prev_threshold:
         logger.info(
             f"Incremental seeding was already used on this corpus with threshold {prev_threshold}"
