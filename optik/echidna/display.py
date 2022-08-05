@@ -117,8 +117,20 @@ class HybridEchidnaDisplay:
 
     @staticmethod
     def add_info(w, y: int, x: int, what: str, info, info_col=None) -> None:
+        if y >= w.getmaxyx()[0] or x >= w.getmaxyx()[1]:
+            return
+        elif w.getmaxyx()[0] <= 2 or w.getmaxyx()[1] <= 2:
+            return
+
         what += ":"
         w.addstr(y, x, what, BLUE)
+
+        if (
+            w.getyx()[0] + 1 >= w.getmaxyx()[0]
+            or w.getyx()[1] + 1 >= w.getmaxyx()[1]
+        ):
+            return
+
         if info_col is None:
             w.addstr(f" {info}")
         else:
@@ -126,6 +138,8 @@ class HybridEchidnaDisplay:
 
     def update(self):
         if self.active:
+            curses.update_lines_cols()
+
             if self._show_echidna_timer:
                 self.update_echidna_task_timer()
             try:
@@ -133,149 +147,177 @@ class HybridEchidnaDisplay:
                 # Print border
                 self.scr.border(0)
                 # Write main title
-                self.scr.addstr(
-                    0,
-                    curses.COLS // 2 - len(self.main_title) // 2,
-                    self.main_title,
-                    curses.A_BOLD | GREEN,
-                )
-                # Global info window
-                global_win = self.scr.derwin(
-                    self.global_win_y_lines * 2 - 1,
-                    int(curses.COLS * self.global_win_x_ratio),
-                    0,
-                    1,
-                )
-                self.add_info(
-                    global_win, 1, 1, "Iteration", f"#{self.iteration}"
-                )
-                self.add_info(global_win, 2, 1, "Mode", self.mode)
-                self.add_info(global_win, 3, 1, "Corpus size", self.corpus_size)
-                # Current info window
-                glob_lines, glob_cols = global_win.getmaxyx()
-                current_win = self.scr.derwin(
-                    glob_lines, curses.COLS - 1 - glob_cols, 0, glob_cols
-                )
-                current_win.addstr(
-                    1,
-                    (current_win.getmaxyx()[1] - len(self.current_task_line_1))
-                    // 2,
-                    self.current_task_line_1,
-                )
-                if isinstance(self.current_task_line_2, tuple):
-                    line2 = generate_progress_bar(
-                        40,  # TODO adapt len to window size
-                        *self.current_task_line_2,
+                x_pos = (curses.COLS - len(self.main_title)) // 2
+                if x_pos > 0:
+                    self.scr.addstr(
+                        0,
+                        x_pos,
+                        self.main_title,
+                        curses.A_BOLD | GREEN,
                     )
-                else:
-                    line2 = self.current_task_line_2
-                current_win.addstr(
-                    2,
-                    (current_win.getmaxyx()[1] - len(line2)) // 2,
-                    line2,
-                )
-                current_win.addstr(
-                    3,
-                    (current_win.getmaxyx()[1] - len(self.current_task_line_3))
-                    // 2,
-                    self.current_task_line_3,
-                )
+                # Global info window
+                glob_lines = self.global_win_y_lines * 2 - 1
+                glob_cols = int(curses.COLS * self.global_win_x_ratio)
+                if glob_cols > 8 and glob_lines < self.scr.getmaxyx()[0]:
+                    global_win = self.scr.derwin(
+                        glob_lines,
+                        glob_cols,
+                        0,
+                        1,
+                    )
+                    self.add_info(
+                        global_win, 1, 1, "Iteration", f"#{self.iteration}"
+                    )
+                    self.add_info(global_win, 2, 1, "Mode", self.mode)
+                    self.add_info(
+                        global_win, 3, 1, "Corpus size", self.corpus_size
+                    )
+                # Current info window
+                curr_cols = curses.COLS - 1 - glob_cols
+                if curr_cols > 7:
+                    current_win = self.scr.derwin(
+                        glob_lines, curr_cols, 0, glob_cols
+                    )
+                    x_pos = (
+                        current_win.getmaxyx()[1]
+                        - len(self.current_task_line_1)
+                    ) // 2
+                    if x_pos > 0:
+                        current_win.addstr(
+                            1,
+                            x_pos,
+                            self.current_task_line_1,
+                        )
+                    if isinstance(self.current_task_line_2, tuple):
+                        bar_len = int(current_win.getmaxyx()[1] * 0.66)
+                        line2 = generate_progress_bar(
+                            bar_len,
+                            *self.current_task_line_2,
+                        )
+                    else:
+                        line2 = self.current_task_line_2
+                    x_pos = (current_win.getmaxyx()[1] - len(line2)) // 2
+                    if x_pos > 0:
+                        current_win.addstr(
+                            2,
+                            x_pos,
+                            line2,
+                        )
+                    x_pos = (
+                        current_win.getmaxyx()[1]
+                        - len(self.current_task_line_3)
+                    ) // 2
+                    if x_pos > 0:
+                        current_win.addstr(
+                            3,
+                            x_pos,
+                            self.current_task_line_3,
+                        )
                 # Fuzzer window
-                fuzz_win = self.scr.derwin(
-                    self.fuzz_win_y_lines * 2 - 1,
-                    int(curses.COLS * self.fuzz_win_x_ratio),
-                    glob_lines - 1,
-                    1,
-                )
-                fuzz_lines, fuzz_cols = fuzz_win.getmaxyx()
-                fuzz_win.border(" ", " ", 0, " ", " ", " ", " ", " ")
-                fuzz_win.addstr(
-                    0,
-                    (fuzz_cols - len(self.fuzz_win_title)) // 2,
-                    self.fuzz_win_title,
-                    curses.A_BOLD | GREEN,
-                )
-                self.add_info(
-                    fuzz_win,
-                    1,
-                    1,
-                    "Tests found (total)",
-                    self.fuzz_total_cases_cnt,
-                )
-                self.add_info(
-                    fuzz_win,
-                    2,
-                    1,
-                    "Tests found (last)",
-                    self.fuzz_last_cases_cnt,
-                )
-                self.add_info(
-                    fuzz_win,
-                    3,
-                    1,
-                    "Time fuzzing",
-                    f"{self.fuzz_total_time//1000}s",
-                )
+                fuzz_lines = self.fuzz_win_y_lines * 2 - 1
+                fuzz_cols = int(curses.COLS * self.fuzz_win_x_ratio)
+                if fuzz_cols > 3 and fuzz_lines > 3:
+                    fuzz_win = self.scr.derwin(
+                        fuzz_lines,
+                        fuzz_cols,
+                        glob_lines - 1,
+                        1,
+                    )
+
+                    fuzz_win.border(" ", " ", 0, " ", " ", " ", " ", " ")
+                    x_pos = (fuzz_cols - len(self.fuzz_win_title)) // 2
+                    if x_pos > 0:
+                        fuzz_win.addstr(
+                            0,
+                            x_pos,
+                            self.fuzz_win_title,
+                            curses.A_BOLD | GREEN,
+                        )
+                    self.add_info(
+                        fuzz_win,
+                        1,
+                        1,
+                        "Tests found (total)",
+                        self.fuzz_total_cases_cnt,
+                    )
+                    self.add_info(
+                        fuzz_win,
+                        2,
+                        1,
+                        "Tests found (last)",
+                        self.fuzz_last_cases_cnt,
+                    )
+                    self.add_info(
+                        fuzz_win,
+                        3,
+                        1,
+                        "Time fuzzing",
+                        f"{self.fuzz_total_time//1000}s",
+                    )
                 # Symex info window
-                sym_win_cols = curses.COLS - 1 - fuzz_cols
-                sym_win = self.scr.derwin(
-                    fuzz_lines, sym_win_cols, glob_lines - 1, fuzz_cols
-                )
-                sym_win.border(" ", " ", 0, " ", " ", " ", " ", " ")
-                sym_win.addstr(
-                    0,
-                    (sym_win_cols - len(self.sym_win_title)) // 2,
-                    self.sym_win_title,
-                    curses.A_BOLD | GREEN,
-                )
-                self.add_info(
-                    sym_win,
-                    1,
-                    1,
-                    "Generated cases",
-                    self.sym_total_inputs_solved,
-                )
-                self.add_info(
-                    sym_win,
-                    2,
-                    1,
-                    "Total solving time",
-                    f"{self.sym_time_solving_total//1000}s",
-                )
-                self.add_info(
-                    sym_win,
-                    3,
-                    1,
-                    "Avg. solving time",
-                    f"{self.sym_time_solving_average}ms",
-                )
-                self.add_info(
-                    sym_win,
-                    1,
-                    sym_win_cols // 2,
-                    "Solver timeout",
-                    (
-                        f"{self.sym_solver_timeout}ms"
-                        if self.sym_solver_timeout
-                        else "none"
-                    ),
-                    YELLOW,
-                )
-                self.add_info(
-                    sym_win,
-                    2,
-                    sym_win_cols // 2,
-                    "Timeouts cnt",
-                    self.sym_total_solver_timeouts,
-                    RED if self.sym_total_solver_timeouts else None,
-                )
-                self.add_info(
-                    sym_win,
-                    3,
-                    sym_win_cols // 2,
-                    "Avg. constraints/case",
-                    self.sym_path_constr_average,
-                )
+                sym_cols = curses.COLS - 1 - fuzz_cols
+                sym_lines = fuzz_lines
+                if sym_cols > 4 and sym_lines > 3:
+                    sym_win = self.scr.derwin(
+                        fuzz_lines, sym_cols, glob_lines - 1, fuzz_cols
+                    )
+                    sym_win.border(" ", " ", 0, " ", " ", " ", " ", " ")
+                    x_pos = (sym_cols - len(self.sym_win_title)) // 2
+                    if x_pos > 0:
+                        sym_win.addstr(
+                            0,
+                            x_pos,
+                            self.sym_win_title,
+                            curses.A_BOLD | GREEN,
+                        )
+                    self.add_info(
+                        sym_win,
+                        1,
+                        1,
+                        "Generated cases",
+                        self.sym_total_inputs_solved,
+                    )
+                    self.add_info(
+                        sym_win,
+                        2,
+                        1,
+                        "Total solving time",
+                        f"{self.sym_time_solving_total//1000}s",
+                    )
+                    self.add_info(
+                        sym_win,
+                        3,
+                        1,
+                        "Avg. solving time",
+                        f"{self.sym_time_solving_average}ms",
+                    )
+                    self.add_info(
+                        sym_win,
+                        1,
+                        sym_cols // 2,
+                        "Solver timeout",
+                        (
+                            f"{self.sym_solver_timeout}ms"
+                            if self.sym_solver_timeout
+                            else "none"
+                        ),
+                        YELLOW,
+                    )
+                    self.add_info(
+                        sym_win,
+                        2,
+                        sym_cols // 2,
+                        "Timeouts cnt",
+                        self.sym_total_solver_timeouts,
+                        RED if self.sym_total_solver_timeouts else None,
+                    )
+                    self.add_info(
+                        sym_win,
+                        3,
+                        sym_cols // 2,
+                        "Avg. constraints/case",
+                        self.sym_path_constr_average,
+                    )
                 # Results windows
                 res_win_y_start = glob_lines + fuzz_lines - 3
                 res_win = self.scr.derwin(
@@ -286,12 +328,14 @@ class HybridEchidnaDisplay:
                 )
                 res_lines, res_cols = res_win.getmaxyx()
                 res_win.border(" ", " ", 0, " ", " ", " ", " ", " ")
-                res_win.addstr(
-                    0,
-                    (res_cols - len(self.res_win_title)) // 2,
-                    self.res_win_title,
-                    curses.A_BOLD | GREEN,
-                )
+                x_pos = (res_cols - len(self.res_win_title)) // 2
+                if x_pos > 0:
+                    res_win.addstr(
+                        0,
+                        x_pos,
+                        self.res_win_title,
+                        curses.A_BOLD | GREEN,
+                    )
                 if self.res_cases:
                     self.format_test_cases(res_cols - 4)
                     y_case_cnt = 1
@@ -312,13 +356,14 @@ class HybridEchidnaDisplay:
                         y_case_cnt += len(case) + 1
                     if unshown_cnt:
                         unshown_msg = f"... {unshown_cnt} more case{'s' if unshown_cnt > 1 else ''} not shown"
-                        res_win.addstr(
-                            res_lines - 1,
-                            (res_cols - len(unshown_msg)) // 2,
-                            unshown_msg,
-                            curses.A_BOLD | RED,
-                        )
-                    # TODO display how many assertions are not shown
+                        x_pos = (res_cols - len(unshown_msg)) // 2
+                        if x_pos > 0:
+                            res_win.addstr(
+                                res_lines - 1,
+                                x_pos,
+                                unshown_msg,
+                                curses.A_BOLD | RED,
+                            )
                 else:
                     no_cases_msg = "-"
                     res_win.addstr(
@@ -329,7 +374,7 @@ class HybridEchidnaDisplay:
 
                 self.scr.refresh()
             except curses.error as e:
-                pass
+                raise e  # DEBUG
 
     def stop(self):
         self.active = False
@@ -355,6 +400,7 @@ def _display():
     try:
         stdscr = curses.initscr()
         curses.noecho()
+        curses.curs_set(False)
         curses.start_color()
         curses.use_default_colors()
         curses.init_color(curses.COLOR_RED, 245 * 4, 130 * 4, 0 * 4)
@@ -376,6 +422,7 @@ def _display():
 
     display.stop()
     curses.echo()
+    curses.curs_set(True)
     curses.endwin()
     if exc:
         raise exc
