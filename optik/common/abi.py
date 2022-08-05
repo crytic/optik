@@ -425,6 +425,7 @@ def encode_value(
         return tuple_enc(ty, value, ctx, arg_name)
 
     assert isinstance(ty, BasicType)
+
     # elementary type
     if not ty.base in encoder_functions:
         raise ABIException(f"Unsupported type: {ty.base}")
