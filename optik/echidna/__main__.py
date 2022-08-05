@@ -26,7 +26,7 @@ from ..common.logger import (
 from ..common.exceptions import ArgumentParsingError, InitializationError
 from ..common.util import count_files_in_dir
 import logging
-from typing import List, Set
+from typing import List, Optional, Set
 from ..corpus.generator import (
     EchidnaCorpusGenerator,
     infer_previous_incremental_threshold,
@@ -38,6 +38,7 @@ from .display import (
 )
 from datetime import datetime
 import time
+from dataclasses import dataclass
 
 
 def handle_argparse_error(err: ArgumentParsingError) -> None:
@@ -45,8 +46,18 @@ def handle_argparse_error(err: ArgumentParsingError) -> None:
     print(err.help_str)
 
 
+@dataclass(frozen=False)
+class FuzzingResult:
+    cases_found_cnt: int
+    corpus_dir: Optional[str]
+
+
 def run_hybrid_echidna(args: List[str]) -> None:
-    """Main hybrid echidna script"""
+    """Main hybrid echidna script
+
+    :param args: list of command line arguments
+    """
+    global glob_fuzzing_result
 
     # Parse arguments
     try:
@@ -83,6 +94,7 @@ def run_hybrid_echidna(args: List[str]) -> None:
     if args.corpus_dir is None:
         args.corpus_dir = tempfile.TemporaryDirectory(dir=".").name
     coverage_dir = os.path.join(args.corpus_dir, "coverage")
+    glob_fuzzing_result = FuzzingResult(0, args.corpus_dir)
 
     # Coverage tracker for the whole fuzzing session
     if args.cov_mode == "inst":
@@ -120,6 +132,7 @@ def run_hybrid_echidna(args: List[str]) -> None:
     # Main fuzzing+symexec loop
     iter_cnt = 0
     new_inputs_cnt = 0
+    cases_found_cnt = 0
     while args.max_iters is None or iter_cnt < args.max_iters:
         iter_cnt += 1
         display.iteration = iter_cnt  # terminal display
@@ -197,6 +210,7 @@ def run_hybrid_echidna(args: List[str]) -> None:
 
         # Display cases in terminal
         display.res_cases = extract_cases_from_json_output(p.stdout)
+        glob_fuzzing_result.cases_found_cnt = len(display.res_cases)
 
         # Extract contract bytecodes in separate files for Maat. This is done
         # only once after the first fuzzing campaign
@@ -223,8 +237,8 @@ def run_hybrid_echidna(args: List[str]) -> None:
             )
         else:
             logger.info(f"Echidna couldn't find new inputs")
-            return
-        cov.bifurcations = []
+            break
+
         # Terminal display
         new_echidna_inputs_cnt = len(
             [
@@ -236,6 +250,7 @@ def run_hybrid_echidna(args: List[str]) -> None:
         display.fuzz_total_cases_cnt += new_echidna_inputs_cnt
         display.fuzz_last_cases_cnt = new_echidna_inputs_cnt
         # Replay new corpus inputs symbolically
+        cov.bifurcations = []
         replay_inputs(new_inputs, contract_file, deployer, cov)
 
         # Find inputs to reach new code
@@ -257,10 +272,10 @@ def run_hybrid_echidna(args: List[str]) -> None:
             break
 
     logger.info(f"Corpus and coverage info written in {args.corpus_dir}")
-    return
 
 
 def run_hybrid_echidna_with_display(args: List[str]) -> None:
+    """Run hybrid-echidna with terminal display enabled"""
     exc = None
     err_msg = None
     argparse_err = None
@@ -488,6 +503,13 @@ def parse_arguments(args: List[str]) -> argparse.Namespace:
     return parser.parse_args(args)
 
 
+# We use a global for the fuzzing result because we need to
+# print the output corpus directory to the user no matter
+# whether graphical display was enabled and whether we
+# exited normally of from an interrupt
+glob_fuzzing_result: Optional[FuzzingResult] = None
+
+
 def main() -> None:
     func = (
         run_hybrid_echidna
@@ -495,6 +517,12 @@ def main() -> None:
         else run_hybrid_echidna_with_display
     )
     func(sys.argv[1:])
+    # Print result and exit
+    if glob_fuzzing_result:
+        print(f"{glob_fuzzing_result.cases_found_cnt} cases found")
+        print(
+            f"Corpus and coverage info written in {glob_fuzzing_result.corpus_dir}"
+        )
 
 
 if __name__ == "__main__":
