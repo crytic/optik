@@ -260,16 +260,20 @@ def run_hybrid_echidna(args: List[str]) -> None:
     return
 
 
-def run_hybrid_echidna_with_display(args: List[str]):
+def run_hybrid_echidna_with_display(args: List[str]) -> None:
     exc = None
     err_msg = None
     argparse_err = None
+    # Start terminal display
     start_display()
     try:
         run_hybrid_echidna(args)
+        # Indicate that hybrid echidna finished and
+        # wait for user to manually close display
         display.notify_finished()
         while True:
             time.sleep(0.2)
+    # Handle many errors to gracefully stop terminal display
     except ArgumentParsingError as e:
         argparse_err = e
     except InitializationError as e:
@@ -278,12 +282,13 @@ def run_hybrid_echidna_with_display(args: List[str]):
         exc = e
     except KeyboardInterrupt:
         pass
+    # Close terminal display and reset terminal settings
     stop_display()  # Waits for display threads to exit gracefully
+    # Display thread terminated, now handle pending errors or exceptions
     if err_msg:
         logger.error(err_msg)
     if argparse_err:
         handle_argparse_error(argparse_err)
-    # Propagate exception now that threads have terminated correctly
     if exc:
         raise exc
 
@@ -306,6 +311,9 @@ def pull_new_corpus_files(cov_dir: str, seen_files: Set[str]) -> List[str]:
 
 def parse_arguments(args: List[str]) -> argparse.Namespace:
     class ArgParser(argparse.ArgumentParser):
+        """Custom argument parser that doesn't exit on invalid arguments but
+        raises a custom exception for Optik to handle"""
+
         def error(self, message):
             """Override default behaviour on invalid arguments"""
             raise ArgumentParsingError(msg=message, help_str=self.format_help())

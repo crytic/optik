@@ -187,6 +187,7 @@ def run_echidna_campaign(
     :param args: arguments to pass to echidna
     :return: the exit value returned by invoking `echidna-test`
     """
+    # Show for how long echidna runs in terminal display
     display.start_echidna_task_timer()
 
     # Build back echidna command line

@@ -56,9 +56,8 @@ class CorpusGenerator:
         )
 
     def _step(self) -> None:
-        """Update the current transaction sequences by prepending one call
-        to all sequences. If multiple calls impact a sequence, create as many
-        new sequences as there are such calls"""
+        """Update the current transaction sequences 1 time. See step() for
+        more details"""
         new_tx_sequences = []
         for tx_seq in self.current_tx_sequences:
             # Get all txs that can impact this sequence
@@ -69,6 +68,11 @@ class CorpusGenerator:
         self.current_tx_sequences = new_tx_sequences
 
     def step(self, n=1) -> None:
+        """Update the current transaction sequences 'n' times.
+        Updating the current transaction sequences if done by prepending one call
+        to all sequences. If multiple calls impact a sequence, it create as many
+        new sequences as there are such calls.
+        """
         for _ in range(n):
             self._step()
 
