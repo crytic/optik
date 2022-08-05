@@ -1,3 +1,6 @@
+from dataclasses import dataclass
+from typing import Dict, List, Optional, Union
+
 from maat import (
     ARCH,
     contract,
@@ -16,9 +19,7 @@ from maat import (
     Value,
     VarContext,
 )
-from typing import Callable, Dict, List, Optional, Union
-from dataclasses import dataclass
-import enum
+
 from .exceptions import WorldException
 from .util import compute_new_contract_addr
 
@@ -207,17 +208,17 @@ class EVMWorld:
             raise WorldException(
                 f"Couldn't deploy {contract_file}, address {address} already in use"
             )
-        else:
-            runner = ContractRunner(
-                self.root_engine,
-                contract_file,
-                address,
-                deployer,
-                args,
-                run_init_bytecode,
-            )
-            self.contracts[address] = runner
-            return runner
+
+        runner = ContractRunner(
+            self.root_engine,
+            contract_file,
+            address,
+            deployer,
+            args,
+            run_init_bytecode,
+        )
+        self.contracts[address] = runner
+        return runner
 
     def push_transaction(self, tx: AbstractTx) -> None:
         """Add a new transaction in the transaction queue"""
@@ -293,7 +294,7 @@ class EVMWorld:
                 contract_addr = self.current_tx.tx.recipient
                 try:
                     runner = self.contracts[contract_addr]
-                except KeyError as e:
+                except KeyError:
                     raise WorldException(
                         f"Transaction recipient is {contract_addr}, but no contract is deployed there"
                     )
@@ -431,7 +432,7 @@ class EVMWorld:
             self.current_tx.block_timestamp_inc,
             VarContext(),
         )
-        new_rt: EVMRuntime = self._push_runtime(contract_runner, create_tx)
+        self._push_runtime(contract_runner, create_tx)
         self.call_stack.append(new_contract_addr)
 
     def _handle_CREATE_after(self, succeeded: bool) -> None:

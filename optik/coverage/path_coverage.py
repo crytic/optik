@@ -1,9 +1,10 @@
-from maat import MaatEngine
-from typing import Dict, List, Optional
-from dataclasses import dataclass, field
-from ..common.world import WorldMonitor
-from .coverage import Coverage, CoverageState
 import itertools
+from dataclasses import dataclass, field
+from typing import Dict, List
+
+from maat import MaatEngine
+
+from .coverage import Coverage, CoverageState
 
 
 @dataclass(frozen=True)
@@ -55,8 +56,7 @@ class PathTree:
             addr = path[0]
             if addr in self.nodes:
                 return self.nodes[addr].get(path[1:], default)
-            else:
-                return default
+            return default
         return self.covered
 
     def __contains__(self, item: List[int]) -> bool:

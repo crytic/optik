@@ -1,8 +1,8 @@
 import argparse
 import sys
-from .generator import EchidnaCorpusGenerator
-from slither.slither import Slither
 from typing import List
+from slither.slither import Slither
+from .generator import EchidnaCorpusGenerator
 from ..common.logger import logger
 from ..common.exceptions import CorpusException
 

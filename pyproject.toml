@@ -26,6 +26,15 @@ readme = {file = ["README.md"]}
 target-version = ['py37']
 line-length = 80
 
+[tool.pylint.messages_control]
+disable = """
+missing-module-docstring,
+missing-class-docstring,
+missing-function-docstring,
+invalid-name
+"""
+
+
 [project.scripts]
 "hybrid-echidna" = "optik.echidna.__main__:main"
 "feed-echidna" = "optik.corpus.__main__:main"

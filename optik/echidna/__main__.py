@@ -2,7 +2,11 @@ import argparse
 import sys
 import os
 import tempfile
+import logging
+from typing import List, Set, Optional
+from slither.slither import Slither
 
+from optik.common.exceptions import GenericException
 from .runner import replay_inputs, generate_new_inputs, run_echidna_campaign
 from .interface import extract_contract_bytecode
 from ..coverage import (
@@ -14,10 +18,8 @@ from ..coverage import (
     PathCoverage,
     RelaxedPathCoverage,
 )
-from slither.slither import Slither
+
 from ..common.logger import logger, handler
-import logging
-from typing import List, Set
 from ..corpus.generator import (
     EchidnaCorpusGenerator,
     infer_previous_incremental_threshold,
@@ -31,7 +33,7 @@ def run_hybrid_echidna(args: List[str]) -> None:
     max_seq_len = args.seq_len
     try:
         deployer = int(args.deployer, 16)
-    except:
+    except ValueError:
         logger.error(f"Invalid deployer address: {args.deployer}")
         return
 
@@ -193,9 +195,8 @@ def pull_new_corpus_files(cov_dir: str, seen_files: Set[str]) -> List[str]:
         corpus_file = str(os.path.join(cov_dir, corpus_file_name))
         if not corpus_file.endswith(".txt") or corpus_file in seen_files:
             continue
-        else:
-            seen_files.add(corpus_file)
-            res.append(corpus_file)
+        seen_files.add(corpus_file)
+        res.append(corpus_file)
     return res
 
 

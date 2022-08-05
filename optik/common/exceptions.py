@@ -1,3 +1,4 @@
+# pylint: disable=unnecessary-pass
 class GenericException(Exception):
     """Generic exception class for Optik, from which all custom
     exceptions derive"""

@@ -1,8 +1,8 @@
-from maat import Constraint, MaatEngine, EVENT, WHEN
 from typing import Dict, List, Optional
+from dataclasses import dataclass
+from maat import Constraint, MaatEngine, EVENT, WHEN
 from ..common.exceptions import CoverageException
 from ..common.world import WorldMonitor, EVMRuntime
-from dataclasses import dataclass
 
 
 @dataclass(eq=True, frozen=True)

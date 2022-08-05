@@ -1,7 +1,9 @@
-from slither.slither import Slither, SlitherCore
+from typing import List, Optional, Set
+
 from slither.core.declarations.function import Function
 from slither.printers.guidance.echidna import _extract_function_relations
-from typing import List, Optional
+from slither.slither import SlitherCore
+
 from ..common.exceptions import DataflowException
 
 
@@ -98,7 +100,7 @@ def get_base_dataflow_graph(
         raise DataflowException(
             f"More than one contract named '{contract_name}'"
         )
-    elif not contracts:
+    if not contracts:
         raise DataflowException(f"No contract named '{contract_name}'")
     contract = contracts[0]
 

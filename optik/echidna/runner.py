@@ -1,22 +1,20 @@
-from .interface import load_tx_sequence, store_new_tx_sequence
-from ..coverage import Coverage
-from ..common.world import EVMWorld, WorldMonitor, AbstractTx
-from ..common.logger import logger
 import argparse
+import os
 import subprocess
-import logging
+from typing import List, Tuple
+
 from maat import (
-    ARCH,
-    contract,
     Cst,
     EVMTransaction,
-    MaatEngine,
     Solver,
     STOP,
     VarContext,
 )
-from typing import List, Optional, Tuple
-import os
+
+from .interface import load_tx_sequence, store_new_tx_sequence
+from ..common.logger import logger
+from ..common.world import EVMWorld, AbstractTx
+from ..coverage import Coverage
 
 
 # TODO(boyan): pass contract bytecode instead of extracting to file
@@ -102,7 +100,6 @@ def generate_new_inputs(
     cov.filter_bifurcations()
     cov.sort_bifurcations()
 
-    res = []
     timeout_cnt = 0
     # Only keep unique bifurcations. Unique means that they have the
     # same target and occurred during the same transaction number in the
@@ -118,7 +115,6 @@ def generate_new_inputs(
         # and if it's not a custom corpus seed. For custom corpus seeds we
         # still want to solve all bifurcations because all of them should
         # be "meaningfull"
-        input_file = os.path.basename(bif.input_uid)
         if bif not in unique_bifurcations and not solve_duplicates:
             continue
 

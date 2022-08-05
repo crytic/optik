@@ -1,11 +1,11 @@
-from maat import Value
-from .exceptions import GenericException
-from .logger import logger
+import ast
 import re
-from typing import Union, List, Tuple, Dict
+from typing import Union, List, Tuple
+
 import rlp
 import sha3
-import ast
+
+from .exceptions import GenericException
 
 
 def twos_complement_convert(arg: int, bits: int) -> int:
@@ -19,15 +19,14 @@ def twos_complement_convert(arg: int, bits: int) -> int:
     """
     if arg < 0:
         raise GenericException("Expected a positive value")
-    elif arg >= (1 << bits):
+    if arg >= (1 << bits):
         raise GenericException(f"Value {arg} too big to fit on {bits} bits")
 
     if arg & (1 << (bits - 1)) == 0:
         # Positive number
         return arg
-    else:
-        # Negative number
-        return arg - (1 << bits)
+    # Negative number
+    return arg - (1 << bits)
 
 
 # textual unicode symbols not handled by python's unicode decode
@@ -66,7 +65,7 @@ _UNICODE_SYMBOLS = [
     "US",
     "DEL",
 ]
-UNICODE_SYMBOLS = dict()
+UNICODE_SYMBOLS = {}
 for i, s in enumerate(_UNICODE_SYMBOLS):
     UNICODE_SYMBOLS[i] = s
     UNICODE_SYMBOLS[s] = i
@@ -130,10 +129,9 @@ def echidna_parse_bytes(unicode_str: str) -> List[int]:
         sym = match.group(1).decode()
         if sym in ESCAPE_SEQUENCES:
             return ESCAPE_SEQUENCES[sym].to_bytes(1, byteorder="big")
-        elif sym == "&":
+        if sym == "&":
             return b""  # In haskell \& is an empty string...
-        else:
-            return match.group()
+        return match.group()
 
     unicode_str = unicode_str[1:-1]  # remove double quoted string
 
