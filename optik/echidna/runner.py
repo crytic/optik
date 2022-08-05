@@ -1,6 +1,7 @@
 import argparse
 import os
 import subprocess
+from datetime import datetime
 from typing import List, Tuple
 
 from maat import (
@@ -10,13 +11,16 @@ from maat import (
     STOP,
     VarContext,
 )
-from typing import List, Optional, Tuple
-import os
+
 from .display import display
-from datetime import datetime
+from .interface import load_tx_sequence
+from ..common.world import AbstractTx, EVMWorld
+from ..coverage import Coverage
 
 
 # TODO(boyan): pass contract bytecode instead of extracting to file
+
+
 def replay_inputs(
     corpus_files: List[str],
     contract_file: str,

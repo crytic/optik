@@ -1,11 +1,11 @@
 import ast
 import re
 from typing import Union, List, Tuple
+import os
 
 import rlp
 import sha3
-import ast
-import os
+
 
 from .exceptions import GenericException
 
@@ -173,7 +173,7 @@ def echidna_encode_bytes(string: bytes) -> str:
     res = ""
     last_was_num: bool = False
     for b in string:
-        if last_was_num and b >= 0x30 and b <= 0x39:
+        if last_was_num and 0x30 <= b <= 0x39:
             # If last character was a numeric encoding (e.g \245)
             # and the next char to encoding is a number we need
             # to add an empty string escape in between
@@ -194,22 +194,22 @@ def echidna_encode_bytes(string: bytes) -> str:
 
 
 def list_has_types(
-    val: Union[List[type], Tuple[type]], wanted_type: type
+    value: Union[List[type], Tuple[type]], wanted_type: type
 ) -> bool:
     """Validates that all elements of a given list are of type `wanted_type`
 
-    :param val: the list to inspect types for
+    :param value: the list to inspect types for
     :param wanted_type: the type that all values of `val` should be
 
     :return: True if all elements of `val` are of type `wanted_type`, otherwise False
     """
 
-    # `val` should be a list
-    if not isinstance(val, list) and not isinstance(val, tuple):
+    # `value` should be a list
+    if not isinstance(value, list) and not isinstance(value, tuple):
         return False
 
     # If any single value is not of type `wanted_type`, then False
-    if any([v for v in val if not isinstance(v, wanted_type)]):
+    if any([v for v in value if not isinstance(v, wanted_type)]):
         return False
 
     return True

@@ -2,6 +2,7 @@ import curses
 import threading
 from time import sleep
 from datetime import datetime
+from typing import List, Optional, Union, Tuple
 
 
 def generate_progress_bar(bar_len: int, current: int, max_: int) -> str:
@@ -160,7 +161,7 @@ class HybridEchidnaDisplay:
         handles coloring and out-of-bounds coordinates"""
         if y >= w.getmaxyx()[0] or x >= w.getmaxyx()[1]:
             return
-        elif w.getmaxyx()[0] <= 2 or w.getmaxyx()[1] <= 2:
+        if w.getmaxyx()[0] <= 2 or w.getmaxyx()[1] <= 2:
             return
 
         what += ":"

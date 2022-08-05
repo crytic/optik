@@ -1,9 +1,10 @@
 import os
 from typing import Optional, Tuple
-import pytest
-from optik.echidna import run_hybrid_echidna
 from multiprocessing import Process
 from time import sleep
+
+import pytest
+from optik.echidna import run_hybrid_echidna
 from .common import new_test_dir, CONTRACTS_DIR
 
 COVERAGE_TARGET_MARKER = "test::coverage"
