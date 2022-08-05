@@ -4,19 +4,35 @@ from time import sleep
 from datetime import datetime
 
 
-def generate_progress_bar(bar_len: int, current: int, _max: int) -> str:
+def generate_progress_bar(bar_len: int, current: int, max_: int) -> str:
+    """Generates a string containing a progress bar. The string contains
+    the progress bar followed by the progress count, e.g
+
+         | ...........                    | 34/97
+
+    :param bar_len: length of the bar
+    :param current: current progress step
+    :param max_: max progress step (current == max_ means the bar is at 100%)
+    """
     fill_char = "\u2588"
     res = "|"
-    fill_ratio = current / _max
+    fill_ratio = current / max_
     filled_bar = fill_char * int((bar_len - 2) * fill_ratio)
     res += filled_bar
     res += " " * (bar_len - 1 - len(res))
     res += "|"
-    res += f" {current:3}/{_max}"
+    res += f" {current:3}/{max_}"
     return res
 
 
 class HybridEchidnaDisplay:
+    """Graphical terminal display for the state of a hybrid-echidna task.
+    Based on python curses libray
+
+    Attributes:
+        active: whether it should be displayed to the terminal
+    """
+
     def __init__(self):
         self.active = False
         self.scr = None
@@ -55,29 +71,37 @@ class HybridEchidnaDisplay:
         # OTHER
         self._show_echidna_timer = False
 
-    def reset_current_task(self):
+    def reset_current_task(self) -> None:
+        """Clear the current task info"""
         self.current_task_line_1 = ""
         self.current_task_line_2 = ""
         self.current_task_line_3 = ""
 
-    def start_echidna_task_timer(self):
+    def start_echidna_task_timer(self) -> None:
+        """Start displaying an Echidna run in the current info window,
+        and show for how long it is running"""
         self.reset_current_task()
         self._start_time = datetime.now()
         self._show_echidna_timer = True
 
     def stop_echidna_task_timer(self):
+        """Stop displaying an Echidna run in the current info window"""
         self._show_echidna_timer = False
         self.reset_current_task()
 
-    def _get_elapsed_time_s(self):
+    def _get_elapsed_time_s(self) -> None:
         return int((datetime.now() - self._start_time).total_seconds())
 
-    def update_echidna_task_timer(self):
+    def _update_echidna_task_timer(self) -> None:
+        """Update current echidna task info with current running time"""
         self.current_task_line_2 = (
             f"Running echidna campaign... {self._get_elapsed_time_s()} s"
         )
 
-    def format_test_cases(self, line_len):
+    def _format_test_cases(self, line_len: int) -> None:
+        """Format test case information to make it fit in the current window size
+        in a pretty way
+        """
         new_cases = []
         for test in self.res_cases:
             new_case = []
@@ -98,6 +122,9 @@ class HybridEchidnaDisplay:
         self.res_cases = new_cases
 
     def update_avg_path_constraints(self, nb_constraints: int) -> None:
+        """Record occurrence of a bifurcation with 'nb_constraints'
+        path constraints (including the bifurcation's branch condition).
+        Updates the average constraint/case info"""
         self.sym_path_constr_average = (
             self.sym_path_constr_average * self._sym_path_constr_cnt
             + nb_constraints
@@ -105,22 +132,32 @@ class HybridEchidnaDisplay:
         self._sym_path_constr_cnt += 1
 
     def update_solving_time(self, ms: int) -> None:
+        """Record solving of an input in 'ms' milliseconds. Updates
+        the average solving time/case info"""
         self.sym_time_solving_total += ms
         self.sym_time_solving_average = (
             self.sym_time_solving_average * self._sym_solving_cnt + ms
         ) // (self._sym_solving_cnt + 1)
         self._sym_solving_cnt += 1
 
-    def start(self, scr):
+    def start(self, scr) -> None:
+        """Make the display active
+
+        :param scr: curses screen to display to
+        """
         self.active = True
         self.scr = scr
 
-    def notify_finished(self):
+    def notify_finished(self) -> None:
+        """Tell the display that the associated hybrid-echidna task finished.
+        Asks the user to use Ctrl+C to close the display"""
         self.reset_current_task()
         self.current_task_line_2 = "Done. Ctrl+C to close window"
 
     @staticmethod
     def add_info(w, y: int, x: int, what: str, info, info_col=None) -> None:
+        """Convenience method to write an info string in a window that
+        handles coloring and out-of-bounds coordinates"""
         if y >= w.getmaxyx()[0] or x >= w.getmaxyx()[1]:
             return
         elif w.getmaxyx()[0] <= 2 or w.getmaxyx()[1] <= 2:
@@ -140,12 +177,13 @@ class HybridEchidnaDisplay:
         else:
             w.addstr(f" {info}", info_col)
 
-    def update(self):
+    def update(self) -> None:
+        """Refresh the display"""
         if self.active:
             curses.update_lines_cols()
 
             if self._show_echidna_timer:
-                self.update_echidna_task_timer()
+                self._update_echidna_task_timer()
             try:
                 self.scr.erase()
                 # Print border
@@ -341,7 +379,7 @@ class HybridEchidnaDisplay:
                         curses.A_BOLD | GREEN,
                     )
                 if self.res_cases:
-                    self.format_test_cases(res_cols - 4)
+                    self._format_test_cases(res_cols - 4)
                     y_case_cnt = 1
                     unshown_cnt = 0
                     for j, case in enumerate(self.res_cases):
@@ -380,21 +418,27 @@ class HybridEchidnaDisplay:
             except curses.error as e:
                 raise e  # DEBUG
 
-    def stop(self):
+    def stop(self) -> None:
+        """Stop displaying"""
         self.active = False
         self.scr = None
 
 
+# Global display variables
 display = HybridEchidnaDisplay()
 display_thread = None
 
+# curses color pairs
 GREEN = None
 BLUE = None
 YELLOW = None
 RES = None
 
 
-def _display():
+def _display() -> None:
+    """Task to be run in the display thread. Initialises curses, starts
+    the display, handles potential errors, and properly resets terminal
+    settings before the thread terminates"""
     global display
     global GREEN
     global BLUE
@@ -432,7 +476,8 @@ def _display():
         raise exc
 
 
-def start_display():
+def start_display() -> None:
+    """Start the terminal display thread"""
     global display_thread
     if display_thread is None:
         display_thread = threading.Thread(target=_display, args=())
@@ -440,7 +485,8 @@ def start_display():
         display_thread.start()
 
 
-def stop_display():
+def stop_display() -> None:
+    """Stop the terminal display thread (blocking until the thread exits)"""
     global display_thread
     global display
     if not display_thread is None:
