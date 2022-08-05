@@ -55,10 +55,9 @@ class CorpusGenerator:
             else len(self.current_tx_sequences[0])
         )
 
-    def step(self) -> None:
-        """Update the current transaction sequences by prepending one call
-        to all sequences. If multiple calls impact a sequence, create as many
-        new sequences as there are such calls"""
+    def _step(self) -> None:
+        """Update the current transaction sequences 1 time. See step() for
+        more details"""
         new_tx_sequences = []
         for tx_seq in self.current_tx_sequences:
             # Get all txs that can impact this sequence
@@ -67,6 +66,15 @@ class CorpusGenerator:
             # Prepend impacting tx(s) to sequence
             new_tx_sequences += [[prev] + tx_seq for prev in impacts_seq]
         self.current_tx_sequences = new_tx_sequences
+
+    def step(self, n=1) -> None:
+        """Update the current transaction sequences 'n' times.
+        Updating the current transaction sequences if done by prepending one call
+        to all sequences. If multiple calls impact a sequence, it create as many
+        new sequences as there are such calls.
+        """
+        for _ in range(n):
+            self._step()
 
     def dump_tx_sequences(self, corpus_dir: str) -> None:
         """Dump the current dataflow tx sequences in new corpus input files"""
@@ -148,14 +156,16 @@ def infer_previous_incremental_threshold(corpus_dir: str) -> Optional[int]:
     if not os.path.exists(corpus_dir):
         return None
 
+    res = 0
+    logger.debug(
+        f"Infering previous incremental threshold from corpus dir {corpus_dir}"
+    )
     for filename in reversed(list(os.listdir(corpus_dir))):
         if not filename.startswith(SEED_CORPUS_PREFIX):
             continue
+
         with open(os.path.join(corpus_dir, filename), "rb") as f:
             data = json.loads(f.read())
-            logger.debug(
-                f"Infering previous incremental threshold from corpus file {filename}"
-            )
-            return len(data)
+            res = max(res, len(data))
 
-    return None
+    return res

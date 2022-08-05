@@ -442,3 +442,35 @@ def extract_contract_bytecode(
             f"Available contracts: {all_contract_names}"
         )
         return None
+
+
+def extract_cases_from_json_output(output: str) -> List[List[str]]:
+    """Extract echidna test cases from it's JSON output (obtained by
+    passing '--format json'). Returns a list of test cases. Each test
+    case in the list consists in the list of function calls that
+    make up this case.
+    Example return value:
+    [
+        ["f()", "g(1,2)"],
+        ["h(12343, -1)"]
+    ]
+
+    :param output: echidna's JSON output as a single string
+    """
+    # Sometimes the JSON output starts with a line such as
+    # "Loaded total of 500 transactions from /tmp/c4/coverage"
+    if output.startswith("Loaded total of"):
+        output = output.split("\n", 1)[1]
+    data = json.loads(output)
+    if "tests" not in data:
+        return []
+    res = []
+    for test in data["tests"]:
+        if test["status"] == "solved":
+            case = []
+            for tx in test["transactions"]:
+                case.append(
+                    f"{tx['function']}({','.join([arg for arg in tx['arguments']])})"
+                )
+            res.append(case)
+    return res

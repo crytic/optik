@@ -190,4 +190,3 @@ class InstTxSeqCoverage(InstCoverage):
         self.tx_seq = tuple(
             [tx.tx.data[0].as_uint() for tx in tx_seq if tx.tx.data]
         )
-        print(f"\n\n\nDEBUG tx seq is {self.tx_seq}")
