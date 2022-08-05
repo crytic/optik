@@ -14,7 +14,7 @@ Optik is a work in progress and should not be used for real audits yet. Current 
 ## Hybrid Echidna
 
 <p align="center" >
-<img width="65%" src=".resources/hybrid_echidna.png"/> <br>
+<img width="80%" src=".resources/hybrid_echidna.png"/> <br>
 </p>
 
 Optik allows to run the [Echidna](https://github.com/crytic/echidna) smart-contract 
