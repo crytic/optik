@@ -181,7 +181,6 @@ def load_tx(tx: Dict, tx_name: str = "") -> AbstractTx:
     value_key = f"{tx_name}_value"
     # Echidna will only send non-zero msg.value to payable funcs
     # so we only make an abstract value in that case
-    # TODO: consider analyzing if funcs read msg.value
     if int(tx[value_key], 16) != 0:
         value = Var(256, value_key)
         ctx.set(value.name, int(tx["_value"], 16), value.size)
