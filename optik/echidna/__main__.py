@@ -35,7 +35,6 @@ from .display import (
     display,
     start_display,
     stop_display,
-    wait_for_display_thread,
 )
 from datetime import datetime
 import time
