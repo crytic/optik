@@ -46,3 +46,11 @@ class InitializationError(Exception):
     """Error in while optik initializes"""
 
     pass
+
+
+class ArgumentParsingError(GenericException):
+    """Error parsing command line arguments with argparse"""
+
+    def __init__(self, msg, help_str):
+        self.msg = msg
+        self.help_str = help_str

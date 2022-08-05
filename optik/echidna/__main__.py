@@ -17,7 +17,7 @@ from ..coverage import (
 )
 from slither.slither import Slither
 from ..common.logger import logger, handler, disable_logging
-from ..common.exceptions import InitializationError
+from ..common.exceptions import ArgumentParsingError, InitializationError
 from ..common.util import count_files_in_dir
 import logging
 from typing import List, Set
@@ -29,10 +29,24 @@ from .display import display, start_display, stop_display
 from datetime import datetime
 
 
+def handle_argparse_error(err: ArgumentParsingError) -> None:
+    print(f"error: {err.msg}")
+    print(err.help_str)
+
+
 def run_hybrid_echidna(args: List[str]) -> None:
     """Main hybrid echidna script"""
 
-    args = parse_arguments(args)
+    # Parse arguments
+    try:
+        args = parse_arguments(args)
+    except ArgumentParsingError as e:
+        if display.active:
+            raise e
+        else:
+            handle_argparse_error(e)
+            return
+
     max_seq_len = args.seq_len
     try:
         deployer = int(args.deployer, 16)
@@ -170,7 +184,7 @@ def run_hybrid_echidna(args: List[str]) -> None:
         if p.stderr:
             logger.fatal(f"Echidna failed with exit code {p.returncode}")
             logger.fatal(f"Echidna stderr: \n{p.stderr}")
-            return
+            raise GenericException("Echidna failed")
 
         logger.debug(f"Echidna stdout: \n{p.stdout}")
 
@@ -242,9 +256,12 @@ def run_hybrid_echidna(args: List[str]) -> None:
 def run_hybrid_echidna_with_display(args: List[str]):
     exc = None
     err_msg = None
+    argparse_err = None
     start_display()
     try:
         run_hybrid_echidna(args)
+    except ArgumentParsingError as e:
+        argparse_err = e
     except InitializationError as e:
         err_msg = str(e)
     except (KeyboardInterrupt, Exception) as e:
@@ -252,6 +269,8 @@ def run_hybrid_echidna_with_display(args: List[str]):
     stop_display()  # Waits for display threads to exit gracefully
     if err_msg:
         logger.error(err_msg)
+    if argparse_err:
+        handle_argparse_error(argparse_err)
     # Propagate exception now that threads have terminated correctly
     if exc:
         raise exc
@@ -274,8 +293,12 @@ def pull_new_corpus_files(cov_dir: str, seen_files: Set[str]) -> List[str]:
 
 
 def parse_arguments(args: List[str]) -> argparse.Namespace:
+    class ArgParser(argparse.ArgumentParser):
+        def error(self, message):
+            """Override default behaviour on invalid arguments"""
+            raise ArgumentParsingError(msg=message, help_str=self.format_help())
 
-    parser = argparse.ArgumentParser(
+    parser = ArgParser(
         description="Hybrid fuzzer with Echidna & Maat",
         prog=sys.argv[0],
         formatter_class=argparse.ArgumentDefaultsHelpFormatter,

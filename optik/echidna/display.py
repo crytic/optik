@@ -428,10 +428,6 @@ def _display():
         raise exc
 
 
-def _wrapper_display():
-    curses.wrapper(_display)
-
-
 def start_display():
     global display_thread
     if display_thread is None:
