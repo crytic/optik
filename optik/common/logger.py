@@ -32,13 +32,27 @@ class ColoredFormatter(logging.Formatter):
         return formatter.format(record)
 
 
-logger = logging.getLogger("optik")
 handler = logging.StreamHandler(sys.stdout)
-handler.setFormatter(ColoredFormatter())
-logger.addHandler(handler)
-handler.setLevel(logging.INFO)
+logger = logging.getLogger("optik")
 logger.setLevel(logging.DEBUG)
 logger.propagate = False  # Otherwise slither duplicates Optik's logs
+
+
+def init_logging(f: str = "stdout") -> None:
+    global handler
+    global logger
+    if f == "stdout":
+        handler = logging.StreamHandler(sys.stdout)
+    else:
+        handler = logging.FileHandler(f)
+    handler.setFormatter(ColoredFormatter())
+    handler.setLevel(logging.INFO)
+    logger.addHandler(handler)
+
+
+def set_logging_level(lvl: int) -> None:
+    global handler
+    handler.setLevel(lvl)
 
 
 def disable_logging() -> None:

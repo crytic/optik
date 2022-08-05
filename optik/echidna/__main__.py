@@ -16,7 +16,12 @@ from ..coverage import (
     RelaxedPathCoverage,
 )
 from slither.slither import Slither
-from ..common.logger import logger, handler, disable_logging
+from ..common.logger import (
+    logger,
+    disable_logging,
+    init_logging,
+    set_logging_level,
+)
 from ..common.exceptions import ArgumentParsingError, InitializationError
 from ..common.util import count_files_in_dir
 import logging
@@ -56,21 +61,17 @@ def run_hybrid_echidna(args: List[str]) -> None:
 
     display.sym_solver_timeout = args.solver_timeout
 
-    # Debug logs
-    if args.debug:
-        handler.setLevel(logging.DEBUG)
-
     # Logging stream
     if args.logs:
-        if args.logs == "stdout":
-            if not args.no_display:
-                raise InitializationError(
-                    "Cannot write logs to stdout while terminal display is enabled. Consider disabling it with '--no-display'"
-                )
-        else:
-            raise InitializationError("--logs to file not supported yet")
+        if args.logs == "stdout" and not args.no_display:
+            raise InitializationError(
+                "Cannot write logs to stdout while terminal display is enabled. Consider disabling it with '--no-display'"
+            )
+        init_logging(args.logs)
     else:
         disable_logging()
+    if args.debug:
+        set_logging_level(logging.DEBUG)
 
     # Corpus and coverage directories
     if args.corpus_dir is None:
