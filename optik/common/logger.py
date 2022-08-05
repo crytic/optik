@@ -15,8 +15,7 @@ class ColoredFormatter(logging.Formatter):
         reset = "\x1b[0m"
         if whole:
             return f"{color}%(asctime)s - %(levelname)s - %(message)s{reset}"
-        else:
-            return f"%(asctime)s - {color}%(levelname)s{reset} - %(message)s"
+        return f"%(asctime)s - {color}%(levelname)s{reset} - %(message)s"
 
     FORMATS = {
         logging.DEBUG: colored_fmt(blue),

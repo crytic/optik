@@ -1,20 +1,21 @@
-import os
 import json
-from typing import Any, List, Set, Dict, Final, Optional
+import os
+from typing import List, Dict, Final, Optional
+
 from slither.slither import SlitherCore
+
 from ..common.abi import func_signature
-from ..echidna.interface import (
-    extract_func_from_call,
-    get_available_filename,
-)
+from ..common.exceptions import CorpusException
+from ..common.logger import logger
 from ..dataflow.dataflow import (
     DataflowGraph,
     DataflowNode,
     get_base_dataflow_graph,
 )
-
-from ..common.exceptions import CorpusException
-from ..common.logger import logger
+from ..echidna.interface import (
+    extract_func_from_call,
+    get_available_filename,
+)
 
 # Prefix for files containing seed corpus
 SEED_CORPUS_PREFIX: Final[str] = "optik_corpus"
@@ -62,7 +63,6 @@ class CorpusGenerator:
         for tx_seq in self.current_tx_sequences:
             # Get all txs that can impact this sequence
             impacts_seq = set().union(*[n.parents for n in tx_seq])
-            func = tx_seq[0]
             # Prepend impacting tx(s) to sequence
             new_tx_sequences += [[prev] + tx_seq for prev in impacts_seq]
         self.current_tx_sequences = new_tx_sequences

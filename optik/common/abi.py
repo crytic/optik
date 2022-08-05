@@ -1,10 +1,12 @@
-from maat import Cst, Concat, Extract, Sext, Value, Var, VarContext
-from .exceptions import ABIException
-import sha3
 from itertools import accumulate
-from eth_abi.grammar import ABIType, BasicType, TupleType, parse, normalize
+from typing import List, Union, Any
+
+import sha3
 from eth_abi.exceptions import ABITypeError, ParseError
-from typing import Tuple, List, Union, Any
+from eth_abi.grammar import ABIType, BasicType, TupleType, parse, normalize
+from maat import Cst, Sext, Value, Var, VarContext
+
+from .exceptions import ABIException
 from .logger import logger
 from ..common.util import list_has_types
 
@@ -77,8 +79,8 @@ def uintM(
             Cst(256 - bits, 0),  # zero padding (zero because unsigned)
             value,  # value on 'M' bits
         ]
-    else:
-        return [value]
+
+    return [value]
 
 
 def intM(
@@ -115,8 +117,7 @@ def intM(
 
     if bits < 256:
         return [Sext(256, value)]
-    else:
-        return [value]
+    return [value]
 
 
 def address_enc(
@@ -160,7 +161,7 @@ def bytesM(
         for v in value:
             if v < 0:
                 raise ABIException(f"byte value {v} must be positive")
-            elif v >= 256:
+            if v >= 256:
                 raise ABIException(
                     f"ABI: byte value {v} greater than 255 overflows"
                 )
@@ -209,10 +210,9 @@ def bool_enc(
         return uintM(
             BOOL_SIZE, BOOL_TRUE if value is True else BOOL_FALSE, ctx, name
         )
-    elif isinstance(value, Value):
+    if isinstance(value, Value):
         return uintM(BOOL_SIZE, value, ctx, name)
-    else:
-        raise ABIException("'value' must be bool or value")
+    raise ABIException("'value' must be bool or value")
 
 
 def compute_head_lengths(ty: ABIType, _iter_tuple: bool = True) -> int:
@@ -236,11 +236,11 @@ def compute_head_lengths(ty: ABIType, _iter_tuple: bool = True) -> int:
         # if non-dynamic tuple, encoded in place
         return sum([compute_head_lengths(t, False) for t in ty.components])
 
-    elif ty.is_dynamic:
+    if ty.is_dynamic:
         # all dynamic types are referenced by an offset, which is encoded as a uint
         return BASE_HEAD_SIZE
 
-    elif ty.is_array:
+    if ty.is_array:
         # static array, so has static type and static size
         dimensions = ty.arrlist
         # compute total size of matrix
@@ -248,9 +248,8 @@ def compute_head_lengths(ty: ABIType, _iter_tuple: bool = True) -> int:
         res = size * compute_head_lengths(ty.item_type, False)
         return res
 
-    else:
-        # is an elementary type
-        return BASE_HEAD_SIZE
+    # is an elementary type
+    return BASE_HEAD_SIZE
 
 
 def tuple_enc(
@@ -284,8 +283,7 @@ def tuple_enc(
             # head(X(i)) = enc(len( head(X(1) ... X(k) tail(X(1)) ... tail(X(i-1))) ))
             offset = base_head_length + cum_tail_length
             return [Cst(256, offset)]
-        else:
-            return encode_value(x, value, ctx, base_name)
+        return encode_value(x, value, ctx, base_name)
 
     def tail(x: ABIType, value, ctx: VarContext, base_name: str) -> List[Value]:
         """As defined in the ABI specification, encodes tail(x)
@@ -297,8 +295,7 @@ def tuple_enc(
         """
         if x.is_dynamic:
             return encode_value(x, value, ctx, base_name)
-        else:
-            return []
+        return []
 
     def tail_length(tail: List[Value]) -> int:
         """Finds size of the tail in bytes
@@ -391,10 +388,10 @@ def func_signature(func_name: str, args_spec: str) -> str:
     )
 
 
-def selector(func_signature: str) -> Value:
+def selector(function_signature: str) -> Value:
     """Return the first 4 bytes of the keccak256 hash of 'func_signature'"""
     k = sha3.keccak_256()
-    k.update(func_signature.encode())
+    k.update(function_signature.encode())
     digest = k.digest()[:4]
     return Cst(32, int.from_bytes(digest, "big"))
 
@@ -414,22 +411,20 @@ def encode_value(
         if len(ty.arrlist[-1]) == 0:
             # array is dynamically sized
             return array_dynamic(ty, value, ctx, arg_name)
-        else:
-            # is a static sized array
-            return array_fixed(ty, value, ctx, arg_name)
+        # is a static sized array
+        return array_fixed(ty, value, ctx, arg_name)
 
-    elif isinstance(ty, TupleType):
+    if isinstance(ty, TupleType):
         # type is a tuple
         return tuple_enc(ty, value, ctx, arg_name)
 
-    else:
-        # elementary type
-        if not ty.base in encoder_functions:
-            raise ABIException(f"Unsupported type: {ty.base}")
+    # elementary type
+    if not ty.base in encoder_functions:
+        raise ABIException(f"Unsupported type: {ty.base}")
 
-        encoder = encoder_functions[ty.base]
-        v = encoder(ty.sub, value, ctx, arg_name)
-        return v
+    encoder = encoder_functions[ty.base]
+    v = encoder(ty.sub, value, ctx, arg_name)
+    return v
 
 
 def encode_arguments(
@@ -491,6 +486,8 @@ def function_call(
     # encode the arguments too
     res += encode_arguments(args_types, ctx, tx_name, *args)
 
+    # TODO (montyly): This can be removed, but maybe we want to keep it for debugging?
+    # pylint: disable=unused-variable
     def pprint_encoding() -> str:
         """Formats `res` into a hexadecimal view of the encoding"""
 

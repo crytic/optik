@@ -1,12 +1,13 @@
-from maat import Value
-from .exceptions import GenericException
-from .logger import logger
+import ast
 import re
-from typing import Union, List, Tuple, Dict
+from typing import Union, List, Tuple
+import os
+
 import rlp
 import sha3
-import ast
-import os
+
+
+from .exceptions import GenericException
 
 
 def twos_complement_convert(arg: int, bits: int) -> int:
@@ -20,15 +21,14 @@ def twos_complement_convert(arg: int, bits: int) -> int:
     """
     if arg < 0:
         raise GenericException("Expected a positive value")
-    elif arg >= (1 << bits):
+    if arg >= (1 << bits):
         raise GenericException(f"Value {arg} too big to fit on {bits} bits")
 
     if arg & (1 << (bits - 1)) == 0:
         # Positive number
         return arg
-    else:
-        # Negative number
-        return arg - (1 << bits)
+    # Negative number
+    return arg - (1 << bits)
 
 
 # textual unicode symbols not handled by python's unicode decode
@@ -67,7 +67,7 @@ _UNICODE_SYMBOLS = [
     "US",
     "DEL",
 ]
-UNICODE_SYMBOLS = dict()
+UNICODE_SYMBOLS = {}
 for i, s in enumerate(_UNICODE_SYMBOLS):
     UNICODE_SYMBOLS[i] = s
     UNICODE_SYMBOLS[s] = i
@@ -131,10 +131,9 @@ def echidna_parse_bytes(unicode_str: str) -> List[int]:
         sym = match.group(1).decode()
         if sym in ESCAPE_SEQUENCES:
             return ESCAPE_SEQUENCES[sym].to_bytes(1, byteorder="big")
-        elif sym == "&":
+        if sym == "&":
             return b""  # In haskell \& is an empty string...
-        else:
-            return match.group()
+        return match.group()
 
     unicode_str = unicode_str[1:-1]  # remove double quoted string
 
@@ -174,7 +173,7 @@ def echidna_encode_bytes(string: bytes) -> str:
     res = ""
     last_was_num: bool = False
     for b in string:
-        if last_was_num and b >= 0x30 and b <= 0x39:
+        if last_was_num and 0x30 <= b <= 0x39:
             # If last character was a numeric encoding (e.g \245)
             # and the next char to encoding is a number we need
             # to add an empty string escape in between
@@ -195,22 +194,22 @@ def echidna_encode_bytes(string: bytes) -> str:
 
 
 def list_has_types(
-    val: Union[List[type], Tuple[type]], wanted_type: type
+    value: Union[List[type], Tuple[type]], wanted_type: type
 ) -> bool:
     """Validates that all elements of a given list are of type `wanted_type`
 
-    :param val: the list to inspect types for
+    :param value: the list to inspect types for
     :param wanted_type: the type that all values of `val` should be
 
     :return: True if all elements of `val` are of type `wanted_type`, otherwise False
     """
 
-    # `val` should be a list
-    if not isinstance(val, list) and not isinstance(val, tuple):
+    # `value` should be a list
+    if not isinstance(value, list) and not isinstance(value, tuple):
         return False
 
     # If any single value is not of type `wanted_type`, then False
-    if any([v for v in val if not isinstance(v, wanted_type)]):
+    if any([v for v in value if not isinstance(v, wanted_type)]):
         return False
 
     return True

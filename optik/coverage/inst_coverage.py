@@ -1,8 +1,8 @@
-from .coverage import Coverage, CoverageState
 from dataclasses import dataclass
-from maat import contract, MaatEngine, EVENT, WHEN
 from typing import FrozenSet, Optional, List, Tuple
+from maat import contract, MaatEngine, EVENT, WHEN
 from ..common.world import AbstractTx
+from .coverage import Coverage, CoverageState
 
 
 @dataclass(eq=True, frozen=True)

@@ -1,10 +1,11 @@
-from .common import new_test_dir, CONTRACTS_DIR
-import pytest
 import os
 from typing import Optional, Tuple
-from optik.echidna import run_hybrid_echidna
 from multiprocessing import Process
 from time import sleep
+
+import pytest
+from optik.echidna import run_hybrid_echidna
+from .common import new_test_dir, CONTRACTS_DIR
 
 COVERAGE_TARGET_MARKER = "test::coverage"
 
@@ -107,6 +108,6 @@ def get_coverage_file(
         for filename in sorted(os.listdir(test_dir), reverse=True):
             if filename.startswith("covered.") and filename.endswith(".txt"):
                 return os.path.join(test_dir, filename)
-    except FileNotFoundError as e:
+    except FileNotFoundError:
         pass
     return None

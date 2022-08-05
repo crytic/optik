@@ -1,11 +1,36 @@
 import argparse
-import sys
+import logging
 import os
+import sys
 import tempfile
+import time
+from dataclasses import dataclass
+from datetime import datetime
+from typing import List, Optional, Set
 
-from .runner import replay_inputs, generate_new_inputs, run_echidna_campaign
+from slither.exceptions import SlitherError
+from slither.slither import Slither
+
+from optik.common.exceptions import GenericException
+from .display import (
+    display,
+    start_display,
+    stop_display,
+)
 from .interface import extract_contract_bytecode, extract_cases_from_json_output
-from .display import display
+from .runner import replay_inputs, generate_new_inputs, run_echidna_campaign
+from ..common.exceptions import ArgumentParsingError, InitializationError
+from ..common.logger import (
+    logger,
+    disable_logging,
+    init_logging,
+    set_logging_level,
+)
+from ..common.util import count_files_in_dir
+from ..corpus.generator import (
+    EchidnaCorpusGenerator,
+    infer_previous_incremental_threshold,
+)
 from ..coverage import (
     InstCoverage,
     InstIncCoverage,
@@ -15,30 +40,6 @@ from ..coverage import (
     PathCoverage,
     RelaxedPathCoverage,
 )
-from slither.slither import Slither
-from slither.exceptions import SlitherError
-from ..common.logger import (
-    logger,
-    disable_logging,
-    init_logging,
-    set_logging_level,
-)
-from ..common.exceptions import ArgumentParsingError, InitializationError
-from ..common.util import count_files_in_dir
-import logging
-from typing import List, Optional, Set
-from ..corpus.generator import (
-    EchidnaCorpusGenerator,
-    infer_previous_incremental_threshold,
-)
-from .display import (
-    display,
-    start_display,
-    stop_display,
-)
-from datetime import datetime
-import time
-from dataclasses import dataclass
 
 
 def handle_argparse_error(err: ArgumentParsingError) -> None:
@@ -65,14 +66,13 @@ def run_hybrid_echidna(args: List[str]) -> None:
     except ArgumentParsingError as e:
         if display.active:
             raise e
-        else:
-            handle_argparse_error(e)
-            return
+        handle_argparse_error(e)
+        return
 
     max_seq_len = args.seq_len
     try:
         deployer = int(args.deployer, 16)
-    except:
+    except ValueError:
         logger.error(f"Invalid deployer address: {args.deployer}")
         return
 
@@ -131,8 +131,6 @@ def run_hybrid_echidna(args: List[str]) -> None:
 
     # Main fuzzing+symexec loop
     iter_cnt = 0
-    new_inputs_cnt = 0
-    cases_found_cnt = 0
     while args.max_iters is None or iter_cnt < args.max_iters:
         iter_cnt += 1
         display.iteration = iter_cnt  # terminal display
@@ -318,9 +316,8 @@ def pull_new_corpus_files(cov_dir: str, seen_files: Set[str]) -> List[str]:
         corpus_file = str(os.path.join(cov_dir, corpus_file_name))
         if not corpus_file.endswith(".txt") or corpus_file in seen_files:
             continue
-        else:
-            seen_files.add(corpus_file)
-            res.append(corpus_file)
+        seen_files.add(corpus_file)
+        res.append(corpus_file)
     return res
 
 
