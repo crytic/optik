@@ -6,7 +6,7 @@ contract CoverageNestedTuple {
 
     struct T { uint x; uint y; }
     struct S { uint a; T b; }
-    
+
     function explore_me(S memory tup) public returns (uint256) {
 
         if (tup.a > 0x800000){
