@@ -128,12 +128,11 @@ class EchidnaCorpusGenerator(CorpusGenerator):
         seed = []
         # Retrieve Echidna tx for each function
         for node in seq:
+            func_sig = node.func.solidity_signature
             try:
-                seed.append(self.func_template_mapping[node.func.full_name])
+                seed.append(self.func_template_mapping[func_sig])
             except KeyError:
-                raise CorpusException(
-                    f"No template for function {node.func.full_name}"
-                )
+                raise CorpusException(f"No template for function {func_sig}")
 
         new_file = get_available_filename(
             f"{corpus_dir}/{SEED_CORPUS_PREFIX}", ".txt"
