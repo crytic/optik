@@ -35,7 +35,7 @@ to_test = [
     ("Time.sol", "inst", 10),
     ("SmartianExample.sol", "inst-tx-seq", 40),
     ("Payable.sol", "inst", 10),
-    ("IntCast.sol", "inst", 10),
+    ("IntCast.sol", "inst-tx-seq", 5),
     ("CreateContracts.sol", "inst-tx-seq", 10),
     ("CreateContracts2.sol", "inst-tx-seq", 30),
     ("MessageCall.sol", "inst-tx-seq", 1),
