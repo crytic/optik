@@ -205,6 +205,7 @@ def list_has_types(
     """
 
     # `value` should be a list
+    # TODO (montyly): the following condition is unreachable
     if not isinstance(value, list) and not isinstance(value, tuple):
         return False
 

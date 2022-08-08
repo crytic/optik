@@ -43,12 +43,14 @@ class Bifurcation:
     input_uid: str
     alt_state: Optional[CoverageState] = None
 
-    def __eq__(self, other):
+    def __eq__(self, other: object) -> bool:
         """Two bifurcations are equivalent if they branch to the same
         coverage state"""
-        return self.alt_state == other.alt_state
+        return (
+            isinstance(other, Bifurcation) and self.alt_state == other.alt_state
+        )
 
-    def __hash__(self):
+    def __hash__(self) -> int:
         """Custom hash based only on the target and transaction number"""
         return hash(self.alt_state)
 
@@ -71,7 +73,7 @@ class Coverage(WorldMonitor):
     # This variable needs to be redefined by child classes
     HOOK_ID = "__coverage"
 
-    def __init__(self):
+    def __init__(self) -> None:
         super().__init__()
         self.covered: Dict[CoverageState, int] = {}
         self.bifurcations: List[Bifurcation] = []
@@ -156,7 +158,7 @@ class Coverage(WorldMonitor):
         self.bifurcations.sort(key=lambda x: len(x.path_constraints))
 
     @staticmethod
-    def branch_callback(m: MaatEngine, cov: "Coverage"):
+    def branch_callback(m: MaatEngine, cov: "Coverage") -> None:
         cov.record_branch(m)
 
     #### WorldMonitor interface

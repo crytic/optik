@@ -137,8 +137,8 @@ class WorldMonitor:
     """Abstract interface for monitors that can execute callbacks on
     certain events"""
 
-    def __init__(self):
-        self.world: "EVMWorld" = None
+    def __init__(self) -> None:
+        self.world: Optional["EVMWorld"] = None
 
     def on_attach(self, *args) -> None:
         """Callback called once when the monitor is attached to
@@ -171,7 +171,7 @@ class EVMWorld:
                         various events
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         self.contracts: Dict[int, ContractRunner] = {}
         self.call_stack: List[int] = []
         self.tx_queue: List[AbstractTx] = []
@@ -242,13 +242,13 @@ class EVMWorld:
         return self._current_tx_num
 
     @current_tx_num.setter
-    def current_tx_num(self, val) -> None:
+    def current_tx_num(self, val: int) -> None:
         self._current_tx_num = val
 
     @property
     def has_pending_transactions(self) -> bool:
         """True if the transaction queue is not empty"""
-        return self.tx_queue
+        return len(self.tx_queue) > 0
 
     @property
     def current_contract(self) -> ContractRunner:
@@ -426,6 +426,7 @@ class EVMWorld:
 
         # Create a new runtime for the new contract because its init
         # code must run next
+        assert self.current_tx
         create_tx = AbstractTx(
             out_tx.deepcopy(),
             self.current_tx.block_num_inc,
@@ -485,6 +486,7 @@ class EVMWorld:
                 "but no contract deployed at this address"
             )
 
+        assert self.current_tx
         tx = AbstractTx(
             out_tx.deepcopy(),
             self.current_tx.block_num_inc,

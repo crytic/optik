@@ -21,7 +21,7 @@ class DataflowNode:
         self.children: Set[DataflowNode] = set()
         self.parents: Set[DataflowNode] = set()
 
-    def __str__(self):
+    def __str__(self) -> str:
         res = f"{self.func.name}:"
         res += f"\tImpacts: {', '.join([c.func.name for c in self.children])}"
         res += (
@@ -37,7 +37,7 @@ class DataflowGraph:
         nodes: all functions present in the dataflow graph
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         self.nodes: List[DataflowNode] = []
 
     def add_function(self, func: Function) -> None:
@@ -63,8 +63,9 @@ class DataflowGraph:
         """
         s = self.get_node(src)
         d = self.get_node(dst)
-        s.children.add(d)
-        d.parents.add(s)
+        if s and d:
+            s.children.add(d)
+            d.parents.add(s)
 
     def __str__(self) -> str:
         return "\n".join([str(n) for n in self.nodes])

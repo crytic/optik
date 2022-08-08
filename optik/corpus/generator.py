@@ -49,7 +49,7 @@ class CorpusGenerator:
         self.current_tx_sequences = [[n] for n in self.dataflow_graph.nodes]
 
     @property
-    def current_seq_len(self):
+    def current_seq_len(self) -> int:
         return (
             0
             if not self.current_tx_sequences
@@ -67,7 +67,7 @@ class CorpusGenerator:
             new_tx_sequences += [[prev] + tx_seq for prev in impacts_seq]
         self.current_tx_sequences = new_tx_sequences
 
-    def step(self, n=1) -> None:
+    def step(self, n: int = 1) -> None:
         """Update the current transaction sequences 'n' times.
         Updating the current transaction sequences if done by prepending one call
         to all sequences. If multiple calls impact a sequence, it create as many
@@ -80,7 +80,7 @@ class CorpusGenerator:
         """Dump the current dataflow tx sequences in new corpus input files"""
         raise NotImplementedError()
 
-    def __str__(self):
+    def __str__(self) -> str:
         res = f"Dataflow graph:\n {self.dataflow_graph}\n"
 
         res += "Current tx sequences:\n"

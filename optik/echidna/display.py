@@ -34,7 +34,7 @@ class HybridEchidnaDisplay:
         active: whether it should be displayed to the terminal
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         self.active = False
         self.scr = None
         # INFO
@@ -71,6 +71,7 @@ class HybridEchidnaDisplay:
         self.fuzz_win_y_lines = 4
         # OTHER
         self._show_echidna_timer = False
+        self._start_time: Optional[datetime] = None
 
     def reset_current_task(self) -> None:
         """Clear the current task info"""
@@ -85,13 +86,15 @@ class HybridEchidnaDisplay:
         self._start_time = datetime.now()
         self._show_echidna_timer = True
 
-    def stop_echidna_task_timer(self):
+    def stop_echidna_task_timer(self) -> None:
         """Stop displaying an Echidna run in the current info window"""
         self._show_echidna_timer = False
         self.reset_current_task()
 
-    def _get_elapsed_time_s(self) -> None:
-        return int((datetime.now() - self._start_time).total_seconds())
+    def _get_elapsed_time_s(self) -> int:
+        if self._start_time:
+            return int((datetime.now() - self._start_time).total_seconds())
+        raise Exception("Project hasn't started")
 
     def _update_echidna_task_timer(self) -> None:
         """Update current echidna task info with current running time"""
@@ -186,6 +189,7 @@ class HybridEchidnaDisplay:
             if self._show_echidna_timer:
                 self._update_echidna_task_timer()
             try:
+                assert self.scr
                 self.scr.erase()
                 # Print border
                 self.scr.border(0)
@@ -430,10 +434,10 @@ display = HybridEchidnaDisplay()
 display_thread = None
 
 # curses color pairs
-GREEN = None
-BLUE = None
-YELLOW = None
-RES = None
+GREEN: Optional[int] = None
+BLUE: Optional[int] = None
+YELLOW: Optional[int] = None
+RED: Optional[int] = None
 
 
 def _display() -> None:
