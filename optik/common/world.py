@@ -2,6 +2,7 @@ from dataclasses import dataclass
 from typing import Dict, List, Optional, Union
 
 from maat import (
+    allow_symbolic_keccak,
     ARCH,
     contract,
     Cst,
@@ -161,6 +162,8 @@ class EVMWorld:
     potentially interacting with each other
 
     Attributes:
+        eoa_list        A dict representing Externally Owned Accounts. The key
+                        is the account's address and the value is the current balance
         contracts       A dict mapping deployment addresses to a contract runner
         call_stack      A stack holding the addresses of the contracts in which
                         method calls are currently being executed. The same address
@@ -172,6 +175,7 @@ class EVMWorld:
     """
 
     def __init__(self) -> None:
+        self.eoa_list: Dict[int, Value] = {}
         self.contracts: Dict[int, ContractRunner] = {}
         self.call_stack: List[int] = []
         self.tx_queue: List[AbstractTx] = []
@@ -181,6 +185,22 @@ class EVMWorld:
         self._current_tx_num: int = 0
         # Root engine
         self.root_engine = MaatEngine(ARCH.EVM)
+        # TODO(boyan): add support for symbolic hashes
+        allow_symbolic_keccak(self.root_engine, False)
+
+    def create_eoa(self, address: int, balance: Value) -> None:
+        """Create an Externally Owned Account
+
+        :param address: ethereum address of the account
+        :param balance: initial balance of the account in WEI
+        """
+        if address in self.eoa_list:
+            raise WorldException("Account at 0x{address:x} already exists")
+        self.eoa_list[address] = balance
+
+    def is_contract(self, address: int) -> bool:
+        """Return True if a smart contract is deployed at 'address'"""
+        return address in self.contracts
 
     def deploy(
         self,
@@ -208,6 +228,10 @@ class EVMWorld:
             raise WorldException(
                 f"Couldn't deploy {contract_file}, address {address} already in use"
             )
+        elif address in self.eoa_list:
+            raise WorldException(
+                f"Couldn't deploy {contract_file}, address {address} already taken by EOA"
+            )
 
         runner = ContractRunner(
             self.root_engine,
@@ -233,6 +257,7 @@ class EVMWorld:
     def next_transaction(self) -> AbstractTx:
         """Return the next transaction to execute and remove it from the
         transaction queue"""
+        # Dequeue next tx
         res = self.tx_queue[0]
         self.tx_queue.pop(0)
         return res
@@ -379,7 +404,11 @@ class EVMWorld:
                 if out_tx.type in [TX.CREATE, TX.CREATE2]:
                     self._handle_CREATE()
                 elif out_tx.type == TX.CALL:
-                    self._handle_CALL()
+                    # Handle ETH transfers to EOAs
+                    if not self.is_contract(out_tx.recipient):
+                        self._handle_ETH_transfer()
+                    else:
+                        self._handle_CALL()
                 # TODO(boyan): other tx types, CALLCODE, DELEGATECALL, ...
                 else:
                     raise WorldException(
@@ -469,6 +498,26 @@ class EVMWorld:
                 self.contracts[self.call_stack[-2]].current_runtime.engine
             ).stack.push(Cst(256, create_result))
 
+    def _handle_ETH_transfer(self) -> None:
+        """Handles a message call that transfers ETH to an Externally
+        Owned Account. When calling this method the current active
+        contract must be the caller that sends ETH to the EOA"""
+        rt: EVMRuntime = self.current_contract.current_runtime
+        caller: EVMContract = contract(rt.engine)
+        out_tx = caller.outgoing_transaction
+        # Create sender EOA if needed
+        if out_tx.recipient in self.contracts:
+            raise WorldException(
+                "Should not be called for message call to smart contract"
+            )
+        elif out_tx.recipient not in self.eoa_list:
+            self.create_eoa(out_tx.recipient, balance=Cst(256, 0))
+        # Transfer ETH
+        self.eoa_list[out_tx.recipient] += out_tx.value
+        caller.balance -= out_tx.value
+        # Push 1 on the caller's stack to indicate success
+        caller.stack.push(Cst(256, 1))
+
     def _handle_CALL(self) -> None:
         """Handles message call into another contract. This method
         creates a new transaction and a new runtime for the target
@@ -477,6 +526,7 @@ class EVMWorld:
 
         rt: EVMRuntime = self.current_contract.current_runtime
         out_tx = contract(rt.engine).outgoing_transaction
+
         # Get runner for target contract
         try:
             contract_runner = self.contracts[out_tx.recipient]

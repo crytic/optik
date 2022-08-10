@@ -114,13 +114,13 @@ def get_base_dataflow_graph(
         res.add_function(func)
         for dst in deps["impacts"]:
             dst = contract.get_function_from_signature(dst)
-            if ignore_func(dst):
+            if dst is None or ignore_func(dst):
                 continue
             res.add_function(dst)
             res.add_dataflow(func, dst)
         for src in deps["is_impacted_by"]:
             src = contract.get_function_from_signature(src)
-            if ignore_func(src):
+            if src is None or ignore_func(src):
                 continue
             res.add_function(src)
             res.add_dataflow(src, func)
