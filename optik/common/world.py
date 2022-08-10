@@ -165,8 +165,6 @@ class EVMWorld:
         eoa_list        A dict representing Externally Owned Accounts. The key
                         is the account's address and the value is the current balance
         contracts       A dict mapping deployment addresses to a contract runner
-        eoas            A dict representing EOAs. The key is the account address,
-                        the value is the account balance
         call_stack      A stack holding the addresses of the contracts in which
                         method calls are currently being executed. The same address
                         can appear twice in case of re-entrency
@@ -179,7 +177,6 @@ class EVMWorld:
     def __init__(self) -> None:
         self.eoa_list: Dict[int, Value] = {}
         self.contracts: Dict[int, ContractRunner] = {}
-        self.eoas: Dict[int, Value] = {}
         self.call_stack: List[int] = []
         self.tx_queue: List[AbstractTx] = []
         self.current_tx: Optional[AbstractTx] = None
@@ -603,8 +600,3 @@ class EVMWorld:
         for m in self.monitors:
             callback = getattr(m, f"on_{event_name}")
             callback(*args)
-
-    def add_eoa(self, addr: int, balance: Value) -> None:
-        if addr in self.eoas:
-            raise WorldException(f"EOA {addr} already exists")
-        self.eoas[addr] = balance
