@@ -515,7 +515,7 @@ glob_fuzzing_result: Optional[FuzzingResult] = None
 def main() -> None:
     func = (
         run_hybrid_echidna
-        if "--no-display" in sys.argv
+        if any(x for x in ["--no-display", "-h", "--help"] if x in sys.argv)
         else run_hybrid_echidna_with_display
     )
     func(sys.argv[1:])
