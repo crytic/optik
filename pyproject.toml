@@ -8,7 +8,7 @@ dynamic = ["version", "readme"]
 dependencies = [
     "setuptools>=45",
     "wheel",
-    "pymaat>=0.6.5",
+    "pymaat>=0.6.6",
     "eth_abi",
     "pysha3",
     "rlp",
