@@ -37,7 +37,7 @@ to_test = [
     ("Payable.sol", "inst", 10),
     ("IntCast.sol", "inst-tx-seq", 5),
     ("CreateContracts.sol", "inst-tx-seq", 10),
-    ("CreateContracts2.sol", "inst-tx-seq", 30),
+    ("CreateContracts2.sol", "inst-tx-seq", 40),
     ("MessageCall.sol", "inst-tx-seq", 1),
     ("Reentrency.sol", "inst-tx-seq", 20),
 ]
