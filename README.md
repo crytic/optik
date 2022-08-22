@@ -20,7 +20,7 @@ Optik is a work in progress and should not be used for real audits yet. Current 
 Optik allows to run the [Echidna](https://github.com/crytic/echidna) smart-contract 
 fuzzer in _hybrid_ mode. It basically couples Echidna with the [Maat](https://github.com/trailofbits/maat) symbolic executor that replays the Echidna corpus and extends it with new inputs that increase coverage. 
 
-`hybrid-echidna` starts with several _incremental seeding_ steps, where it seeds the corpus with short transactions sequences obtained by [Slither](https://github.com/crytic/slither)'s dataflow analysis, and uses symbolic execution more intensely to solve new inputs. The sequence length is incremented at each seeding step. Once it reaches a certain length threshold, `hybrid-echidna` falls back into its normal mode, starts to limit the number of symbolic inputs to solve, and stops using dataflow analysis for seeding the corpus.
+`hybrid-echidna` starts with several <i>incremental seeding</i> steps, where it seeds the corpus with short transactions sequences obtained by [Slither](https://github.com/crytic/slither)'s dataflow analysis, and uses symbolic execution more intensely to solve new inputs. The sequence length is incremented at each seeding step. Once it reaches a certain length threshold, `hybrid-echidna` falls back into its normal mode, starts to limit the number of symbolic inputs to solve, and stops using dataflow analysis for seeding the corpus.
 
 ### Usage
 
