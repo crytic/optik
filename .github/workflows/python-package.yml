@@ -55,7 +55,7 @@ jobs:
       with:
         name: optik-dist
         path: optik-dist/
-    # Upload package to PyPI (currently testPyPI)
+    # Upload package to PyPI
     - name: Upload package to PyPI
       uses: pypa/gh-action-pypi-publish@v1.5.0
       with:
