@@ -36,7 +36,7 @@ class AbstractTx:
         ctx     The symbolic context associated with tx.data
     """
 
-    tx: EVMTransaction
+    tx: Optional[EVMTransaction]
     block_num_inc: Value
     block_timestamp_inc: Value
     ctx: VarContext
@@ -315,6 +315,11 @@ class EVMWorld:
                 # Pop next transaction to execute
                 self.current_tx = self.next_transaction()
                 self.current_tx_num += 1
+                # Update block number & timestamp
+                self._update_block_info(self.root_engine, self.current_tx)
+                # If no actual transaction, get next one
+                if self.current_tx.tx is None:
+                    continue
                 # Find contract runner for the target contract
                 contract_addr = self.current_tx.tx.recipient
                 try:
@@ -327,8 +332,6 @@ class EVMWorld:
                 self._push_runtime(runner, self.current_tx)
                 # Add to call stack
                 self.call_stack.append(contract_addr)
-                # Update block number & timestamp
-                self._update_block_info(self.root_engine, self.current_tx)
                 # Monitor events
                 self._on_event(
                     "transaction",
