@@ -7,12 +7,9 @@ contract CreateContracts2 {
     A a;
     A b;
 
-    function f1() public {
+    function f() public {
         if (a == A(address(0x0)))
             a = new A();
-    }
-
-    function f2() public {
         if (b == A(address(0x0)))
             b = new A();
     }
