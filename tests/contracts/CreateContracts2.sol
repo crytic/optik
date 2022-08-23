@@ -14,9 +14,12 @@ contract CreateContracts2 {
             b = new A();
     }
 
-    function g(address x) public {
+    function g1(address x) public {
         if (A(x) == a && (a != A(address(0x0))))
             state = false;
+    }
+
+    function g2(address x) public {
         if ((A(x) == b) && (b != A(address(0x0))))
             state2 = false;
     }
