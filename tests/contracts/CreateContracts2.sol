@@ -26,7 +26,7 @@ contract CreateContracts2 {
 
     function h() public returns (bool) {
         if (!(state || state2))
-            return false; // test::coverage
+            assert(false); // test::coverage
         else
             return true; // test::coverage
     }
