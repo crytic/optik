@@ -160,9 +160,8 @@ def load_tx(tx: Dict, tx_name: str = "") -> AbstractTx:
     :param tx_name: Optional name identifying this transaction, used to
         name symbolic variables created to fill the transaction data
     """
-    func_name, args_spec, arg_values = extract_func_from_call(tx["_call"])
+
     ctx = VarContext()
-    call_data = function_call(func_name, args_spec, ctx, tx_name, *arg_values)
 
     # Translate block number/timestamp increments
     block_num_inc = Var(256, f"{tx_name}_block_num_inc")
@@ -171,6 +170,19 @@ def load_tx(tx: Dict, tx_name: str = "") -> AbstractTx:
     ctx.set(
         block_timestamp_inc.name, int(tx["_delay"][0], 16), block_num_inc.size
     )
+
+    # Check if it's a "NoCall" echidna transaction
+    if tx["_call"]["tag"] == "NoCall":
+        return AbstractTx(
+            None,
+            block_num_inc,
+            block_timestamp_inc,
+            ctx,
+        )
+
+    # Translate function call
+    func_name, args_spec, arg_values = extract_func_from_call(tx["_call"])
+    call_data = function_call(func_name, args_spec, ctx, tx_name, *arg_values)
 
     # Translate message sender
     sender = Var(160, f"{tx_name}_sender")

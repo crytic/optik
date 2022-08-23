@@ -87,7 +87,7 @@ def check_coverage_success(covered_file: Optional[str]) -> Tuple[bool, str]:
 
     with open(covered_file, "r") as f:
         for i, line in enumerate(f.readlines()):
-            if COVERAGE_TARGET_MARKER in line and not line[0] == "*":
+            if COVERAGE_TARGET_MARKER in line and not line[0] in ["*", "e"]:
                 return (
                     False,
                     f"Failed to cover line {i+1}:\n|{''.join(line.split('|')[1:])}",

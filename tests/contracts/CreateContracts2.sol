@@ -7,26 +7,26 @@ contract CreateContracts2 {
     A a;
     A b;
 
-    function f1() public {
+    function f() public {
         if (a == A(address(0x0)))
             a = new A();
-    }
-
-    function f2() public {
         if (b == A(address(0x0)))
             b = new A();
     }
 
-    function g(address x) public {
+    function g1(address x) public {
         if (A(x) == a && (a != A(address(0x0))))
             state = false;
+    }
+
+    function g2(address x) public {
         if ((A(x) == b) && (b != A(address(0x0))))
             state2 = false;
     }
 
     function h() public returns (bool) {
         if (!(state || state2))
-            return false; // test::coverage
+            assert(false); // test::coverage
         else
             return true; // test::coverage
     }

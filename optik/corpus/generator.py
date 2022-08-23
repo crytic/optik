@@ -108,6 +108,8 @@ class EchidnaCorpusGenerator(CorpusGenerator):
             with open(os.path.join(corpus_dir, filename), "rb") as f:
                 data = json.loads(f.read())
                 for tx in data:
+                    if tx["_call"]["tag"] == "NoCall":
+                        continue
                     func_name, args_spec, _ = extract_func_from_call(
                         tx["_call"]
                     )

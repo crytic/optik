@@ -190,5 +190,5 @@ class InstTxSeqCoverage(InstCoverage):
         super().on_attach(address)
         # Extract the function selectors to build a "minimal" tx_seq
         self.tx_seq = tuple(
-            [tx.tx.data[0].as_uint() for tx in tx_seq if tx.tx.data]
+            [tx.tx.data[0].as_uint() for tx in tx_seq if tx.tx and tx.tx.data]
         )
