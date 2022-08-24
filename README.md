@@ -53,15 +53,20 @@ Debugging, logging and terminal display:
 
 ## Installation
 
-We plan on publishing a `PyPI` package for `pip` installation when Optik becomes more stable.
-For now you can install it by running:
+For a quick installation, run:
+
+```console
+python3 -m pip install optik-tools
+```
+
+To keep up with the latest features and fixes, install Optik from its `master` branch:
 
 ```console
 git clone https://github.com/crytic/optik && cd optik
 python3 -m pip install .
 ```
 
-or you can run it from Docker:
+You can also run it from Docker:
 
 ```console
 git clone https://github.com/crytic/optik && cd optik
