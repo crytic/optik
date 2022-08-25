@@ -17,6 +17,8 @@ from maat import (
     set_evm_bytecode,
     TX,
     TX_RES,
+    ULE,
+    ULT,
     Value,
     VarContext,
 )
@@ -582,8 +584,9 @@ class EVMWorld:
         # Update block info in Maat
         increment_block_number(m, tx.block_num_inc)
         increment_block_timestamp(m, tx.block_timestamp_inc)
-        # TODO(boyan): Should we add constraints to force time increments to
-        # be within certain bounds?
+        # Limit block increment to 1 week (on a basis of 1 block every 10 seconds)
+        self.root_engine.path.add(ULE(tx.block_timestamp_inc, 604800))
+        self.root_engine.path.add(ULE(tx.block_num_inc, 60480))
 
     def attach_monitor(self, monitor: WorldMonitor, *args, **kwargs) -> None:
         """Attach a WorldMonitor"""
