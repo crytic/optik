@@ -17,9 +17,13 @@ from .display import (
     start_display,
     stop_display,
 )
-from .interface import extract_contract_bytecode, extract_cases_from_json_output
+from .interface import (
+    count_cov_lines,
+    get_latest_coverage_file,
+    extract_contract_bytecode,
+    extract_cases_from_json_output,
+)
 from .runner import replay_inputs, generate_new_inputs, run_echidna_campaign
-from .interface import count_cov_lines, get_latest_coverage_file
 from ..common.exceptions import ArgumentParsingError, InitializationError
 from ..common.logger import (
     logger,

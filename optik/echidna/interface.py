@@ -491,7 +491,7 @@ def count_cov_lines(coverage_file: str) -> int:
     characters at the beginning of code lines that was covered during
     fuzzing"""
     with open(coverage_file, "r") as f:
-        return len([1 for line in f.readlines() if line[0] in "*er"])
+        return len([1 for line in f.readlines() if line[0] in "*e"])
 
 
 def get_latest_coverage_file(
@@ -508,3 +508,19 @@ def get_latest_coverage_file(
     except FileNotFoundError:
         pass
     return None
+
+
+def count_unique_pc(output: str) -> int:
+    """Count the unique instruction addresses that were executed
+    by echidna
+
+    :param output: echidna's JSON output as a simple string
+    """
+    if output.startswith("Loaded total of"):
+        output = output.split("\n", 1)[1]
+    data = json.loads(output)
+    res = 0
+    for addr, cov in data["coverage"].items():
+        unique_pcs = set([x[0] for x in cov])
+        res += len(unique_pcs)
+    return res
