@@ -19,6 +19,7 @@ from .display import (
 )
 from .interface import (
     count_cov_lines,
+    count_unique_pc,
     get_latest_coverage_file,
     extract_contract_bytecode,
     extract_cases_from_json_output,
@@ -227,6 +228,12 @@ def run_hybrid_echidna(arguments: List[str]) -> None:
             display.lines_cov_echidna = nb_cov_lines
         display.lines_cov_last = nb_cov_lines - display.lines_cov_total
         display.lines_cov_total = nb_cov_lines
+        # Display inst. coverage info
+        nb_cov_insts = count_unique_pc(p.stdout)
+        if iter_cnt == 1:
+            display.pc_cov_echidna = nb_cov_insts
+        display.pc_cov_last = nb_cov_insts - display.pc_cov_total
+        display.pc_cov_total = nb_cov_insts
 
         # Display cases in terminal
         display.res_cases = extract_cases_from_json_output(p.stdout)

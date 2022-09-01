@@ -71,7 +71,9 @@ def test_coverage(contract: str, cov_mode: str, seq_len: int):
             break
         sleep(5)
     # Final coverage check
-    success, err_msg = check_coverage_success(get_latest_coverage_file(test_dir))
+    success, err_msg = check_coverage_success(
+        get_latest_coverage_file(test_dir)
+    )
     assert success, err_msg
 
 
@@ -97,4 +99,3 @@ def check_coverage_success(covered_file: Optional[str]) -> Tuple[bool, str]:
             True,
             "",
         )
-
