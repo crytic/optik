@@ -49,6 +49,10 @@ class HybridEchidnaDisplay:
             33,
             100,
         )  # tuple (curr, goal,)
+        self.cov_win_title = "Coverage"
+        self.lines_cov_echidna: int = 0
+        self.lines_cov_total: int = 0
+        self.lines_cov_last: int = 0
         self.fuzz_win_title = "Fuzzer"
         self.fuzz_total_cases_cnt = 0
         self.fuzz_last_cases_cnt = 0
@@ -69,6 +73,7 @@ class HybridEchidnaDisplay:
         self.global_win_y_lines = 3
         self.fuzz_win_x_ratio = 0.3
         self.fuzz_win_y_lines = 4
+        self.cov_win_y_lines = 2
         # OTHER
         self._show_echidna_timer = False
         self._start_time: Optional[datetime] = None
@@ -260,14 +265,56 @@ class HybridEchidnaDisplay:
                             x_pos,
                             self.current_task_line_3,
                         )
+                # Coverage info window
+                cov_lines = self.cov_win_y_lines * 2 - 1
+                cov_cols = curses.COLS - 2
+                if cov_cols > 3 and cov_lines > 0:
+                    cov_win = self.scr.derwin(
+                        cov_lines,
+                        cov_cols,
+                        glob_lines - 1,
+                        1,
+                    )
+                    cov_win.border(" ", " ", 0, " ", " ", " ", " ", " ")
+                    x_pos = (cov_cols - len(self.cov_win_title)) // 2
+                    if x_pos > 0:
+                        cov_win.addstr(
+                            0,
+                            x_pos,
+                            self.cov_win_title,
+                            curses.A_BOLD | GREEN,
+                        )
+                    self.add_info(
+                        cov_win,
+                        1,
+                        1,
+                        "Lines (echidna)",
+                        self.lines_cov_echidna,
+                    )
+                    self.add_info(
+                        cov_win,
+                        1,
+                        cov_cols // 3 - 2,
+                        "Lines (optik)",
+                        self.lines_cov_total,
+                    )
+                    self.add_info(
+                        cov_win,
+                        1,
+                        (cov_cols // 3) * 2 - 2,
+                        "Lines (last)",
+                        self.lines_cov_last,
+                    )
+
                 # Fuzzer window
                 fuzz_lines = self.fuzz_win_y_lines * 2 - 1
                 fuzz_cols = int(curses.COLS * self.fuzz_win_x_ratio)
+                fuzz_win_y_start = cov_lines + fuzz_lines - 3
                 if fuzz_cols > 3 and fuzz_lines > 3:
                     fuzz_win = self.scr.derwin(
                         fuzz_lines,
                         fuzz_cols,
-                        glob_lines - 1,
+                        fuzz_win_y_start,
                         1,
                     )
 
@@ -306,7 +353,7 @@ class HybridEchidnaDisplay:
                 sym_lines = fuzz_lines
                 if sym_cols > 4 and sym_lines > 3:
                     sym_win = self.scr.derwin(
-                        fuzz_lines, sym_cols, glob_lines - 1, fuzz_cols
+                        fuzz_lines, sym_cols, fuzz_win_y_start, fuzz_cols
                     )
                     sym_win.border(" ", " ", 0, " ", " ", " ", " ", " ")
                     x_pos = (sym_cols - len(self.sym_win_title)) // 2
@@ -366,7 +413,7 @@ class HybridEchidnaDisplay:
                         self.sym_path_constr_average,
                     )
                 # Results windows
-                res_win_y_start = glob_lines + fuzz_lines - 3
+                res_win_y_start = glob_lines + cov_lines + fuzz_lines - 3
                 res_win = self.scr.derwin(
                     curses.LINES - 1 - res_win_y_start,
                     curses.COLS - 2,

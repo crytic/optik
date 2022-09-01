@@ -19,6 +19,7 @@ from .display import (
 )
 from .interface import extract_contract_bytecode, extract_cases_from_json_output
 from .runner import replay_inputs, generate_new_inputs, run_echidna_campaign
+from .interface import count_cov_lines, get_latest_coverage_file
 from ..common.exceptions import ArgumentParsingError, InitializationError
 from ..common.logger import (
     logger,
@@ -210,6 +211,18 @@ def run_hybrid_echidna(arguments: List[str]) -> None:
             raise GenericException("Echidna failed")
 
         logger.debug(f"Echidna stdout: \n{p.stdout}")
+
+        # Display line coverage info
+        coverage_file = get_latest_coverage_file(args.corpus_dir)
+        if coverage_file is None:
+            raise EchidnaException(
+                f"Couldn't get latest coverage file in {args.corpus_dir}"
+            )
+        nb_cov_lines = count_cov_lines(coverage_file)
+        if iter_cnt == 1:
+            display.lines_cov_echidna = nb_cov_lines
+        display.lines_cov_last = nb_cov_lines - display.lines_cov_total
+        display.lines_cov_total = nb_cov_lines
 
         # Display cases in terminal
         display.res_cases = extract_cases_from_json_output(p.stdout)
