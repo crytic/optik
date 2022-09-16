@@ -1,6 +1,8 @@
 import json
 import os
 import tempfile
+import yaml
+import argparse
 from typing import Dict, Final, List, Optional, Tuple, Union
 
 from maat import Cst, EVMTransaction, Value, Var, VarContext
@@ -524,3 +526,18 @@ def count_unique_pc(output: str) -> int:
         unique_pcs = set([x[0] for x in cov])
         res += len(unique_pcs)
     return res
+
+
+def get_echidna_init_file(args: argparse.Namespace) -> Optional[str]:
+    """Return the echidna init file name, or None if no file or config
+    was specified"""
+    if args.config is None:
+        return None
+    with open(args.config, "r") as f:
+        try:
+            config = yaml.safe_load(f)
+        except Exception as e:
+            raise EchidnaException(
+                f"Failed to parse config file {args.config}"
+            ) from e
+        return config.get("initialize", None)

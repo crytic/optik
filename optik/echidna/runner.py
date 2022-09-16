@@ -2,7 +2,7 @@ import argparse
 import os
 import subprocess
 from datetime import datetime
-from typing import List, Tuple
+from typing import List, Optional, Tuple
 
 from maat import (
     Cst,
@@ -20,13 +20,12 @@ from ..coverage import Coverage
 
 
 # TODO(boyan): pass contract bytecode instead of extracting to file
-
-
 def replay_inputs(
     corpus_files: List[str],
     contract_file: str,
     contract_deployer: int,
     cov: Coverage,
+    echidna_init_file: Optional[str],
 ) -> None:
 
     display.reset_current_task()
@@ -81,6 +80,25 @@ def replay_inputs(
         assert world.run() == STOP.EXIT
 
     return cov
+
+
+def init_world(world: EVMWorld, init_file: str) -> None:
+    """Setup contracts and EOAs in an EVMWorld according to
+    an Echidna state initialisation file"""
+    with open(init_file, "r") as f:
+        data = json.loads(f.read())
+        for event in data:
+            if event["event"] == "ContractCreated":
+                bytecode = bytes.fromhex(event["data"][2:])
+                self.deploy(
+                    "",  # No file, bytecode is in the tx data
+                    Cst(160, event["contract_address"]),
+                    int(event["from"], 16),
+                    args=[bytecode],
+                    run_init_bytecode=True,
+                )
+            else:
+                raise EchidnaException(f"Unsupported event: {event['event']}")
 
 
 def generate_new_inputs(

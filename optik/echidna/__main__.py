@@ -23,6 +23,7 @@ from .interface import (
     get_latest_coverage_file,
     extract_contract_bytecode,
     extract_cases_from_json_output,
+    get_echidna_init_file,
 )
 from .runner import replay_inputs, generate_new_inputs, run_echidna_campaign
 from ..common.exceptions import ArgumentParsingError, InitializationError
@@ -82,6 +83,8 @@ def run_hybrid_echidna(arguments: List[str]) -> None:
     except ValueError:
         logger.error(f"Invalid deployer address: {args.deployer}")
         return
+
+    echidna_init_file = get_echidna_init_file(args)
 
     display.sym_solver_timeout = args.solver_timeout
 
@@ -278,7 +281,13 @@ def run_hybrid_echidna(arguments: List[str]) -> None:
         display.fuzz_last_cases_cnt = new_echidna_inputs_cnt
         # Replay new corpus inputs symbolically
         cov.bifurcations = []
-        replay_inputs(new_inputs, contract_file, deployer, cov)
+        replay_inputs(
+            new_inputs,
+            contract_file,
+            deployer,
+            cov,
+            get_echidna_init_file(args),
+        )
 
         # Find inputs to reach new code
         new_inputs_cnt, timeout_cnt = generate_new_inputs(cov, args)
