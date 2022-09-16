@@ -326,10 +326,10 @@ class EVMWorld:
                 contract_addr = self.current_tx.tx.recipient
                 try:
                     runner = self.contracts[contract_addr]
-                except KeyError:
+                except KeyError as e:
                     raise WorldException(
                         f"Transaction recipient is {contract_addr}, but no contract is deployed there"
-                    )
+                    ) from e
                 # Create new runtime to run this transaction
                 self._push_runtime(runner, self.current_tx)
                 # Add to call stack
@@ -371,6 +371,9 @@ class EVMWorld:
                     rt.revert()
 
                 # If contract was still initializing, handle success/failure
+                create_failed = (
+                    not self.current_contract.initialized
+                ) and not succeeded
                 if not self.current_contract.initialized:
                     # This pushes the success status in the caller contract
                     # stack, and deletes the contract runner for current_contract
@@ -378,7 +381,11 @@ class EVMWorld:
                     self._handle_CREATE_after(succeeded)
 
                 # Delete the runtime
-                self.current_contract.pop_runtime()
+                # We do it only if CREATE didn't fail. If it failed, then
+                # _handle_CREATE_after will have deleted the entier contract runner
+                #  already
+                if not create_failed:
+                    self.current_contract.pop_runtime()
 
                 # Handle call result in potential caller contract
                 if is_msg_call_return:
