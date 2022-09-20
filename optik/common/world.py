@@ -590,16 +590,29 @@ class EVMWorld:
         evm_set_static_flag(self.root_engine, self.static_flag_stack.pop())
         # Write the return data in memory (if call ended by RETURN)
         if succeeded and caller_contract.result_from_last_call:
-            if (
-                caller_contract.outgoing_transaction.ret_len.as_uint()
-                < caller_contract.result_from_last_call.return_data_size
-            ):
-                raise WorldException(
-                    "Message call returned more bytes than the buffer-size allocated by the caller contract"
-                )
+            out_size = min(
+                caller_contract.outgoing_transaction.ret_len.as_uint(),
+                caller_contract.result_from_last_call.return_data_size
+            )
+            # Adjust returned data size to space reserved by caller contract
+            if out_size < caller_contract.result_from_last_call.return_data_size:
+                return_data = []
+                size = 0 # in bytes
+                for val in caller_contract.result_from_last_call.return_data:
+                    if size == out_size:
+                        break
+                    if size + val.size//8 > out_size:
+                        return_data.append(Extract(val, val.size-1, val.size-8*(out_size-size)))
+                        break
+                    else:
+                        return_data.append(val)
+                        size += val.size//8
+            else:
+                return_data = caller_contract.result_from_last_call.return_data
+            # Write call result data into caller contract's memory
             caller_contract.memory.write_buffer(
                 caller_contract.outgoing_transaction.ret_offset,
-                caller_contract.result_from_last_call.return_data,
+                return_data,
             )
 
     def _update_block_info(self, m: MaatEngine, tx: AbstractTx) -> None:
