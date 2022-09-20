@@ -18,7 +18,7 @@ from .interface import load_tx_sequence, store_new_tx_sequence
 from ..common.logger import logger
 from ..common.world import AbstractTx, EVMWorld
 from ..coverage import Coverage
-from ..common.exceptions import EchidnaException
+from ..common.exceptions import EchidnaException, WorldException
 
 
 # TODO(boyan): pass contract bytecode instead of extracting to file
@@ -109,13 +109,39 @@ def init_world(world: EVMWorld, init_file: str) -> None:
                 bytecode = bytes.fromhex(event["data"][2:])
                 world.deploy(
                     "",  # No file, bytecode is in the tx data
-                    int(event["contract_address"][2:], 16),
-                    int(event["from"][2:], 16),
+                    int(event["contract_address"], 16),
+                    int(event["from"], 16),
                     args=[bytecode],
                     run_init_bytecode=True,
                 )
             elif event["event"] == "AccountCreated":
                 pass
+            elif event["event"] == "FunctionCall":
+                sender = Cst(160, int(event["from"], 16))
+                data = bytes.fromhex(event["data"][2:])
+                tx = EVMTransaction(
+                    sender,  # origin
+                    sender,  # sender
+                    int(event["to"], 16),  # recipient
+                    Cst(256, event["value"][2:], 16),  # value
+                    [Cst(8, x) for x in data],  # data
+                    Cst(256, int(event["gas_price"], 16)),  # gas price
+                    Cst(256, int(event["gas_used"], 16) * 2),  # gas_limit
+                )
+                world.push_transaction(
+                    AbstractTx(
+                        tx,
+                        Cst(256, 0),
+                        Cst(256, 0),
+                        VarContext(),
+                    )
+                )
+                status = world.run()
+                if status != STOP.EXIT:
+                    raise WorldException(
+                        f"Failed to properly execute initialisation transaction: {event}"
+                    )
+                assert not world.has_pending_transactions
             else:
                 raise EchidnaException(f"Unsupported event: {event['event']}")
 
