@@ -7,6 +7,7 @@ from maat import (
     contract,
     Cst,
     evm_get_static_flag,
+    evm_set_gas_price,
     evm_set_static_flag,
     EVMContract,
     EVMTransaction,
@@ -332,6 +333,10 @@ class EVMWorld:
                 # If no actual transaction, get next one
                 if self.current_tx.tx is None:
                     continue
+                # Update gas price for this transaction
+                evm_set_gas_price(
+                    self.root_engine, self.current_tx.tx.gas_price
+                )
                 # Find contract runner for the target contract
                 contract_addr = self.current_tx.tx.recipient
                 try:
