@@ -592,21 +592,30 @@ class EVMWorld:
         if succeeded and caller_contract.result_from_last_call:
             out_size = min(
                 caller_contract.outgoing_transaction.ret_len.as_uint(),
-                caller_contract.result_from_last_call.return_data_size
+                caller_contract.result_from_last_call.return_data_size,
             )
             # Adjust returned data size to space reserved by caller contract
-            if out_size < caller_contract.result_from_last_call.return_data_size:
+            if (
+                out_size
+                < caller_contract.result_from_last_call.return_data_size
+            ):
                 return_data = []
-                size = 0 # in bytes
+                size = 0  # in bytes
                 for val in caller_contract.result_from_last_call.return_data:
                     if size == out_size:
                         break
-                    if size + val.size//8 > out_size:
-                        return_data.append(Extract(val, val.size-1, val.size-8*(out_size-size)))
+                    if size + val.size // 8 > out_size:
+                        return_data.append(
+                            Extract(
+                                val,
+                                val.size - 1,
+                                val.size - 8 * (out_size - size),
+                            )
+                        )
                         break
                     else:
                         return_data.append(val)
-                        size += val.size//8
+                        size += val.size // 8
             else:
                 return_data = caller_contract.result_from_last_call.return_data
             # Write call result data into caller contract's memory
