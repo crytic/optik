@@ -6,6 +6,9 @@ from maat import (
     ARCH,
     contract,
     Cst,
+    evm_get_static_flag,
+    evm_set_gas_price,
+    evm_set_static_flag,
     EVMContract,
     EVMTransaction,
     increment_block_number,
@@ -116,18 +119,22 @@ class ContractRunner:
     def current_runtime(self) -> EVMRuntime:
         return self.runtime_stack[-1]
 
-    def push_runtime(self, tx: Optional[AbstractTx]) -> EVMRuntime:
+    def push_runtime(
+        self, tx: Optional[AbstractTx], share_storage_uid: Optional[int] = None
+    ) -> EVMRuntime:
         """Send a new transaction to the contract
 
         :param tx: The incoming transaction for which to create a new runtime
         :param is_init_runtime: True if the runtime is created
+        :param share_storage_uid: Optional uid of the runtime with whom the new runtime should share
+        its storage. Used solely for DELEGATECALL
         :return: The new runtime created to execute 'tx'
         """
         # Create a new engine that shares runtime code, symbolic
         # variables, and path constraints
         new_engine = self.root_engine._duplicate(share={"mem", "vars", "path"})
         # Create new maat contract runtime for new engine
-        new_evm_runtime(new_engine, self.root_engine)
+        new_evm_runtime(new_engine, self.root_engine, share_storage_uid)
         self.runtime_stack.append(EVMRuntime(new_engine, tx))
         return self.current_runtime
 
@@ -183,6 +190,7 @@ class EVMWorld:
         self.tx_queue: List[AbstractTx] = []
         self.current_tx: Optional[AbstractTx] = None
         self.monitors: List[WorldMonitor] = []
+        self.static_flag_stack: List[bool] = []
         # Counter for transactions being run
         self._current_tx_num: int = 0
         # Root engine
@@ -296,11 +304,14 @@ class EVMWorld:
         return self.current_contract.current_runtime.engine
 
     def _push_runtime(
-        self, runner: ContractRunner, tx: Optional[AbstractTx]
+        self,
+        runner: ContractRunner,
+        tx: Optional[AbstractTx],
+        share_storage_uid: Optional[int] = None,
     ) -> EVMRuntime:
         """Wrapper function to push a new runtime for a contract runner, and
         trigger the corresponding event"""
-        rt = runner.push_runtime(tx)
+        rt = runner.push_runtime(tx, share_storage_uid)
         self._on_event("new_runtime", rt)
         return rt
 
@@ -322,14 +333,18 @@ class EVMWorld:
                 # If no actual transaction, get next one
                 if self.current_tx.tx is None:
                     continue
+                # Update gas price for this transaction
+                evm_set_gas_price(
+                    self.root_engine, self.current_tx.tx.gas_price
+                )
                 # Find contract runner for the target contract
                 contract_addr = self.current_tx.tx.recipient
                 try:
                     runner = self.contracts[contract_addr]
-                except KeyError:
+                except KeyError as e:
                     raise WorldException(
                         f"Transaction recipient is {contract_addr}, but no contract is deployed there"
-                    )
+                    ) from e
                 # Create new runtime to run this transaction
                 self._push_runtime(runner, self.current_tx)
                 # Add to call stack
@@ -371,6 +386,9 @@ class EVMWorld:
                     rt.revert()
 
                 # If contract was still initializing, handle success/failure
+                create_failed = (
+                    not self.current_contract.initialized
+                ) and not succeeded
                 if not self.current_contract.initialized:
                     # This pushes the success status in the caller contract
                     # stack, and deletes the contract runner for current_contract
@@ -378,7 +396,11 @@ class EVMWorld:
                     self._handle_CREATE_after(succeeded)
 
                 # Delete the runtime
-                self.current_contract.pop_runtime()
+                # We do it only if CREATE didn't fail. If it failed, then
+                # _handle_CREATE_after will have deleted the entire contract runner
+                #  already
+                if not create_failed:
+                    self.current_contract.pop_runtime()
 
                 # Handle call result in potential caller contract
                 if is_msg_call_return:
@@ -387,11 +409,12 @@ class EVMWorld:
                             self.call_stack[-2]
                         ].current_runtime.engine
                     )
-                    # Handle return of CALL/DELEGATECALL/CALLCODE
+                    # Handle return of call
                     if caller_contract.outgoing_transaction.type in [
                         TX.CALL,
                         TX.CALLCODE,
                         TX.DELEGATECALL,
+                        TX.STATICCALL,
                     ]:
                         self._handle_CALL_after(caller_contract, succeeded)
 
@@ -408,7 +431,7 @@ class EVMWorld:
                 # Handle message call
                 if out_tx.type in [TX.CREATE, TX.CREATE2]:
                     self._handle_CREATE()
-                elif out_tx.type == TX.CALL:
+                elif out_tx.type in [TX.CALL, TX.STATICCALL, TX.DELEGATECALL]:
                     # Handle ETH transfers to EOAs
                     if not self.is_contract(out_tx.recipient):
                         self._handle_ETH_transfer()
@@ -531,6 +554,9 @@ class EVMWorld:
 
         rt: EVMRuntime = self.current_contract.current_runtime
         out_tx = contract(rt.engine).outgoing_transaction
+        share_storage_uid = (
+            self.current_engine.uid if out_tx.type == TX.DELEGATECALL else None
+        )
 
         # Get runner for target contract
         try:
@@ -548,8 +574,9 @@ class EVMWorld:
             self.current_tx.block_timestamp_inc,
             VarContext(),
         )
-        self._push_runtime(contract_runner, tx)
+        self._push_runtime(contract_runner, tx, share_storage_uid)
         self.call_stack.append(contract_runner.address)
+        self.static_flag_stack.append(evm_get_static_flag(self.root_engine))
 
     def _handle_CALL_after(
         self, caller_contract: EVMContract, succeeded: bool
@@ -559,18 +586,42 @@ class EVMWorld:
         # Push the success status of transaction in caller stack
         # if the terminating runtime was called with
         caller_contract.stack.push(Cst(256, 1 if succeeded else 0))
-        # Write the return data in memory
-        if succeeded:
+        # Reset the EVM static flag to previous value
+        evm_set_static_flag(self.root_engine, self.static_flag_stack.pop())
+        # Write the return data in memory (if call ended by RETURN)
+        if succeeded and caller_contract.result_from_last_call:
+            out_size = min(
+                caller_contract.outgoing_transaction.ret_len.as_uint(),
+                caller_contract.result_from_last_call.return_data_size,
+            )
+            # Adjust returned data size to space reserved by caller contract
             if (
-                caller_contract.outgoing_transaction.ret_len.as_uint()
+                out_size
                 < caller_contract.result_from_last_call.return_data_size
             ):
-                raise WorldException(
-                    "Message call returned more bytes than the buffer-size allocated by the caller contract"
-                )
+                return_data = []
+                size = 0  # in bytes
+                for val in caller_contract.result_from_last_call.return_data:
+                    if size == out_size:
+                        break
+                    if size + val.size // 8 > out_size:
+                        return_data.append(
+                            Extract(
+                                val,
+                                val.size - 1,
+                                val.size - 8 * (out_size - size),
+                            )
+                        )
+                        break
+                    else:
+                        return_data.append(val)
+                        size += val.size // 8
+            else:
+                return_data = caller_contract.result_from_last_call.return_data
+            # Write call result data into caller contract's memory
             caller_contract.memory.write_buffer(
                 caller_contract.outgoing_transaction.ret_offset,
-                caller_contract.result_from_last_call.return_data,
+                return_data,
             )
 
     def _update_block_info(self, m: MaatEngine, tx: AbstractTx) -> None:

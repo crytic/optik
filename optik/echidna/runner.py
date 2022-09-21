@@ -1,8 +1,9 @@
 import argparse
+import json
 import os
 import subprocess
 from datetime import datetime
-from typing import List, Tuple
+from typing import List, Optional, Tuple
 
 from maat import (
     Cst,
@@ -17,16 +18,16 @@ from .interface import load_tx_sequence, store_new_tx_sequence
 from ..common.logger import logger
 from ..common.world import AbstractTx, EVMWorld
 from ..coverage import Coverage
+from ..common.exceptions import EchidnaException, WorldException
 
 
 # TODO(boyan): pass contract bytecode instead of extracting to file
-
-
 def replay_inputs(
     corpus_files: List[str],
     contract_file: str,
     contract_deployer: int,
     cov: Coverage,
+    echidna_init_file: Optional[str],
 ) -> None:
 
     display.reset_current_task()
@@ -47,6 +48,9 @@ def replay_inputs(
         # some of the Coverage classes that rely on on_attach(). We'll probably
         # have to detach() and re-attach() them
         world = EVMWorld()
+        if echidna_init_file:
+            init_world(world, echidna_init_file)
+
         contract_addr = tx_seq[0].tx.recipient
         # Push initial transaction that initialises the target contract
         world.push_transaction(
@@ -77,10 +81,69 @@ def replay_inputs(
         world.push_transactions(tx_seq)
         cov.set_input_uid(corpus_file)
 
-        # Run
-        assert world.run() == STOP.EXIT
+        # Run and ensure the execution terminated properly
+        status = world.run()
+        if status in [STOP.FATAL, STOP.ERROR]:
+            raise WorldException("Engine stopped because of an error")
+        elif status == STOP.HOOK:
+            raise WorldException(
+                "Engine stopped by an event hook before the end of transaction"
+            )
+        elif status == STOP.NONE:
+            raise WorldException(
+                "Engine stopped before the end of transaction for an unknown reason"
+            )
+        elif status != STOP.EXIT:
+            raise WorldException(f"Unexpected engine status: {status}")
 
     return cov
+
+
+def init_world(world: EVMWorld, init_file: str) -> None:
+    """Setup contracts and EOAs in an EVMWorld according to
+    an Echidna state initialisation file"""
+    with open(init_file, "r") as f:
+        data = json.loads(f.read())
+        for event in data:
+            if event["event"] == "ContractCreated":
+                bytecode = bytes.fromhex(event["data"][2:])
+                world.deploy(
+                    "",  # No file, bytecode is in the tx data
+                    int(event["contract_address"], 16),
+                    int(event["from"], 16),
+                    args=[bytecode],
+                    run_init_bytecode=True,
+                )
+            elif event["event"] == "AccountCreated":
+                pass
+            elif event["event"] == "FunctionCall":
+                sender = Cst(160, int(event["from"], 16))
+                data = bytes.fromhex(event["data"][2:])
+                tx = EVMTransaction(
+                    sender,  # origin
+                    sender,  # sender
+                    int(event["to"], 16),  # recipient
+                    Cst(256, event["value"][2:], 16),  # value
+                    [Cst(8, x) for x in data],  # data
+                    Cst(256, int(event["gas_price"], 16)),  # gas price
+                    Cst(256, int(event["gas_used"], 16) * 2),  # gas_limit
+                )
+                world.push_transaction(
+                    AbstractTx(
+                        tx,
+                        Cst(256, 0),
+                        Cst(256, 0),
+                        VarContext(),
+                    )
+                )
+                status = world.run()
+                if status != STOP.EXIT:
+                    raise WorldException(
+                        f"Failed to properly execute initialisation transaction: {event}"
+                    )
+                assert not world.has_pending_transactions
+            else:
+                raise EchidnaException(f"Unsupported event: {event['event']}")
 
 
 def generate_new_inputs(
