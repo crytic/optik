@@ -1,7 +1,7 @@
 from itertools import accumulate
 from typing import List, Union, Any, Optional
 
-import sha3
+from Crypto.Hash import keccak
 from eth_abi.exceptions import ABITypeError, ParseError
 from eth_abi.grammar import ABIType, BasicType, TupleType, parse, normalize
 from maat import Cst, Sext, Value, Var, VarContext
@@ -396,7 +396,7 @@ def func_signature(func_name: str, args_spec: str) -> str:
 
 def selector(function_signature: str) -> Value:
     """Return the first 4 bytes of the keccak256 hash of 'func_signature'"""
-    k = sha3.keccak_256()
+    k = keccak.new(digest_bits=256)
     k.update(function_signature.encode())
     digest = k.digest()[:4]
     return Cst(32, int.from_bytes(digest, "big"))

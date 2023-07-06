@@ -10,7 +10,7 @@ dependencies = [
     "wheel",
     "pymaat>=0.6.7",
     "eth_abi",
-    "pysha3",
+    "pycryptodome>=3.4.6",
     "rlp",
     "crytic-compile",
     "slither-analyzer",
