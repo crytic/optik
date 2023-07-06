@@ -24,7 +24,7 @@ fuzzer in _hybrid_ mode. It basically couples Echidna with the [Maat](https://gi
 
 ### Usage
 
-Hybrid echidna can be used seamlessly in place of regular Echidna by replacing `echidna-test` with `hybrid-echidna` in your Echidna command line. 
+Hybrid echidna can be used seamlessly in place of regular Echidna by replacing `echidna` with `hybrid-echidna` in your Echidna command line. 
 For example: 
 
 ```
