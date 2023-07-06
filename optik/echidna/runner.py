@@ -246,13 +246,13 @@ def run_echidna_campaign(
     """Run an echidna fuzzing campaign
 
     :param args: arguments to pass to echidna
-    :return: the exit value returned by invoking `echidna-test`
+    :return: the exit value returned by invoking `echidna`
     """
     # Show for how long echidna runs in terminal display
     display.start_echidna_task_timer()
 
     # Build back echidna command line
-    cmdline = ["echidna-test"]
+    cmdline = ["echidna"]
     cmdline += args.FILES
     # Add tx sender(s)
     if args.sender:
